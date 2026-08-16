@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import { 
   Type, 
   Eye, 
@@ -25,6 +26,41 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const LandingPage = ({ onNavigate }) => {
   const { t } = useTranslation();
+  const { user, logout } = useAuth() || {};
+
+  const handleEarnClick = () => {
+    if (user) {
+      if (user.role === 'provider') {
+        onNavigate('onboarding');
+      } else {
+        // Customer trying to earn - clear customer session and show provider signup
+        if (logout) {
+          logout().then(() => onNavigate('signup', 'provider'));
+        } else {
+          onNavigate('signup', 'provider');
+        }
+      }
+    } else {
+      onNavigate('signup', 'provider');
+    }
+  };
+
+  const handleHireClick = () => {
+    if (user) {
+      if (user.role === 'customer') {
+        onNavigate('dashboard');
+      } else {
+        // Provider trying to hire - clear provider session and show customer signup
+        if (logout) {
+          logout().then(() => onNavigate('signup', 'customer'));
+        } else {
+          onNavigate('signup', 'customer');
+        }
+      }
+    } else {
+      onNavigate('signup', 'customer');
+    }
+  };
 
   // Accessibility States
   const [fontSize, setFontSize] = useState('normal'); // 'normal' (16px), 'large' (20px), 'xlarge' (24px)
@@ -157,7 +193,7 @@ const LandingPage = ({ onNavigate }) => {
 
             {/* Get Started Button */}
             <button 
-              onClick={() => onNavigate('signup')}
+              onClick={handleEarnClick}
               className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${primaryBtnTheme}`}
             >
               Get Started
@@ -180,18 +216,18 @@ const LandingPage = ({ onNavigate }) => {
             <p className={`text-lg sm:text-xl leading-relaxed ${textSecondaryTheme}`}>
               SilverHands is a secure community platform that empowers senior citizens and homemakers to offer services like home cooking, gardening, child tutoring, and tech help to trusted neighbors nearby. Built with safety and dignity at its heart.
             </p>
-
+ 
             {/* CTA Buttons */}
             <div className="mt-4 flex flex-col gap-4 sm:flex-row">
               <button 
-                onClick={() => onNavigate('signup')} 
+                onClick={handleEarnClick} 
                 className={`flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-lg font-bold ${primaryBtnTheme}`}
               >
                 I want to earn
                 <ArrowRight className="h-5 w-5" />
               </button>
               <button 
-                onClick={() => onNavigate('signup')} 
+                onClick={handleHireClick} 
                 className={`flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-lg font-bold ${secondaryBtnTheme}`}
               >
                 I want to hire
@@ -335,7 +371,7 @@ const LandingPage = ({ onNavigate }) => {
                   <span className="text-terracotta">✓</span> Complete voice-guided check-ins on our simple mobile interfaces.
                 </li>
               </ul>
-              <a href="#signup" onClick={() => onNavigate('signup')} className="mt-4 flex items-center gap-1 font-bold text-terracotta hover:underline">
+              <a href="#signup" onClick={(e) => { e.preventDefault(); handleEarnClick(); }} className="mt-4 flex items-center gap-1 font-bold text-terracotta hover:underline">
                 Learn More <ArrowRight className="h-4 w-4" />
               </a>
             </div>
@@ -362,7 +398,7 @@ const LandingPage = ({ onNavigate }) => {
                   <span className="text-forest">✓</span> Receive verified business or peer support to build customer circles.
                 </li>
               </ul>
-              <a href="#signup" onClick={() => onNavigate('signup')} className="mt-4 flex items-center gap-1 font-bold text-forest hover:underline">
+              <a href="#signup" onClick={(e) => { e.preventDefault(); handleEarnClick(); }} className="mt-4 flex items-center gap-1 font-bold text-forest hover:underline">
                 Learn More <ArrowRight className="h-4 w-4" />
               </a>
             </div>

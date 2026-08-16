@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Type, Eye, MapPin, Globe } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 
-const Signup = ({ onNavigate }) => {
+const Signup = ({ onNavigate, initialRole = 'provider' }) => {
   const { t } = useTranslation();
   const { signup } = useAuth();
   
@@ -15,7 +15,11 @@ const Signup = ({ onNavigate }) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('provider');
+  const [role, setRole] = useState(initialRole);
+
+  useEffect(() => {
+    setRole(initialRole);
+  }, [initialRole]);
   const [prefLang, setPrefLang] = useState('en');
   const [longitude, setLongitude] = useState('');
   const [latitude, setLatitude] = useState('');
@@ -87,7 +91,11 @@ const Signup = ({ onNavigate }) => {
           latitude: parseFloat(latitude)
         }
       });
-      onNavigate('onboarding');
+      if (role === 'customer') {
+        onNavigate('dashboard');
+      } else {
+        onNavigate('onboarding');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
