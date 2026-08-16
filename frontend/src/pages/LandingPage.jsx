@@ -31,20 +31,7 @@ const LandingPage = ({ onNavigate }) => {
   const { setPanelOpen, highContrast, fontSize } = useAccessibility();
 
   const handleEarnClick = () => {
-    if (user) {
-      if (user.role === 'provider') {
-        onNavigate('onboarding');
-      } else {
-        // Customer trying to earn - clear customer session and show provider signup
-        if (logout) {
-          logout().then(() => onNavigate('signup', 'provider'));
-        } else {
-          onNavigate('signup', 'provider');
-        }
-      }
-    } else {
-      onNavigate('signup', 'provider');
-    }
+    onNavigate('dashboard');
   };
 
   const handleHireClick = () => {
@@ -185,7 +172,7 @@ const LandingPage = ({ onNavigate }) => {
               <SpeakerButton text={t('landing.hero_title')} id="landing-hero-h1" />
             </h1>
             <div className="flex gap-3 items-start text-left">
-              <p className={`text-lg sm:text-xl leading-relaxed flex-grow ${textSecondaryTheme}`}>
+              <p className={`text-lg sm:text-xl leading-relaxed grow ${textSecondaryTheme}`}>
                 {t('landing.hero_desc')}
               </p>
               <SpeakerButton text={t('landing.hero_desc')} id="landing-hero-desc" />

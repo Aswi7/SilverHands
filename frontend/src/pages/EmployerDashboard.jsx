@@ -387,7 +387,7 @@ const EmployerDashboard = ({ onNavigate }) => {
       </aside>
 
       {/* 2. MAIN LAYOUT CONTAINER */}
-      <div className="flex-grow flex flex-col min-w-0">
+      <div className="grow flex flex-col min-w-0">
         
         {/* TOP GREETER BAR */}
         <header className={`border-b sticky top-0 z-30 px-4 py-3 md:px-8 flex items-center justify-between ${
@@ -433,7 +433,7 @@ const EmployerDashboard = ({ onNavigate }) => {
         </header>
 
         {/* 3. MAIN DASHBOARD CONTENT AREA */}
-        <main className="flex-grow p-4 md:p-8 pb-24 md:pb-8 text-left">
+        <main className="grow p-4 md:p-8 pb-24 md:pb-8 text-left">
 
           {/* ================= VIEW 1: POST OPPORTUNITY ================= */}
           {activeTab === 'post' && (
@@ -669,13 +669,13 @@ const EmployerDashboard = ({ onNavigate }) => {
                             setSelectedPosting(post);
                             setActiveTab('candidates');
                           }}
-                          className={`flex-grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${secondaryBtnTheme}`}
+                          className={`grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${secondaryBtnTheme}`}
                         >
                           <Users className="h-4 w-4" />
                           {t('dashboard.employer.postings.view_matches', { count: post.applicantsCount })}
                         </button>
                       ) : (
-                        <p className="text-xs text-gray-400 italic py-2 flex-grow text-center">{t('dashboard.employer.postings.ai_searching')}</p>
+                        <p className="text-xs text-gray-400 italic py-2 grow text-center">{t('dashboard.employer.postings.ai_searching')}</p>
                       )}
                     </div>
 
@@ -732,7 +732,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                     </div>
 
                     {/* Right Info info-dense panel */}
-                    <div className="flex-grow flex flex-col gap-2.5">
+                    <div className="grow flex flex-col gap-2.5">
                       
                       {/* Name, Age, Badges */}
                       <div className="flex flex-wrap items-center gap-2">
@@ -1040,7 +1040,7 @@ const EmployerDashboard = ({ onNavigate }) => {
             <div className="border-t pt-4 border-cream-dark/30 flex gap-3">
               <button 
                 onClick={() => setSelectedCandidate(null)}
-                className={`flex-grow ${outlineBtnTheme}`}
+                className={`grow ${outlineBtnTheme}`}
               >
                 Close Profile
               </button>
@@ -1049,7 +1049,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                   setSelectedCandidate(null);
                   setActiveTab('messages');
                 }}
-                className={`flex-grow ${primaryBtnTheme}`}
+                className={`grow ${primaryBtnTheme}`}
               >
                 Start Chat
               </button>

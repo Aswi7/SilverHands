@@ -24,7 +24,9 @@ import {
   CheckCircle,
   HelpCircle,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Bot,
+  X
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { SafetyTipsCard } from '../components/TrustSafety';
@@ -57,6 +59,12 @@ const UserDashboard = ({ onNavigate }) => {
   ]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
+  // Profile AI Extraction State
+  const [bioText, setBioText] = useState(user?.bio || '');
+  const [extractedSkills, setExtractedSkills] = useState(user?.skills || []);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractError, setExtractError] = useState(null);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -64,6 +72,41 @@ const UserDashboard = ({ onNavigate }) => {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleExtractSkills = async () => {
+    if (!bioText.trim() || !user?.token) return;
+    
+    setIsExtracting(true);
+    setExtractError(null);
+    
+    try {
+      const res = await fetch(`http://localhost:5000/api/providers/${user._id}/extract-skills`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({ bio: bioText })
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.message || 'Failed to extract skills');
+      
+      if (data && data.skills) {
+        setExtractedSkills(data.skills);
+      }
+    } catch (error) {
+      console.error(error);
+      setExtractError(error.message);
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  const handleRemoveExtractedSkill = (indexToRemove) => {
+    setExtractedSkills(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   // --- Opportunity Matches State ---
@@ -711,7 +754,7 @@ const UserDashboard = ({ onNavigate }) => {
             </div>
           )}
 
-          {/* ================= VIEW: MY PROFILE (STUB) ================= */}
+          {/* ================= VIEW: MY PROFILE ================= */}
           {activeTab === 'profile' && (
             <div className="flex flex-col gap-6 text-left">
               <div className="border-b pb-3 border-cream-dark/30">
@@ -721,25 +764,93 @@ const UserDashboard = ({ onNavigate }) => {
                 </p>
               </div>
 
+              {/* Bio / AI Extraction Section */}
               <div className={`p-6 rounded-3xl flex flex-col gap-4 ${cardTheme}`}>
-                <div className="flex items-center gap-4">
-                  <div className="h-16 w-16 rounded-full bg-terracotta flex items-center justify-center font-bold text-white text-2xl shadow-sm">
-                    {(user?.name || 'L')[0]}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold">{user?.name || 'Lakshmi Devi'}</h3>
-                    <p className={`text-xs ${textSecondaryTheme}`}>Role: {user?.role || 'Livelihood Provider'}</p>
-                    <p className={`text-xs ${textSecondaryTheme}`}>Phone: {user?.phone || '8888888888'}</p>
-                  </div>
+                <h3 className="text-xl font-bold flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-terracotta" />
+                  AI Skill Extraction
+                </h3>
+                <p className={`text-sm ${textSecondaryTheme}`}>
+                  Tell us about your experience in your own words, and our AI will automatically map your skills.
+                </p>
+                
+                <textarea 
+                  value={bioText}
+                  onChange={(e) => setBioText(e.target.value)}
+                  placeholder="e.g. I have 15 years of experience as a high school math teacher, and I also love baking cakes for birthdays..."
+                  rows="4"
+                  className={`w-full px-4 py-3 rounded-2xl text-sm border focus:outline-none focus:ring-1 focus:ring-terracotta focus:border-terracotta ${
+                    highContrast ? 'border-white bg-black text-white' : 'border-cream-dark bg-cream-dark/20 text-charcoal'
+                  }`}
+                />
+                
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={handleExtractSkills}
+                    disabled={isExtracting || !bioText.trim()}
+                    className={`flex items-center justify-center gap-2 px-6 ${primaryBtnTheme} ${isExtracting ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  >
+                    {isExtracting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Extracting...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Extract Skills
+                      </>
+                    )}
+                  </button>
+                  {extractError && <span className="text-red-500 text-xs font-bold">{extractError}</span>}
                 </div>
 
-                <button 
-                  onClick={() => onNavigate('onboarding')}
-                  className={`flex items-center justify-center gap-2 mt-4 px-6 ${outlineBtnTheme}`}
-                >
-                  <Sparkles className="h-5 w-5 text-terracotta" />
-                  Run AI Onboarding Flow again
-                </button>
+                {/* Extracted Skills UI */}
+                {extractedSkills.length > 0 && (
+                  <div className="mt-4 border-t border-cream-dark/30 pt-4">
+                    <h4 className="text-sm font-bold mb-3 uppercase tracking-wider text-forest">Extracted Skills Review</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {extractedSkills.map((skill, index) => {
+                        // Check if it's the new object format or the old string format fallback
+                        const isObject = typeof skill === 'object';
+                        const skillName = isObject ? skill.skillName : skill;
+                        const confidence = isObject ? skill.confidence : 1;
+                        const isLowConfidence = confidence < 0.7;
+
+                        return (
+                          <div 
+                            key={index} 
+                            className={`flex flex-col gap-1 px-3 py-2 rounded-xl border text-sm font-bold transition-all ${
+                              isLowConfidence 
+                                ? 'bg-orange-50 border-orange-200 text-orange-800' 
+                                : highContrast ? 'border-white bg-black text-white' : 'bg-teal-50 text-forest border-teal-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>{skillName}</span>
+                              <button 
+                                onClick={() => handleRemoveExtractedSkill(index)}
+                                className={`hover:text-red-500 focus:outline-none ${isLowConfidence ? 'text-orange-500' : ''}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                            {isObject && (
+                              <div className={`text-[10px] font-normal flex gap-2 ${isLowConfidence ? 'text-orange-600' : 'text-teal-600'}`}>
+                                <span>Level: {skill.experienceLevel}</span>
+                                <span>•</span>
+                                <span>Category: {skill.category}</span>
+                              </div>
+                            )}
+                            {isLowConfidence && (
+                              <p className="text-[10px] text-orange-600 italic mt-1">Not sure about this one — please confirm</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
