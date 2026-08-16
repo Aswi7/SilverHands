@@ -38,6 +38,16 @@ const ServiceRequestSchema = new mongoose.Schema({
     type: PointSchema,
     required: true
   },
+  rate: {
+    type: String,
+    trim: true,
+    default: 'Negotiable'
+  },
+  mode: {
+    type: String,
+    enum: ['online', 'offline'],
+    default: 'offline'
+  },
   status: {
     type: String,
     enum: ['pending', 'accepted', 'completed', 'cancelled'],

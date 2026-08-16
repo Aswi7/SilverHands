@@ -5,7 +5,7 @@ const ServiceRequest = require('../models/ServiceRequest');
 // @access  Private (Customer only)
 const createServiceRequest = async (req, res) => {
   try {
-    const { title, description, category, location } = req.body;
+    const { title, description, category, location, rate, mode } = req.body;
 
     if (req.user.role !== 'customer') {
       return res.status(403).json({ message: 'Only customers can create service requests' });
@@ -20,6 +20,8 @@ const createServiceRequest = async (req, res) => {
       title,
       description,
       category,
+      rate,
+      mode,
       location: {
         type: 'Point',
         coordinates: [parseFloat(location.longitude), parseFloat(location.latitude)]
