@@ -27,6 +27,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { SafetyTipsCard } from '../components/TrustSafety';
 
 const UserDashboard = ({ onNavigate }) => {
   const { t } = useTranslation();
@@ -266,6 +267,11 @@ const UserDashboard = ({ onNavigate }) => {
             <span>Profile</span>
           </button>
         </nav>
+
+        {/* Sidebar bottom safety tips widget */}
+        <div className="hidden md:block p-4 border-t border-cream-dark/30">
+          <SafetyTipsCard highContrast={highContrast} />
+        </div>
 
         {/* Sidebar Footer Logouts */}
         <div className="hidden md:block p-4 border-t border-cream-dark/30">

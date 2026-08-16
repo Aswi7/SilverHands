@@ -26,6 +26,15 @@ import {
   Users
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { 
+  VerificationBadge, 
+  RatingDisplay, 
+  ReviewCard, 
+  SubmitReviewForm, 
+  ScamAlertBanner, 
+  ReportBlockModal, 
+  SafetyTipsCard 
+} from '../components/TrustSafety';
 
 const EmployerDashboard = ({ onNavigate }) => {
   const { t } = useTranslation();
@@ -56,6 +65,13 @@ const EmployerDashboard = ({ onNavigate }) => {
 
   // Candidate Profile Modal
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+
+  // Safety Center States
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reviewsList, setReviewsList] = useState([
+    { reviewerName: "Asha G.", date: "12/04/2026", rating: 5, text: "Suresh taught my father how to use digital banking. He was incredibly patient." },
+    { reviewerName: "Vijay K.", date: "09/02/2026", rating: 4, text: "Punctual and very polite. Helped weed our terrace flowerbeds perfectly." }
+  ]);
 
   // Mock Postings Database
   const [postings, setPostings] = useState([
@@ -298,6 +314,15 @@ const EmployerDashboard = ({ onNavigate }) => {
               <Settings className="h-5 w-5" />
               <span>Settings</span>
             </button>
+            <button
+              onClick={() => setActiveTab('safety')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base transition-all ${
+                activeTab === 'safety' ? activeSidebarItemTheme : inactiveSidebarItemTheme
+              }`}
+            >
+              <Shield className="h-5 w-5" />
+              <span>Safety Center</span>
+            </button>
           </nav>
         </div>
 
@@ -322,6 +347,15 @@ const EmployerDashboard = ({ onNavigate }) => {
             <span>Postings</span>
           </button>
           <button
+            onClick={() => setActiveTab('safety')}
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'safety' ? 'text-forest' : 'text-charcoal-light'
+            }`}
+          >
+            <Shield className="h-5 w-5" />
+            <span>Safety</span>
+          </button>
+          <button
             onClick={() => setActiveTab('settings')}
             className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'settings' ? 'text-forest' : 'text-charcoal-light'
@@ -331,6 +365,11 @@ const EmployerDashboard = ({ onNavigate }) => {
             <span>Settings</span>
           </button>
         </nav>
+
+        {/* Sidebar bottom safety tips widget */}
+        <div className="hidden md:block p-4 border-t border-cream-dark/30">
+          <SafetyTipsCard highContrast={highContrast} />
+        </div>
 
         {/* Logout button */}
         <div className="hidden md:block p-4 border-t border-cream-dark/30">
@@ -707,18 +746,9 @@ const EmployerDashboard = ({ onNavigate }) => {
                         <span className={`text-xs ${textSecondaryTheme}`}>Age {cand.age}</span>
                         
                         {/* Badges list */}
-                        <div className="flex gap-1">
+                        <div className="flex gap-1.5 flex-wrap">
                           {cand.verified.map(v => (
-                            <span 
-                              key={v} 
-                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
-                                highContrast ? 'border border-white bg-black' : 'bg-green-50 text-green-700 border border-green-200'
-                              }`}
-                              title={`${v} verified by SilverHands`}
-                            >
-                              <Shield className="h-2.5 w-2.5" />
-                              {v}
-                            </span>
+                            <VerificationBadge key={v} type={v} highContrast={highContrast} />
                           ))}
                         </div>
                       </div>
@@ -784,6 +814,138 @@ const EmployerDashboard = ({ onNavigate }) => {
             </div>
           )}
 
+          {/* ================= VIEW 5: SAFETY CENTER ================= */}
+          {activeTab === 'safety' && (
+            <div className="flex flex-col gap-8 text-left pb-16">
+              
+              {/* Header */}
+              <div className="border-b pb-4 border-cream-dark/30">
+                <h2 className="font-serif text-3xl font-bold flex items-center gap-2">
+                  <Shield className="h-7 w-7 text-forest" />
+                  Trust & Safety Center
+                </h2>
+                <p className={`text-sm ${textSecondaryTheme} mt-1.5 max-w-2xl`}>
+                  SilverHands leverages smart local validation and AI guard tools to keep our community safe. Review live alerts, report accounts, or write neighborhood endorsements below.
+                </p>
+              </div>
+
+              {/* Core Layout Grid */}
+              <div className="grid gap-8 lg:grid-cols-3">
+                
+                {/* Left Columns - Alert Banner, Chat Demo, Reviews Feed */}
+                <div className="lg:col-span-2 flex flex-col gap-8">
+                  
+                  {/* AI Safety Guard Banner Demonstration */}
+                  <div className={`p-6 rounded-3xl border flex flex-col gap-4 ${cardTheme}`}>
+                    <div className="flex items-center gap-2 border-b pb-2 border-cream-dark/20">
+                      <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-ping"></span>
+                      <h3 className="font-serif font-bold text-base text-charcoal">Demo: AI scam detection in action</h3>
+                    </div>
+
+                    <p className="text-xs text-charcoal-light">
+                      Below is a preview simulation of a secure message thread where our AI scanner flagged a suspicious message:
+                    </p>
+
+                    {/* Chat Simulation Box */}
+                    <div className={`border rounded-2xl overflow-hidden ${
+                      highContrast ? 'border-white bg-black' : 'border-cream-dark/50 bg-cream/20 shadow-inner'
+                    }`}>
+                      {/* Chat Header */}
+                      <div className="px-4 py-2 bg-cream-dark/20 border-b border-cream-dark/20 flex items-center justify-between text-xs font-bold">
+                        <span>💬 Secure chat with candidate: Ramesh S.</span>
+                        <span className="text-[10px] text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full font-sans">Active Match</span>
+                      </div>
+
+                      {/* Scam warning banner inserted above chat message */}
+                      <div className="p-3 bg-white border-b border-cream-dark/20">
+                        <ScamAlertBanner 
+                          message="This message requests an advance cash transfer before work has commenced. This violates community safety guidelines."
+                          onLearnMore={() => alert("Scam Guards detect UPI IDs, bank details, and keywords like 'advance', 'upfront', 'deposit' in initial chats to protect elders from online fraud.")}
+                          onReport={() => setIsReportOpen(true)}
+                          highContrast={highContrast}
+                        />
+                      </div>
+
+                      {/* Chat Message Bubble */}
+                      <div className="p-4 flex flex-col gap-3">
+                        <div className="self-start max-w-[85%] rounded-2xl p-3 text-xs bg-cream-dark/30 text-charcoal text-left">
+                          <p className="font-bold text-forest mb-0.5">Ramesh S.</p>
+                          <p>Namaste. I am ready to start cooking for your father tomorrow morning. Please transfer a ₹3,500 security advance to my GPay number 98765-54321 today so I can purchase custom organic groceries.</p>
+                          <span className="text-[9px] text-charcoal-light mt-1 block">Sent 12:35 PM</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Reviews Feed */}
+                  <div className="flex flex-col gap-4">
+                    <h3 className="font-serif text-xl font-bold">Recent Neighborhood Endorsements</h3>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {reviewsList.map((rev, idx) => (
+                        <ReviewCard 
+                          key={idx}
+                          reviewerName={rev.reviewerName}
+                          date={rev.date}
+                          rating={rev.rating}
+                          text={rev.text}
+                          highContrast={highContrast}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Right Column - Submit Review & Rotating Tips card */}
+                <div className="flex flex-col gap-6">
+                  
+                  {/* Safety Tips mobile/supplemental widget */}
+                  <div className="block md:hidden">
+                    <SafetyTipsCard highContrast={highContrast} />
+                  </div>
+
+                  {/* Submit Review Form */}
+                  <SubmitReviewForm 
+                    onSubmit={(newRev) => setReviewsList([
+                      {
+                        reviewerName: "You",
+                        date: newRev.date,
+                        rating: newRev.rating,
+                        text: newRev.comment
+                      },
+                      ...reviewsList
+                    ])}
+                    highContrast={highContrast}
+                  />
+
+                  {/* safety guarantee card */}
+                  <div className={`p-5 rounded-3xl border text-xs leading-relaxed ${
+                    highContrast ? 'border-white bg-black' : 'bg-white border-cream-dark/50 text-charcoal-light'
+                  }`}>
+                    <h4 className="font-serif font-bold text-sm text-charcoal mb-2">Our Safety Guarantee</h4>
+                    <p className="mb-2">✓ All providers undergo digital identity verification before matching.</p>
+                    <p className="mb-2">✓ Dynamic 2dsphere location search prevents matching with distant unknown accounts.</p>
+                    <p>✓ Endorsements can only be submitted by verified residents inside the same block group.</p>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Report & Block Modal Overlay */}
+              <ReportBlockModal 
+                isOpen={isReportOpen}
+                onClose={() => setIsReportOpen(false)}
+                onSubmit={(report) => {
+                  alert(`Report submitted! You have reported Ramesh S. for: "${report.reason}". This user has been blocked from contacting you.`);
+                }}
+                targetName="Ramesh S."
+                highContrast={highContrast}
+              />
+
+            </div>
+          )}
+
         </main>
       </div>
 
@@ -823,10 +985,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                 <span className="text-xs font-bold text-gray-400 uppercase">Verification Checks</span>
                 <div className="flex flex-wrap gap-2">
                   {selectedCandidate.verified.map(v => (
-                    <span key={v} className="bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded text-xs font-semibold flex items-center gap-1">
-                      <CheckCircle className="h-3.5 w-3.5 text-green-600" />
-                      {v}
-                    </span>
+                    <VerificationBadge key={v} type={v} highContrast={highContrast} />
                   ))}
                 </div>
               </div>
