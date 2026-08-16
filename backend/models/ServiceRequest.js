@@ -43,6 +43,11 @@ const ServiceRequestSchema = new mongoose.Schema({
     trim: true,
     default: 'Negotiable'
   },
+  timing: {
+    type: String,
+    trim: true,
+    default: 'Not specified'
+  },
   mode: {
     type: String,
     enum: ['online', 'offline'],
