@@ -35,6 +35,7 @@ import {
   ReportBlockModal, 
   SafetyTipsCard 
 } from '../components/TrustSafety';
+import { ChatInterface } from '../components/ChatInterface';
 
 const EmployerDashboard = ({ onNavigate }) => {
   const { t } = useTranslation();
@@ -315,6 +316,15 @@ const EmployerDashboard = ({ onNavigate }) => {
               <span>Settings</span>
             </button>
             <button
+              onClick={() => setActiveTab('messages')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base transition-all ${
+                activeTab === 'messages' ? activeSidebarItemTheme : inactiveSidebarItemTheme
+              }`}
+            >
+              <MessageSquare className="h-5 w-5" />
+              <span>Messages</span>
+            </button>
+            <button
               onClick={() => setActiveTab('safety')}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base transition-all ${
                 activeTab === 'safety' ? activeSidebarItemTheme : inactiveSidebarItemTheme
@@ -345,6 +355,15 @@ const EmployerDashboard = ({ onNavigate }) => {
           >
             <Briefcase className="h-5 w-5" />
             <span>Postings</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('messages')}
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-xs font-bold transition-all ${
+              activeTab === 'messages' ? 'text-forest' : 'text-charcoal-light'
+            }`}
+          >
+            <MessageSquare className="h-5 w-5" />
+            <span>Messages</span>
           </button>
           <button
             onClick={() => setActiveTab('safety')}
@@ -779,7 +798,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                         </button>
                         <button
                           onClick={() => {
-                            alert(`Contact details shared! Start a chat with ${cand.name} using the message console.`);
+                            setActiveTab('messages');
                           }}
                           className={`px-6 text-sm font-bold flex items-center gap-1.5 ${primaryBtnTheme}`}
                         >
@@ -811,6 +830,20 @@ const EmployerDashboard = ({ onNavigate }) => {
                 <h4 className="font-serif font-bold text-sm text-forest">Helpline assistance</h4>
                 <p className="text-sm">For employer billing, corporate sponsorships, and verified listing checks, please call: <strong>+91 99999-77777</strong></p>
               </div>
+            </div>
+          )}
+
+          {/* ================= VIEW 6: MESSAGES ================= */}
+          {activeTab === 'messages' && (
+            <div className="flex flex-col gap-6 text-left">
+              <div className="border-b pb-3 border-cream-dark/30">
+                <h2 className="font-serif text-2xl font-bold">Candidate Messages</h2>
+                <p className={`text-sm ${textSecondaryTheme} mt-1`}>
+                  Communicate securely with senior citizens and homemakers matching your gigs.
+                </p>
+              </div>
+
+              <ChatInterface user={user} highContrast={highContrast} onNavigate={onNavigate} />
             </div>
           )}
 
@@ -1039,7 +1072,7 @@ const EmployerDashboard = ({ onNavigate }) => {
               <button 
                 onClick={() => {
                   setSelectedCandidate(null);
-                  alert(`Starting secure chat session with ${selectedCandidate.name}...`);
+                  setActiveTab('messages');
                 }}
                 className={`flex-grow ${primaryBtnTheme}`}
               >

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { SafetyTipsCard } from '../components/TrustSafety';
+import { ChatInterface } from '../components/ChatInterface';
 
 const UserDashboard = ({ onNavigate }) => {
   const { t } = useTranslation();
@@ -722,7 +723,7 @@ const UserDashboard = ({ onNavigate }) => {
             </div>
           )}
 
-          {/* ================= VIEW: MESSAGES (STUB) ================= */}
+          {/* ================= VIEW: MESSAGES ================= */}
           {activeTab === 'messages' && (
             <div className="flex flex-col gap-6 text-left">
               <div className="border-b pb-3 border-cream-dark/30">
@@ -732,13 +733,7 @@ const UserDashboard = ({ onNavigate }) => {
                 </p>
               </div>
 
-              <div className={`p-8 text-center rounded-3xl ${cardTheme}`}>
-                <MessageSquare className="h-12 w-12 text-terracotta mx-auto mb-3" />
-                <h3 className="text-lg font-bold">Secure Chat Portal</h3>
-                <p className={`text-xs ${textSecondaryTheme} max-w-sm mx-auto mt-1`}>
-                  You have no unread messages. Active chat threads with Col. Raghavan and Asha Devi will appear here once an interview is scheduled.
-                </p>
-              </div>
+              <ChatInterface user={user} highContrast={highContrast} onNavigate={onNavigate} />
             </div>
           )}
 
