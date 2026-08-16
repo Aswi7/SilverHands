@@ -36,14 +36,14 @@ import {
   SafetyTipsCard 
 } from '../components/TrustSafety';
 import { ChatInterface } from '../components/ChatInterface';
+import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
 
 const EmployerDashboard = ({ onNavigate }) => {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
 
-  // Accessibility States
-  const [fontSize, setFontSize] = useState('normal'); 
-  const [highContrast, setHighContrast] = useState(false);
+  // Accessibility Global Settings
+  const { setPanelOpen, highContrast, fontSize } = useAccessibility();
 
   // Tab Navigation State
   const [activeTab, setActiveTab] = useState('postings');
@@ -164,26 +164,7 @@ const EmployerDashboard = ({ onNavigate }) => {
     ]
   };
 
-  // Sync Root Font Size
-  useEffect(() => {
-    const root = document.documentElement;
-    if (fontSize === 'normal') {
-      root.style.fontSize = '16px';
-    } else if (fontSize === 'large') {
-      root.style.fontSize = '20px';
-    } else if (fontSize === 'xlarge') {
-      root.style.fontSize = '24px';
-    }
-    return () => {
-      root.style.fontSize = '16px';
-    };
-  }, [fontSize]);
 
-  const cycleFontSize = () => {
-    if (fontSize === 'normal') setFontSize('large');
-    else if (fontSize === 'large') setFontSize('xlarge');
-    else setFontSize('normal');
-  };
 
   const handleLogout = async () => {
     try {
@@ -415,30 +396,24 @@ const EmployerDashboard = ({ onNavigate }) => {
           
           <div className="text-left">
             <h1 className="text-xl font-bold font-serif md:text-2xl flex items-center gap-1.5">
-              Good morning, Col. Raghavan 🌸
+              <span>Good morning, Col. Raghavan 🌸</span>
+              <SpeakerButton text="Good morning, Colonel Raghavan. Welcome back to your SilverHands Employer Dashboard." id="employer-dashboard-greeting" />
             </h1>
           </div>
 
           {/* Quick Accessibility and Bell Controls */}
           <div className="flex items-center gap-3">
             
-            {/* Accessibility Controls */}
+            {/* Aa Accessibility Controls */}
             <button 
-              onClick={cycleFontSize}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle Font Size"
+              onClick={() => setPanelOpen(true)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${
+                highContrast ? 'border-white hover:bg-white hover:text-black bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/30 text-charcoal'
+              }`}
+              aria-label="Open Accessibility Panel"
             >
               <Type className="h-4 w-4" />
-              <span>Aa</span>
-            </button>
-
-            <button 
-              onClick={() => setHighContrast(!highContrast)}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white bg-white text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle High Contrast"
-            >
-              <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">Contrast</span>
+              <span>Aa Options</span>
             </button>
 
             <div className="flex items-center gap-1 text-sm">

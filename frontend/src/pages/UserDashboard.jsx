@@ -29,14 +29,14 @@ import {
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { SafetyTipsCard } from '../components/TrustSafety';
 import { ChatInterface } from '../components/ChatInterface';
+import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
 
 const UserDashboard = ({ onNavigate }) => {
   const { t } = useTranslation();
   const { user, logout } = useAuth();
 
-  // Accessibility States
-  const [fontSize, setFontSize] = useState('normal'); 
-  const [highContrast, setHighContrast] = useState(false);
+  // Accessibility Global Settings
+  const { setPanelOpen, highContrast, fontSize } = useAccessibility();
 
   // Tab Navigation State
   const [activeTab, setActiveTab] = useState('matches');
@@ -56,27 +56,6 @@ const UserDashboard = ({ onNavigate }) => {
     { id: 3, text: "Application confirmed for Math Tuitions", time: "1d ago", unread: false }
   ]);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
-
-  // Sync Root Font Size
-  useEffect(() => {
-    const root = document.documentElement;
-    if (fontSize === 'normal') {
-      root.style.fontSize = '16px';
-    } else if (fontSize === 'large') {
-      root.style.fontSize = '20px';
-    } else if (fontSize === 'xlarge') {
-      root.style.fontSize = '24px';
-    }
-    return () => {
-      root.style.fontSize = '16px';
-    };
-  }, [fontSize]);
-
-  const cycleFontSize = () => {
-    if (fontSize === 'normal') setFontSize('large');
-    else if (fontSize === 'large') setFontSize('xlarge');
-    else setFontSize('normal');
-  };
 
   const handleLogout = async () => {
     try {
@@ -299,30 +278,24 @@ const UserDashboard = ({ onNavigate }) => {
           
           <div className="text-left">
             <h1 className="text-xl font-bold font-serif md:text-2xl flex items-center gap-1.5">
-              Good morning, {user?.name || 'Lakshmi'} 🌸
+              <span>Good morning, {user?.name || 'Lakshmi'} 🌸</span>
+              <SpeakerButton text={`Good morning, ${user?.name || 'Lakshmi'}. Welcome back to your SilverHands Provider Dashboard.`} id="provider-dashboard-greeting" />
             </h1>
           </div>
 
           {/* Quick Accessibility and Profile Dropdown */}
           <div className="flex items-center gap-3">
             
-            {/* Accessibility Controls */}
+            {/* Aa Accessibility Controls */}
             <button 
-              onClick={cycleFontSize}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle Font Size"
+              onClick={() => setPanelOpen(true)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${
+                highContrast ? 'border-white hover:bg-white hover:text-black bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/30 text-charcoal'
+              }`}
+              aria-label="Open Accessibility Panel"
             >
               <Type className="h-4 w-4" />
-              <span>Aa</span>
-            </button>
-
-            <button 
-              onClick={() => setHighContrast(!highContrast)}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white bg-white text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle High Contrast"
-            >
-              <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">Contrast</span>
+              <span>Aa Options</span>
             </button>
 
             {/* Notification Bell */}

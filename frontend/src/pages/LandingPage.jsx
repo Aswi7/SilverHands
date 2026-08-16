@@ -23,10 +23,12 @@ import {
   Globe 
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
 
 const LandingPage = ({ onNavigate }) => {
   const { t } = useTranslation();
   const { user, logout } = useAuth() || {};
+  const { setPanelOpen, highContrast, fontSize } = useAccessibility();
 
   const handleEarnClick = () => {
     if (user) {
@@ -62,33 +64,9 @@ const LandingPage = ({ onNavigate }) => {
     }
   };
 
-  // Accessibility States
-  const [fontSize, setFontSize] = useState('normal'); // 'normal' (16px), 'large' (20px), 'xlarge' (24px)
-  const [highContrast, setHighContrast] = useState(false);
-
   // Carousel States
-  const [activeTestimonial, setActiveTestimonial] = useState(0);
-
-  // Sync Root Font Size
-  useEffect(() => {
-    const root = document.documentElement;
-    if (fontSize === 'normal') {
-      root.style.fontSize = '16px';
-    } else if (fontSize === 'large') {
-      root.style.fontSize = '20px';
-    } else if (fontSize === 'xlarge') {
-      root.style.fontSize = '24px';
-    }
-    return () => {
-      root.style.fontSize = '16px'; // cleanup
-    };
-  }, [fontSize]);
-
-  const cycleFontSize = () => {
-    if (fontSize === 'normal') setFontSize('large');
-    else if (fontSize === 'large') setFontSize('xlarge');
-    else setFontSize('normal');
-  };
+  const [activeTestimonial, setLiveActiveTestimonial] = useState(0); // rename slightly to avoid conflict if needed, or leave activeTestimonial
+  const setActiveTestimonial = setLiveActiveTestimonial;
 
   const testimonials = [
     {
@@ -165,24 +143,16 @@ const LandingPage = ({ onNavigate }) => {
           {/* Accessibility Controls & Actions */}
           <div className="flex items-center gap-4">
             
-            {/* Aa Text Scale Toggle */}
+            {/* Aa Accessibility Controls */}
             <button 
-              onClick={cycleFontSize}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle Font Size"
+              onClick={() => setPanelOpen(true)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-semibold transition-all ${
+                highContrast ? 'border-white hover:bg-white hover:text-black bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/30 text-charcoal'
+              }`}
+              aria-label="Open Accessibility Panel"
             >
               <Type className="h-4 w-4" />
-              <span>Aa</span>
-            </button>
-
-            {/* High Contrast Mode Toggle */}
-            <button 
-              onClick={() => setHighContrast(!highContrast)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white bg-white text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle High Contrast"
-            >
-              <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">Contrast</span>
+              <span>Aa Options</span>
             </button>
 
             {/* Language Dropdown */}
@@ -210,12 +180,16 @@ const LandingPage = ({ onNavigate }) => {
           
           {/* Copy Writing */}
           <div className="flex flex-col gap-6 text-left">
-            <h1 className="font-serif text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl">
-              Turn your <span className="text-terracotta">skills</span> and <span className="text-forest">experience</span> into local earnings.
+            <h1 className="font-serif text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl flex items-center justify-between gap-3">
+              <span>Turn your <span className="text-terracotta">skills</span> and <span className="text-forest">experience</span> into local earnings.</span>
+              <SpeakerButton text="Turn your skills and experience into local earnings." id="landing-hero-h1" />
             </h1>
-            <p className={`text-lg sm:text-xl leading-relaxed ${textSecondaryTheme}`}>
-              SilverHands is a secure community platform that empowers senior citizens and homemakers to offer services like home cooking, gardening, child tutoring, and tech help to trusted neighbors nearby. Built with safety and dignity at its heart.
-            </p>
+            <div className="flex gap-3 items-start">
+              <p className={`text-lg sm:text-xl leading-relaxed flex-grow ${textSecondaryTheme}`}>
+                SilverHands is a secure community platform that empowers senior citizens and homemakers to offer services like home cooking, gardening, child tutoring, and tech help to trusted neighbors nearby. Built with safety and dignity at its heart.
+              </p>
+              <SpeakerButton text="SilverHands is a secure community platform that empowers senior citizens and homemakers to offer services like home cooking, gardening, child tutoring, and tech help to trusted neighbors nearby. Built with safety and dignity at its heart." id="landing-hero-desc" />
+            </div>
  
             {/* CTA Buttons */}
             <div className="mt-4 flex flex-col gap-4 sm:flex-row">
