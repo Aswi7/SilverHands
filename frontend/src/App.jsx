@@ -4,7 +4,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import LandingPage from './pages/LandingPage';
-import './App.css';
+import OnboardingFlow from './pages/OnboardingFlow';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -14,10 +14,10 @@ function AppContent() {
     if (!loading) {
       if (user) {
         if (view === 'login' || view === 'signup') {
-          setView('dashboard');
+          setView('onboarding');
         }
       } else {
-        if (view === 'dashboard') {
+        if (view === 'dashboard' || view === 'onboarding') {
           setView('login');
         }
       }
@@ -37,6 +37,8 @@ function AppContent() {
       return <LandingPage onNavigate={setView} />;
     case 'signup':
       return <Signup onNavigate={setView} />;
+    case 'onboarding':
+      return <OnboardingFlow onNavigate={setView} />;
     case 'dashboard':
       return user ? <Dashboard onNavigate={setView} /> : <Login onNavigate={setView} />;
     case 'login':
