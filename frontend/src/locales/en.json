@@ -47,5 +47,119 @@
     "bio": "Bio / About Me",
     "km_away": "{{distance}} km away",
     "meters_away": "{{distance}} meters away"
+  },
+  "landing": {
+    "hero_title": "Turn your skills and experience into local earnings.",
+    "hero_desc": "SilverHands is a secure community platform that empowers senior citizens and homemakers to offer services like home cooking, gardening, child tutoring, and tech help to trusted neighbors nearby. Built with safety and dignity at its heart.",
+    "earn_btn": "I want to earn",
+    "hire_btn": "I want to hire",
+    "verified_members": "⭐ 500+ verified members earning in your neighborhood.",
+    "how_it_works_title": "Simple steps to start",
+    "seniors_title": "Senior Citizens",
+    "seniors_desc": "Supplement your pension, share a lifetime of practical wisdom, and stay active in your local neighborhood on your own flexible schedule.",
+    "homemakers_title": "Homemakers",
+    "homemakers_desc": "Earn independent income using your daily skills like custom culinary baking, hand-crafts sewing, child-minding, and home care.",
+    "learn_more": "Learn More"
+  },
+  "dashboard": {
+    "provider": {
+      "greeting": "Good morning, {{name}}",
+      "options": "Options",
+      "logout": "Log Out",
+      "tabs": {
+        "matches": "Matches",
+        "applications": "Applications",
+        "earnings": "Earnings",
+        "messages": "Messages",
+        "profile": "Profile",
+        "settings": "Settings"
+      },
+      "matches": {
+        "ai_tip": "SilverHands matches you based on your skills, location, and past ratings.",
+        "category": "Category",
+        "all_categories": "All",
+        "cooking": "Cooking",
+        "tutoring": "Tutoring",
+        "gardening": "Gardening",
+        "distance": "Distance",
+        "any": "Any",
+        "nearby": "Nearby",
+        "mode": "Mode",
+        "all": "All",
+        "online": "Online",
+        "offline": "In Person",
+        "empty_title": "No Matches Right Now",
+        "empty_desc": "We are currently looking for opportunities that match your profile.",
+        "complete_profile": "Complete Your Profile",
+        "match": "Match",
+        "posted": "Posted",
+        "interested": "I'm Interested",
+        "maybe_later": "Maybe Later"
+      },
+      "applications": {
+        "title": "Applications",
+        "desc": "Track the status of gigs you've applied for.",
+        "applied": "Applied",
+        "contacted": "Contacted",
+        "confirmed": "Confirmed"
+      },
+      "earnings": {
+        "title": "My Earnings",
+        "desc": "Track your payouts and completed jobs.",
+        "this_month": "This Month",
+        "total_hours": "Total Hours",
+        "services_provided": "Services Provided"
+      },
+      "messages": {
+        "title": "Messages",
+        "desc": "Chat securely with potential employers."
+      }
+    },
+    "employer": {
+      "greeting": "Welcome back, {{name}}",
+      "tabs": {
+        "post": "Post Request",
+        "postings": "My Postings",
+        "settings": "Settings",
+        "messages": "Messages",
+        "safety": "Safety Center"
+      },
+      "post": {
+        "title": "Post an Opportunity",
+        "desc": "Describe what you need help with. AI will organize it for you.",
+        "describe": "Describe your request",
+        "sample": "Insert Sample",
+        "placeholder": "e.g., I need a tutor for my son...",
+        "ai_structure": "AI will structure this",
+        "analyze_btn": "Create Listing",
+        "analyzing": "Analyzing...",
+        "preview_title": "Listing Preview",
+        "field_title": "Title",
+        "field_category": "Category",
+        "field_desc": "Description",
+        "field_pay": "Pay Rate",
+        "field_mode": "Work Mode",
+        "field_timing": "Timing",
+        "publish_btn": "Publish Opportunity"
+      },
+      "postings": {
+        "title": "My Postings",
+        "desc": "Manage your open requests.",
+        "post_new": "Post New Request",
+        "view_matches": "View Matches ({{count}})",
+        "ai_searching": "AI is finding matches..."
+      },
+      "candidates": {
+        "back": "Back to Postings",
+        "title": "Matched Candidates",
+        "desc": "Showing candidates for:",
+        "match": "Match",
+        "age": "{{age}} years old",
+        "skills": "Skills:",
+        "availability": "Availability:",
+        "view_profile": "View Profile",
+        "contact": "Contact Candidate"
+      }
+    }
   }
 }

@@ -28,7 +28,8 @@ i18n
       escapeValue: false // React already escapes values (prevents XSS)
     },
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['localStorage'],
+      lookupLocalStorage: 'sh_language',
       caches: ['localStorage']
     }
   });

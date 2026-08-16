@@ -276,7 +276,7 @@ const EmployerDashboard = ({ onNavigate }) => {
               }`}
             >
               <Plus className="h-5 w-5" />
-              <span>Post Opportunity</span>
+              <span>{t('dashboard.employer.tabs.post')}</span>
             </button>
             <button
               onClick={() => setActiveTab('postings')}
@@ -285,7 +285,7 @@ const EmployerDashboard = ({ onNavigate }) => {
               }`}
             >
               <Briefcase className="h-5 w-5" />
-              <span>My Postings</span>
+              <span>{t('dashboard.employer.tabs.postings')}</span>
             </button>
             <button
               onClick={() => setActiveTab('settings')}
@@ -294,7 +294,7 @@ const EmployerDashboard = ({ onNavigate }) => {
               }`}
             >
               <Settings className="h-5 w-5" />
-              <span>Settings</span>
+              <span>{t('dashboard.employer.tabs.settings')}</span>
             </button>
             <button
               onClick={() => setActiveTab('messages')}
@@ -303,7 +303,7 @@ const EmployerDashboard = ({ onNavigate }) => {
               }`}
             >
               <MessageSquare className="h-5 w-5" />
-              <span>Messages</span>
+              <span>{t('dashboard.employer.tabs.messages')}</span>
             </button>
             <button
               onClick={() => setActiveTab('safety')}
@@ -312,7 +312,7 @@ const EmployerDashboard = ({ onNavigate }) => {
               }`}
             >
               <Shield className="h-5 w-5" />
-              <span>Safety Center</span>
+              <span>{t('dashboard.employer.tabs.safety')}</span>
             </button>
           </nav>
         </div>
@@ -326,7 +326,7 @@ const EmployerDashboard = ({ onNavigate }) => {
             }`}
           >
             <Plus className="h-5 w-5" />
-            <span>Post</span>
+            <span>{t('dashboard.employer.tabs.post')}</span>
           </button>
           <button
             onClick={() => setActiveTab('postings')}
@@ -335,7 +335,7 @@ const EmployerDashboard = ({ onNavigate }) => {
             }`}
           >
             <Briefcase className="h-5 w-5" />
-            <span>Postings</span>
+            <span>{t('dashboard.employer.tabs.postings')}</span>
           </button>
           <button
             onClick={() => setActiveTab('messages')}
@@ -353,7 +353,7 @@ const EmployerDashboard = ({ onNavigate }) => {
             }`}
           >
             <Shield className="h-5 w-5" />
-            <span>Safety</span>
+            <span>{t('dashboard.employer.tabs.safety')}</span>
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -380,7 +380,7 @@ const EmployerDashboard = ({ onNavigate }) => {
             }`}
           >
             <LogOut className="h-4 w-4" />
-            <span>Logout</span>
+            <span>{t('dashboard.provider.logout')}</span>
           </button>
         </div>
 
@@ -396,7 +396,7 @@ const EmployerDashboard = ({ onNavigate }) => {
           
           <div className="text-left">
             <h1 className="text-xl font-bold font-serif md:text-2xl flex items-center gap-1.5">
-              <span>Good morning, Col. Raghavan 🌸</span>
+              <span>{t('dashboard.employer.greeting', { name: user?.name || 'Col. Raghavan' })}</span>
               <SpeakerButton text="Good morning, Colonel Raghavan. Welcome back to your SilverHands Employer Dashboard." id="employer-dashboard-greeting" />
             </h1>
           </div>
@@ -413,7 +413,7 @@ const EmployerDashboard = ({ onNavigate }) => {
               aria-label="Open Accessibility Panel"
             >
               <Type className="h-4 w-4" />
-              <span>Aa Options</span>
+              <span>{t('dashboard.provider.options')}</span>
             </button>
 
             <div className="flex items-center gap-1 text-sm">
@@ -440,9 +440,9 @@ const EmployerDashboard = ({ onNavigate }) => {
             <div className="flex flex-col gap-6 max-w-3xl mx-auto">
               
               <div className="border-b pb-3 border-cream-dark/30">
-                <h2 className="font-serif text-2xl font-bold">Post an Opportunity</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.post.title')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Write what you need naturally. Our AI will structure it into a neat matching listing.
+                  {t('dashboard.employer.post.desc')}
                 </p>
               </div>
 
@@ -450,13 +450,13 @@ const EmployerDashboard = ({ onNavigate }) => {
               <div className={`p-6 rounded-3xl flex flex-col gap-4 ${cardTheme}`}>
                 
                 <div className="flex justify-between items-center">
-                  <label htmlFor="rawText" className="text-sm font-bold">Describe what you need in your own words</label>
+                  <label htmlFor="rawText" className="text-sm font-bold">{t('dashboard.employer.post.describe')}</label>
                   <button 
                     type="button" 
                     onClick={handleAutofillInput} 
                     className="text-xs font-semibold text-terracotta underline hover:no-underline"
                   >
-                    💡 Insert Sample Request
+                    {t('dashboard.employer.post.sample')}
                   </button>
                 </div>
 
@@ -465,14 +465,14 @@ const EmployerDashboard = ({ onNavigate }) => {
                   rows="4"
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
-                  placeholder="e.g. I need a patient person who can teach my daughter basic math and algebra twice a week online..."
+                  placeholder={t('dashboard.employer.post.placeholder')}
                   className={`w-full px-4 py-3 rounded-2xl text-base ${inputTheme}`}
                 />
 
                 <div className="flex justify-end items-center gap-3">
                   <span className="text-xs text-forest font-semibold flex items-center gap-1">
                     <Sparkles className="h-4 w-4 text-terracotta animate-pulse" />
-                    AI will structure this listing
+                    {t('dashboard.employer.post.ai_structure')}
                   </span>
                   
                   <button
@@ -480,7 +480,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                     disabled={isAnalyzing || !rawText.trim()}
                     className={`px-8 ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {isAnalyzing ? "Analyzing..." : "Structure Listing"}
+                    {isAnalyzing ? "{t('dashboard.employer.post.analyzing')}" : "{t('dashboard.employer.post.analyze_btn')}"}
                   </button>
                 </div>
 
@@ -491,7 +491,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                 <div className="flex flex-col gap-5 mt-4">
                   <h4 className="font-serif text-lg font-bold text-forest flex items-center gap-1.5">
                     <CheckCircle className="h-5 w-5 text-green-600" />
-                    AI Structured Listing Preview
+                    {t('dashboard.employer.post.preview_title')}
                   </h4>
 
                   <form onSubmit={handlePublishOpportunity} className={`p-6 rounded-3xl flex flex-col gap-4 border-2 ${
@@ -500,7 +500,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                     
                     {/* Inline edit title */}
                     <div className="flex flex-col gap-1">
-                      <label htmlFor="previewTitle" className="text-xs font-bold text-gray-500">Title</label>
+                      <label htmlFor="previewTitle" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_title')}</label>
                       <input 
                         type="text" 
                         id="previewTitle"
@@ -512,7 +512,7 @@ const EmployerDashboard = ({ onNavigate }) => {
 
                     {/* Inline edit Category */}
                     <div className="flex flex-col gap-1">
-                      <label htmlFor="previewCategory" className="text-xs font-bold text-gray-500">Category Tag</label>
+                      <label htmlFor="previewCategory" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_category')}</label>
                       <select 
                         id="previewCategory"
                         value={previewCategory} 
@@ -528,7 +528,7 @@ const EmployerDashboard = ({ onNavigate }) => {
 
                     {/* Inline edit Description */}
                     <div className="flex flex-col gap-1">
-                      <label htmlFor="previewDesc" className="text-xs font-bold text-gray-500">Description</label>
+                      <label htmlFor="previewDesc" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_desc')}</label>
                       <textarea 
                         id="previewDesc"
                         rows="3"
@@ -540,7 +540,7 @@ const EmployerDashboard = ({ onNavigate }) => {
 
                     {/* Suggested Pay Range */}
                     <div className="flex flex-col gap-1">
-                      <label htmlFor="previewPay" className="text-xs font-bold text-gray-500">Suggested Pay Range</label>
+                      <label htmlFor="previewPay" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_pay')}</label>
                       <input 
                         type="text" 
                         id="previewPay"
@@ -552,7 +552,7 @@ const EmployerDashboard = ({ onNavigate }) => {
 
                     {/* Location/Online toggle pills */}
                     <div className="flex flex-col gap-1.5">
-                      <span className="text-xs font-bold text-gray-500">Location Mode</span>
+                      <span className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_mode')}</span>
                       <div className="flex gap-2">
                         {['offline', 'online'].map(mode => (
                           <button
@@ -573,7 +573,7 @@ const EmployerDashboard = ({ onNavigate }) => {
 
                     {/* Timing */}
                     <div className="flex flex-col gap-1">
-                      <label htmlFor="previewTiming" className="text-xs font-bold text-gray-500">Required Timing</label>
+                      <label htmlFor="previewTiming" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_timing')}</label>
                       <input 
                         type="text" 
                         id="previewTiming"
@@ -588,7 +588,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                       type="submit" 
                       className={`w-full flex items-center justify-center gap-1.5 ${primaryBtnTheme} mt-4`}
                     >
-                      Publish Opportunity
+                      {t('dashboard.employer.post.publish_btn')}
                     </button>
 
                   </form>
@@ -604,9 +604,9 @@ const EmployerDashboard = ({ onNavigate }) => {
               
               <div className="border-b pb-3 border-cream-dark/30 flex justify-between items-end">
                 <div>
-                  <h2 className="font-serif text-2xl font-bold">My Postings</h2>
+                  <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.postings.title')}</h2>
                   <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                    Manage requests and inspect candidates matched by our AI matching engine.
+                    {t('dashboard.employer.postings.desc')}
                   </p>
                 </div>
                 
@@ -615,7 +615,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                   className={`hidden sm:flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm ${primaryBtnTheme}`}
                 >
                   <Plus className="h-4 w-4" />
-                  Post New Opportunity
+                  {t('dashboard.employer.postings.post_new')}
                 </button>
               </div>
 
@@ -672,10 +672,10 @@ const EmployerDashboard = ({ onNavigate }) => {
                           className={`flex-grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${secondaryBtnTheme}`}
                         >
                           <Users className="h-4 w-4" />
-                          View Matches ({post.applicantsCount})
+                          {t('dashboard.employer.postings.view_matches', { count: post.applicantsCount })}
                         </button>
                       ) : (
-                        <p className="text-xs text-gray-400 italic py-2 flex-grow text-center">AI is searching for candidate matches...</p>
+                        <p className="text-xs text-gray-400 italic py-2 flex-grow text-center">{t('dashboard.employer.postings.ai_searching')}</p>
                       )}
                     </div>
 
@@ -699,12 +699,12 @@ const EmployerDashboard = ({ onNavigate }) => {
                   }}
                   className={`text-xs font-bold text-terracotta flex items-center gap-1 hover:underline`}
                 >
-                  ← Back to My Postings
+                  {t('dashboard.employer.candidates.back')}
                 </button>
                 
-                <h2 className="font-serif text-2xl font-bold mt-2 pr-12">Matched Candidates</h2>
+                <h2 className="font-serif text-2xl font-bold mt-2 pr-12">{t('dashboard.employer.candidates.title')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Matching candidates for your listing: <strong>{selectedPosting.title}</strong>
+                  {t('dashboard.employer.candidates.desc')} <strong>{selectedPosting.title}</strong>
                 </p>
               </div>
 
@@ -721,7 +721,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                       highContrast ? 'border-2 border-white bg-black' : 'bg-forest shadow-sm'
                     }`}>
                       <span className="text-base">{cand.score}%</span>
-                      <span className="text-[8px] uppercase font-bold">Match</span>
+                      <span className="text-[8px] uppercase font-bold">{t('dashboard.employer.candidates.match')}</span>
                     </div>
 
                     {/* Left: Avatar placeholder */}
@@ -737,7 +737,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                       {/* Name, Age, Badges */}
                       <div className="flex flex-wrap items-center gap-2">
                         <h4 className="text-xl font-bold">{cand.name}</h4>
-                        <span className={`text-xs ${textSecondaryTheme}`}>Age {cand.age}</span>
+                        <span className={`text-xs ${textSecondaryTheme}`}>{t('dashboard.employer.candidates.age', { age: cand.age })}</span>
                         
                         {/* Badges list */}
                         <div className="flex gap-1.5 flex-wrap">
@@ -759,8 +759,8 @@ const EmployerDashboard = ({ onNavigate }) => {
 
                       {/* Info details */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-500">
-                        <span>💪 <strong>Skills:</strong> {cand.skills.slice(0, 3).join(', ')}</span>
-                        <span>📅 <strong>Availability:</strong> {cand.availability}</span>
+                        <span>💪 <strong>{t('dashboard.employer.candidates.skills')}</strong> {cand.skills.slice(0, 3).join(', ')}</span>
+                        <span>📅 <strong>{t('dashboard.employer.candidates.availability')}</strong> {cand.availability}</span>
                       </div>
 
                       {/* Actions */}
@@ -769,7 +769,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                           onClick={() => setSelectedCandidate(cand)}
                           className={`px-6 text-sm font-bold ${outlineBtnTheme}`}
                         >
-                          View Profile
+                          {t('dashboard.employer.candidates.view_profile')}
                         </button>
                         <button
                           onClick={() => {
@@ -778,7 +778,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                           className={`px-6 text-sm font-bold flex items-center gap-1.5 ${primaryBtnTheme}`}
                         >
                           <MessageSquare className="h-4 w-4" />
-                          Contact Candidate
+                          {t('dashboard.employer.candidates.contact')}
                         </button>
                       </div>
 

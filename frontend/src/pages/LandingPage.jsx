@@ -180,15 +180,15 @@ const LandingPage = ({ onNavigate }) => {
           
           {/* Copy Writing */}
           <div className="flex flex-col gap-6 text-left">
-            <h1 className="font-serif text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl flex items-center justify-between gap-3">
-              <span>Turn your <span className="text-terracotta">skills</span> and <span className="text-forest">experience</span> into local earnings.</span>
-              <SpeakerButton text="Turn your skills and experience into local earnings." id="landing-hero-h1" />
+            <h1 className="font-serif text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl md:text-6xl flex items-center justify-between gap-3 text-left">
+              <span>{t('landing.hero_title')}</span>
+              <SpeakerButton text={t('landing.hero_title')} id="landing-hero-h1" />
             </h1>
-            <div className="flex gap-3 items-start">
+            <div className="flex gap-3 items-start text-left">
               <p className={`text-lg sm:text-xl leading-relaxed flex-grow ${textSecondaryTheme}`}>
-                SilverHands is a secure community platform that empowers senior citizens and homemakers to offer services like home cooking, gardening, child tutoring, and tech help to trusted neighbors nearby. Built with safety and dignity at its heart.
+                {t('landing.hero_desc')}
               </p>
-              <SpeakerButton text="SilverHands is a secure community platform that empowers senior citizens and homemakers to offer services like home cooking, gardening, child tutoring, and tech help to trusted neighbors nearby. Built with safety and dignity at its heart." id="landing-hero-desc" />
+              <SpeakerButton text={t('landing.hero_desc')} id="landing-hero-desc" />
             </div>
  
             {/* CTA Buttons */}
@@ -197,14 +197,14 @@ const LandingPage = ({ onNavigate }) => {
                 onClick={handleEarnClick} 
                 className={`flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-lg font-bold ${primaryBtnTheme}`}
               >
-                I want to earn
+                {t('landing.earn_btn')}
                 <ArrowRight className="h-5 w-5" />
               </button>
               <button 
                 onClick={handleHireClick} 
                 className={`flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-lg font-bold ${secondaryBtnTheme}`}
               >
-                I want to hire
+                {t('landing.hire_btn')}
               </button>
             </div>
 
@@ -216,7 +216,7 @@ const LandingPage = ({ onNavigate }) => {
                 <span className="inline-block h-8 w-8 rounded-full bg-amber-500 border border-cream" />
               </div>
               <span className={`text-sm font-semibold ${textSecondaryTheme}`}>
-                ⭐ 500+ verified members earning in your neighborhood.
+                {t('landing.verified_members')}
               </span>
             </div>
 
@@ -329,10 +329,10 @@ const LandingPage = ({ onNavigate }) => {
                 <div className="p-4 rounded-2xl bg-orange-100 text-terracotta">
                   <Users className="h-8 w-8" />
                 </div>
-                <h3 className="font-serif text-2xl font-bold">Senior Citizens</h3>
+                <h3 className="font-serif text-2xl font-bold">{t('landing.seniors_title')}</h3>
               </div>
               <p className={textSecondaryTheme}>
-                Supplement your pension, share a lifetime of practical wisdom, and stay active in your local neighborhood on your own flexible schedule.
+                {t('landing.seniors_desc')}
               </p>
               <ul className="flex flex-col gap-3">
                 <li className="flex items-start gap-2 text-sm sm:text-base">
@@ -346,7 +346,7 @@ const LandingPage = ({ onNavigate }) => {
                 </li>
               </ul>
               <a href="#signup" onClick={(e) => { e.preventDefault(); handleEarnClick(); }} className="mt-4 flex items-center gap-1 font-bold text-terracotta hover:underline">
-                Learn More <ArrowRight className="h-4 w-4" />
+                {t('landing.learn_more')} <ArrowRight className="h-4 w-4" />
               </a>
             </div>
 
@@ -356,10 +356,10 @@ const LandingPage = ({ onNavigate }) => {
                 <div className="p-4 rounded-2xl bg-teal-100 text-forest">
                   <Home className="h-8 w-8" />
                 </div>
-                <h3 className="font-serif text-2xl font-bold">Homemakers</h3>
+                <h3 className="font-serif text-2xl font-bold">{t('landing.homemakers_title')}</h3>
               </div>
               <p className={textSecondaryTheme}>
-                Earn independent income using your daily skills like custom culinary baking, hand-crafts sewing, child-minding, and home care.
+                {t('landing.homemakers_desc')}
               </p>
               <ul className="flex flex-col gap-3">
                 <li className="flex items-start gap-2 text-sm sm:text-base">
@@ -373,7 +373,7 @@ const LandingPage = ({ onNavigate }) => {
                 </li>
               </ul>
               <a href="#signup" onClick={(e) => { e.preventDefault(); handleEarnClick(); }} className="mt-4 flex items-center gap-1 font-bold text-forest hover:underline">
-                Learn More <ArrowRight className="h-4 w-4" />
+                {t('landing.learn_more')} <ArrowRight className="h-4 w-4" />
               </a>
             </div>
 

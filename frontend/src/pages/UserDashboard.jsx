@@ -169,12 +169,12 @@ const UserDashboard = ({ onNavigate }) => {
 
   // Navigation Items
   const sidebarItems = [
-    { id: 'matches', label: 'My Matches', icon: Sparkles },
-    { id: 'applications', label: 'Applications', icon: Briefcase },
-    { id: 'earnings', label: 'Earnings', icon: TrendingUp },
-    { id: 'messages', label: 'Messages', icon: MessageSquare },
-    { id: 'profile', label: 'My Profile', icon: User },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'matches', label: t('dashboard.provider.tabs.matches'), icon: Sparkles },
+    { id: 'applications', label: t('dashboard.provider.tabs.applications'), icon: Briefcase },
+    { id: 'earnings', label: t('dashboard.provider.tabs.earnings'), icon: TrendingUp },
+    { id: 'messages', label: t('dashboard.provider.tabs.messages'), icon: MessageSquare },
+    { id: 'profile', label: t('dashboard.provider.tabs.profile'), icon: User },
+    { id: 'settings', label: t('dashboard.provider.tabs.settings'), icon: Settings },
   ];
 
   return (
@@ -262,7 +262,7 @@ const UserDashboard = ({ onNavigate }) => {
             }`}
           >
             <LogOut className="h-4 w-4" />
-            <span>Logout</span>
+            <span>{t('dashboard.provider.logout')}</span>
           </button>
         </div>
 
@@ -278,7 +278,7 @@ const UserDashboard = ({ onNavigate }) => {
           
           <div className="text-left">
             <h1 className="text-xl font-bold font-serif md:text-2xl flex items-center gap-1.5">
-              <span>Good morning, {user?.name || 'Lakshmi'} 🌸</span>
+              <span>{t('dashboard.provider.greeting', { name: user?.name || 'Lakshmi' })}</span>
               <SpeakerButton text={`Good morning, ${user?.name || 'Lakshmi'}. Welcome back to your SilverHands Provider Dashboard.`} id="provider-dashboard-greeting" />
             </h1>
           </div>
@@ -295,7 +295,7 @@ const UserDashboard = ({ onNavigate }) => {
               aria-label="Open Accessibility Panel"
             >
               <Type className="h-4 w-4" />
-              <span>Aa Options</span>
+              <span>{t('dashboard.provider.options')}</span>
             </button>
 
             {/* Notification Bell */}
@@ -358,7 +358,7 @@ const UserDashboard = ({ onNavigate }) => {
                 <Info className="h-5 w-5 shrink-0 text-teal-600 mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold">
-                    💡 Match scores improve as you interact. Our AI learns what local gigs suit your calendar and preferences over time.
+                    {t('dashboard.provider.matches.ai_tip')}
                   </p>
                 </div>
               </div>
@@ -368,12 +368,12 @@ const UserDashboard = ({ onNavigate }) => {
                 
                 {/* Category Filters */}
                 <div className="flex flex-wrap gap-2">
-                  <span className="text-xs font-bold text-gray-500 uppercase flex items-center mr-2">Category:</span>
+                  <span className="text-xs font-bold text-gray-500 uppercase flex items-center mr-2">{t('dashboard.provider.matches.category')}</span>
                   {[
-                    { id: 'all', label: 'All Categories' },
-                    { id: 'cooking', label: '🍳 Cooking' },
-                    { id: 'tutoring', label: '📚 Tutoring' },
-                    { id: 'gardening', label: '🌱 Gardening' },
+                    { id: 'all', label: t('dashboard.provider.matches.all_categories') },
+                    { id: 'cooking', label: t('dashboard.provider.matches.cooking') },
+                    { id: 'tutoring', label: t('dashboard.provider.matches.tutoring') },
+                    { id: 'gardening', label: t('dashboard.provider.matches.gardening') },
                   ].map(cat => (
                     <button
                       key={cat.id}
@@ -394,11 +394,11 @@ const UserDashboard = ({ onNavigate }) => {
                   
                   {/* Distance selector */}
                   <div className="flex items-center gap-1.5">
-                    <span className="text-gray-500 uppercase">Distance:</span>
+                    <span className="text-gray-500 uppercase">{t('dashboard.provider.matches.distance')}</span>
                     <div className="flex rounded-lg overflow-hidden border border-cream-dark">
                       {[
-                        { id: 'all', label: 'Any' },
-                        { id: 'near', label: 'Nearby (<3km)' }
+                        { id: 'all', label: t('dashboard.provider.matches.any') },
+                        { id: 'near', label: t('dashboard.provider.matches.nearby') }
                       ].map(dist => (
                         <button
                           key={dist.id}
@@ -417,12 +417,12 @@ const UserDashboard = ({ onNavigate }) => {
 
                   {/* Mode selector */}
                   <div className="flex items-center gap-1.5">
-                    <span className="text-gray-500 uppercase">Mode:</span>
+                    <span className="text-gray-500 uppercase">{t('dashboard.provider.matches.mode')}</span>
                     <div className="flex rounded-lg overflow-hidden border border-cream-dark">
                       {[
-                        { id: 'all', label: 'All' },
-                        { id: 'online', label: 'Online' },
-                        { id: 'offline', label: 'In Person' }
+                        { id: 'all', label: t('dashboard.provider.matches.all') },
+                        { id: 'online', label: t('dashboard.provider.matches.online') },
+                        { id: 'offline', label: t('dashboard.provider.matches.offline') }
                       ].map(mode => (
                         <button
                           key={mode.id}
@@ -451,16 +451,16 @@ const UserDashboard = ({ onNavigate }) => {
                     🌾
                   </div>
                   <div>
-                    <h3 className="font-serif text-xl font-bold">No active matches found</h3>
+                    <h3 className="font-serif text-xl font-bold">{t('dashboard.provider.matches.empty_title')}</h3>
                     <p className={`text-sm ${textSecondaryTheme} mt-1 max-w-sm mx-auto`}>
-                      Try broadening your filters or complete your profile bio to let our AI build new neighborhood connections.
+                      {t('dashboard.provider.matches.empty_desc')}
                     </p>
                   </div>
                   <button 
                     onClick={() => setActiveTab('profile')}
                     className={`px-6 py-2.5 text-sm font-bold ${outlineBtnTheme}`}
                   >
-                    Complete Your Profile
+                    {t('dashboard.provider.matches.complete_profile')}
                   </button>
                 </div>
               ) : (
@@ -481,7 +481,7 @@ const UserDashboard = ({ onNavigate }) => {
                           highContrast ? 'border-2 border-white bg-black' : 'bg-terracotta shadow-sm'
                         }`}>
                           <span className="text-base">{opp.score}%</span>
-                          <span className="text-[8px] uppercase font-bold">Match</span>
+                          <span className="text-[8px] uppercase font-bold">{t('dashboard.provider.matches.match')}</span>
                         </div>
 
                         <div className="flex flex-col gap-3 text-left">
@@ -516,7 +516,7 @@ const UserDashboard = ({ onNavigate }) => {
                               <MapPin className="h-3.5 w-3.5" /> {opp.location}
                             </span>
                             <span className="flex items-center gap-1 font-mono text-gray-500 col-span-2">
-                              <Clock className="h-3.5 w-3.5" /> Posted {opp.posted}
+                              <Clock className="h-3.5 w-3.5" /> {t('dashboard.provider.matches.posted')} {opp.posted}
                             </span>
                           </div>
 
@@ -530,7 +530,7 @@ const UserDashboard = ({ onNavigate }) => {
                             }}
                             className={`flex-grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${primaryBtnTheme}`}
                           >
-                            Interested
+                            {t('dashboard.provider.matches.interested')}
                           </button>
                           <button
                             onClick={() => {
@@ -538,7 +538,7 @@ const UserDashboard = ({ onNavigate }) => {
                             }}
                             className={`px-4 rounded-xl text-sm font-bold ${outlineBtnTheme}`}
                           >
-                            Maybe Later
+                            {t('dashboard.provider.matches.maybe_later')}
                           </button>
                           <button
                             onClick={() => toggleBookmark(opp.id)}
@@ -567,9 +567,9 @@ const UserDashboard = ({ onNavigate }) => {
             <div className="flex flex-col gap-6 text-left">
               
               <div className="border-b pb-3 border-cream-dark/30">
-                <h2 className="font-serif text-2xl font-bold">Applications Tracker</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('dashboard.provider.applications.title')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Track your matching service requests from initial interest to neighborhood completions.
+                  {t('dashboard.provider.applications.desc')}
                 </p>
               </div>
 
@@ -579,7 +579,7 @@ const UserDashboard = ({ onNavigate }) => {
                 {/* Column 1: Applied */}
                 <div className={`p-4 rounded-2xl border ${highContrast ? 'border-white' : 'bg-cream-dark/10 border-cream-dark/50'}`}>
                   <h4 className="font-serif font-bold text-base mb-3 flex justify-between items-center text-charcoal">
-                    <span>Applied</span>
+                    <span>{t('dashboard.provider.applications.applied')}</span>
                     <span className="text-xs bg-cream-dark/40 px-2 py-0.5 rounded font-mono">1</span>
                   </h4>
                   <div className="flex flex-col gap-3">
@@ -594,7 +594,7 @@ const UserDashboard = ({ onNavigate }) => {
                 {/* Column 2: Contacted */}
                 <div className={`p-4 rounded-2xl border ${highContrast ? 'border-white' : 'bg-cream-dark/10 border-cream-dark/50'}`}>
                   <h4 className="font-serif font-bold text-base mb-3 flex justify-between items-center text-forest">
-                    <span>Contacted</span>
+                    <span>{t('dashboard.provider.applications.contacted')}</span>
                     <span className="text-xs bg-cream-dark/40 px-2 py-0.5 rounded font-mono">1</span>
                   </h4>
                   <div className="flex flex-col gap-3">
@@ -610,7 +610,7 @@ const UserDashboard = ({ onNavigate }) => {
                 {/* Column 3: Confirmed */}
                 <div className={`p-4 rounded-2xl border ${highContrast ? 'border-white' : 'bg-cream-dark/10 border-cream-dark/50'}`}>
                   <h4 className="font-serif font-bold text-base mb-3 flex justify-between items-center text-teal-600">
-                    <span>Confirmed</span>
+                    <span>{t('dashboard.provider.applications.confirmed')}</span>
                     <span className="text-xs bg-cream-dark/40 px-2 py-0.5 rounded font-mono">1</span>
                   </h4>
                   <div className="flex flex-col gap-3">
@@ -636,16 +636,16 @@ const UserDashboard = ({ onNavigate }) => {
             <div className="flex flex-col gap-6 text-left">
               
               <div className="border-b pb-3 border-cream-dark/30">
-                <h2 className="font-serif text-2xl font-bold">My Earnings</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('dashboard.provider.earnings.title')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Track your monthly livelihood achievements and deposits.
+                  {t('dashboard.provider.earnings.desc')}
                 </p>
               </div>
 
               {/* Total Card */}
               <div className={`p-8 rounded-3xl grid grid-cols-1 sm:grid-cols-3 gap-6 text-center sm:text-left ${cardTheme}`}>
                 <div className="sm:col-span-2">
-                  <span className="text-xs font-bold text-gray-400 uppercase">Livelihood Earned (This Month)</span>
+                  <span className="text-xs font-bold text-gray-400 uppercase">{t('dashboard.provider.earnings.this_month')}</span>
                   <h3 className="text-4xl font-extrabold text-forest mt-1 flex items-center justify-center sm:justify-start">
                     <IndianRupee className="h-8 w-8" />
                     12,400
@@ -654,11 +654,11 @@ const UserDashboard = ({ onNavigate }) => {
                 </div>
                 <div className="flex flex-col justify-center gap-1.5 border-t sm:border-t-0 sm:border-l border-cream-dark/50 pt-4 sm:pt-0 sm:pl-6 text-left">
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-gray-400">Total Hours Gained:</span>
+                    <span className="text-[10px] uppercase font-bold text-gray-400">{t('dashboard.provider.earnings.total_hours')}</span>
                     <p className="text-base font-bold">36 Hours</p>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-gray-400">Services Provided:</span>
+                    <span className="text-[10px] uppercase font-bold text-gray-400">{t('dashboard.provider.earnings.services_provided')}</span>
                     <p className="text-base font-bold">3 Local Households</p>
                   </div>
                 </div>
@@ -700,9 +700,9 @@ const UserDashboard = ({ onNavigate }) => {
           {activeTab === 'messages' && (
             <div className="flex flex-col gap-6 text-left">
               <div className="border-b pb-3 border-cream-dark/30">
-                <h2 className="font-serif text-2xl font-bold">Neighbor Messages</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('dashboard.provider.messages.title')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Communicate securely with local families matching your gigs.
+                  {t('dashboard.provider.messages.desc')}
                 </p>
               </div>
 
