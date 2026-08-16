@@ -66,72 +66,63 @@ const UserDashboard = ({ onNavigate }) => {
     }
   };
 
-  // --- Mock Opportunity Matches Database ---
-  const opportunities = [
-    {
-      id: 1,
-      title: "Traditional South Indian Cooking",
-      category: "cooking",
-      score: 95,
-      rationale: "Matched because you know South Indian cuisine and are available weekday mornings",
-      rate: "₹350/hr",
-      location: "Vasant Kunj, Delhi",
-      mode: "offline",
-      posted: "2 hours ago",
-      description: "Looking for an experienced home chef to prepare healthy South Indian lunches for a family of 4."
-    },
-    {
-      id: 2,
-      title: "Primary School English Tutor",
-      category: "tutoring",
-      score: 92,
-      rationale: "Matched because you have teaching background and prefer online sessions",
-      rate: "₹500/hr",
-      location: "Online",
-      mode: "online",
-      posted: "5 hours ago",
-      description: "Need guidance on English reading and basic grammar for a 3rd grade student."
-    },
-    {
-      id: 3,
-      title: "Houseplant Care & Gardening Advice",
-      category: "gardening",
-      score: 88,
-      rationale: "Matched because of your plant care skill and proximity (within 2 km)",
-      rate: "₹300/hr",
-      location: "Green Park, Delhi",
-      mode: "offline",
-      posted: "Yesterday",
-      description: "Help care for a terrace garden twice a week and suggest layouts for winter plants."
-    },
-    {
-      id: 4,
-      title: "Basic Math Homework Help",
-      category: "tutoring",
-      score: 84,
-      rationale: "Matched because you listed Mathematics skill and have open evening slots",
-      rate: "₹450/hr",
-      location: "Online",
-      mode: "online",
-      posted: "2 days ago",
-      description: "Weekly math tutorial classes online for a middle school child studying algebra."
+  // --- Opportunity Matches State ---
+  const [opportunities, setOpportunities] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchRequests = async () => {
+      if (!user || !user.token) return;
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const maxDist = activeDistance === 'near' ? 5000 : 50000;
+        const res = await fetch(`http://localhost:5000/api/requests/nearby?maxDistance=${maxDist}`, {
+          headers: {
+            'Authorization': `Bearer ${user.token}`
+          }
+        });
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch nearby opportunities');
+        }
+        
+        const data = await res.json();
+        
+        const mappedData = data.map((req) => ({
+          id: req._id,
+          title: req.title,
+          category: req.category,
+          score: Math.floor(Math.random() * (98 - 75) + 75), // Phase 7 placeholder
+          rationale: "Matched based on your profile skills and location.", // Phase 7 placeholder
+          rate: req.rate || "Negotiable",
+          location: req.mode === 'online' ? 'Online' : `Coordinates: [${req.location.coordinates[0].toFixed(2)}, ${req.location.coordinates[1].toFixed(2)}]`,
+          mode: req.mode || "offline",
+          posted: new Date(req.createdAt).toLocaleDateString(),
+          description: req.description
+        }));
+        
+        setOpportunities(mappedData);
+      } catch (err) {
+        console.error(err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    if (activeTab === 'matches') {
+      fetchRequests();
     }
-  ];
+  }, [user, activeDistance, activeTab]);
 
   // Filter logic
   const filteredOpportunities = opportunities.filter(opp => {
     const categoryMatch = activeCategory === 'all' || opp.category === activeCategory;
     const modeMatch = activeMode === 'all' || opp.mode === activeMode;
-    
-    // Simple mock distance matching
-    let distanceMatch = true;
-    if (activeDistance === 'near') {
-      distanceMatch = opp.location !== 'Online'; // offline within nearby Delhi sub-cities
-    } else if (activeDistance === 'online') {
-      distanceMatch = opp.location === 'Online';
-    }
-    
-    return categoryMatch && modeMatch && distanceMatch;
+    return categoryMatch && modeMatch;
   });
 
   const toggleBookmark = (id) => {
@@ -152,12 +143,12 @@ const UserDashboard = ({ onNavigate }) => {
     : 'bg-cream-dark/20 border border-cream-dark text-charcoal focus:border-terracotta focus:ring-1 focus:ring-terracotta';
 
   const primaryBtnTheme = highContrast
-    ? 'border-2 border-white bg-black text-white hover:bg-white hover:text-black font-bold h-[48px]'
-    : 'bg-terracotta hover:bg-terracotta-hover text-white shadow-md hover:shadow-lg font-bold h-[48px] rounded-2xl transition-all';
+    ? 'border-2 border-white bg-black text-white hover:bg-white hover:text-black font-bold h-12'
+    : 'bg-terracotta hover:bg-terracotta-hover text-white shadow-md hover:shadow-lg font-bold h-12 rounded-2xl transition-all';
 
   const outlineBtnTheme = highContrast
-    ? 'border-2 border-white bg-black text-white hover:bg-white hover:text-black h-[48px]'
-    : 'border border-cream-dark hover:bg-cream-dark/30 text-charcoal h-[48px] rounded-2xl transition-all';
+    ? 'border-2 border-white bg-black text-white hover:bg-white hover:text-black h-12'
+    : 'border border-cream-dark hover:bg-cream-dark/30 text-charcoal h-12 rounded-2xl transition-all';
 
   const activeSidebarItemTheme = highContrast
     ? 'border-2 border-white bg-white text-black font-bold'
@@ -269,7 +260,7 @@ const UserDashboard = ({ onNavigate }) => {
       </aside>
 
       {/* 2. MAIN LAYOUT */}
-      <div className="flex-grow flex flex-col min-w-0">
+      <div className="grow flex flex-col min-w-0">
         
         {/* TOP GREETER BAR */}
         <header className={`border-b sticky top-0 z-30 px-4 py-3 md:px-8 flex items-center justify-between ${
@@ -343,7 +334,7 @@ const UserDashboard = ({ onNavigate }) => {
         </header>
 
         {/* 3. MAIN DASHBOARD CONTENT AREA */}
-        <main className="flex-grow p-4 md:p-8 pb-24 md:pb-8">
+        <main className="grow p-4 md:p-8 pb-24 md:pb-8">
 
           {/* ================= VIEW: MY MATCHES (AI CENTERPIECE) ================= */}
           {activeTab === 'matches' && (
@@ -444,7 +435,17 @@ const UserDashboard = ({ onNavigate }) => {
               </div>
 
               {/* Opportunity Matches grid */}
-              {filteredOpportunities.length === 0 ? (
+              {isLoading ? (
+                <div className={`p-12 text-center rounded-3xl flex flex-col items-center justify-center gap-4 ${cardTheme}`}>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-terracotta"></div>
+                  <p className={`text-sm font-bold ${textSecondaryTheme}`}>Loading nearby opportunities...</p>
+                </div>
+              ) : error ? (
+                <div className={`p-12 text-center rounded-3xl flex flex-col items-center justify-center gap-4 border border-red-200 bg-red-50 text-red-600`}>
+                  <p className="text-sm font-bold">{error}</p>
+                  <button onClick={() => window.location.reload()} className="text-terracotta underline text-xs font-bold">Retry</button>
+                </div>
+              ) : filteredOpportunities.length === 0 ? (
                 /* EMPTY STATE */
                 <div className={`p-12 text-center rounded-3xl flex flex-col items-center justify-center gap-4 ${cardTheme}`}>
                   <div className="h-16 w-16 rounded-full bg-orange-100 flex items-center justify-center text-3xl">
@@ -528,7 +529,7 @@ const UserDashboard = ({ onNavigate }) => {
                             onClick={() => {
                               alert(`Applied for "${opp.title}" opportunity match!`);
                             }}
-                            className={`flex-grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${primaryBtnTheme}`}
+                            className={`grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${primaryBtnTheme}`}
                           >
                             {t('dashboard.provider.matches.interested')}
                           </button>
@@ -542,7 +543,7 @@ const UserDashboard = ({ onNavigate }) => {
                           </button>
                           <button
                             onClick={() => toggleBookmark(opp.id)}
-                            className={`h-[48px] w-[48px] rounded-xl border flex items-center justify-center transition-all ${
+                            className={`h-12 w-12 rounded-xl border flex items-center justify-center transition-all ${
                               isBookmarked
                                 ? (highContrast ? 'border-white bg-white text-black' : 'bg-forest/10 border-forest text-forest')
                                 : (highContrast ? 'border-white bg-black text-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/20 text-gray-400')
@@ -678,7 +679,7 @@ const UserDashboard = ({ onNavigate }) => {
                     { month: 'Jul', value: '85%' },
                     { month: 'Aug', value: '92%' }
                   ].map((col, index) => (
-                    <div key={index} className="flex-grow flex flex-col items-center gap-2">
+                    <div key={index} className="grow flex flex-col items-center gap-2">
                       <div 
                         style={{ height: col.value }}
                         className={`w-full rounded-t-lg transition-all duration-500 ${
