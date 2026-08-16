@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
 import LandingPage from './pages/LandingPage';
 import OnboardingFlow from './pages/OnboardingFlow';
+import UserDashboard from './pages/UserDashboard';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -40,7 +40,7 @@ function AppContent() {
     case 'onboarding':
       return <OnboardingFlow onNavigate={setView} />;
     case 'dashboard':
-      return user ? <Dashboard onNavigate={setView} /> : <Login onNavigate={setView} />;
+      return user ? <UserDashboard onNavigate={setView} /> : <Login onNavigate={setView} />;
     case 'login':
     default:
       return <Login onNavigate={setView} />;
