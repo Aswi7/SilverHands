@@ -45,7 +45,12 @@ const UserSchema = new mongoose.Schema({
   },
   // Provider-specific fields (optional, active only if role is 'provider')
   skills: {
-    type: [String],
+    type: [{
+      category: { type: String, trim: true },
+      skillName: { type: String, trim: true },
+      experienceLevel: { type: String, trim: true },
+      confidence: { type: Number, min: 0, max: 1 }
+    }],
     default: []
   },
   bio: {

@@ -24,10 +24,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+const providerRoutes = require('./routes/providerRoutes');
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/requests', requestRoutes);
+app.use('/api/providers', providerRoutes);
 
 // Base health check route
 app.get('/api/health', (req, res) => {
