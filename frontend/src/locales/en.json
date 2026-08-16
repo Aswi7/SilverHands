@@ -1,0 +1,51 @@
+{
+  "welcome": "Welcome back, {{name}}",
+  "auth": {
+    "login_title": "Login to SilverHands",
+    "signup_title": "Create an Account",
+    "phone": "Phone Number",
+    "password": "Password",
+    "name": "Full Name",
+    "role": "I want to offer/request help as a:",
+    "preferred_language": "Preferred Interface Language",
+    "latitude": "Latitude",
+    "longitude": "Longitude",
+    "detect_location": "Detect My Geolocation",
+    "location_detected": "Coordinates detected successfully!",
+    "location_failed": "Failed to get location. Enter manually.",
+    "login_btn": "Log In",
+    "signup_btn": "Sign Up",
+    "logout_btn": "Log Out",
+    "no_account": "Don't have an account? Sign Up",
+    "have_account": "Already have an account? Log In"
+  },
+  "roles": {
+    "provider": "Provider (Senior Citizen / Homemaker)",
+    "customer": "Customer (Need local assistance)"
+  },
+  "customer": {
+    "create_request": "Submit Service Request",
+    "title": "Need Title",
+    "description": "Describe what you need help with",
+    "category": "Category",
+    "submit_request_btn": "Submit Request",
+    "request_success": "Service request submitted successfully!",
+    "categories": {
+      "tech": "Technology Support (smartphones, internet)",
+      "errands": "Errands & Shopping (groceries, medicine)",
+      "companionship": "Companionship & Conversation",
+      "cooking": "Cooking & Meal Preparation",
+      "gardening": "Gardening & Plant Care",
+      "other": "Other Assistance"
+    }
+  },
+  "provider": {
+    "nearby_requests": "Available Requests Near You",
+    "no_nearby_requests": "No requests found within {{distance}}m of your location.",
+    "update_location": "Update Current Geolocation",
+    "skills": "My Skills",
+    "bio": "Bio / About Me",
+    "km_away": "{{distance}} km away",
+    "meters_away": "{{distance}} meters away"
+  }
+}

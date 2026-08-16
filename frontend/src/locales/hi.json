@@ -1,0 +1,51 @@
+{
+  "welcome": "स्वागत है, {{name}}",
+  "auth": {
+    "login_title": "SilverHands में लॉगिन करें",
+    "signup_title": "नया खाता बनाएं",
+    "phone": "फ़ोन नंबर",
+    "password": "पासवर्ड",
+    "name": "पूरा नाम",
+    "role": "मैं सहायता देना/लेना चाहता हूँ:",
+    "preferred_language": "पसंदीदा इंटरफ़ेस भाषा",
+    "latitude": "अक्षांश (Latitude)",
+    "longitude": "देशांतर (Longitude)",
+    "detect_location": "मेरा स्थान ज्ञात करें",
+    "location_detected": "स्थान निर्देशांक सफलतापूर्वक मिल गए!",
+    "location_failed": "स्थान प्राप्त करने में विफल। मैन्युअल रूप से दर्ज करें।",
+    "login_btn": "लॉग इन करें",
+    "signup_btn": "साइन अप करें",
+    "logout_btn": "लॉग आउट करें",
+    "no_account": "खाता नहीं है? साइन अप करें",
+    "have_account": "पहले से खाता है? लॉग इन करें"
+  },
+  "roles": {
+    "provider": "सेवा प्रदाता (वरिष्ठ नागरिक / गृहणी)",
+    "customer": "ग्राहक (जिसको स्थानीय सहायता चाहिए)"
+  },
+  "customer": {
+    "create_request": "सेवा अनुरोध सबमिट करें",
+    "title": "सहायता का विषय",
+    "description": "बताएं कि आपको किस काम में मदद चाहिए",
+    "category": "श्रेणी",
+    "submit_request_btn": "अनुरोध सबमिट करें",
+    "request_success": "सेवा अनुरोध सफलतापूर्वक सबमिट हो गया!",
+    "categories": {
+      "tech": "तकनीकी सहायता (स्मार्टफोन, इंटरनेट)",
+      "errands": "दैनिक कार्य और खरीदारी (राशन, दवाएं)",
+      "companionship": "साथी और बातचीत",
+      "cooking": "खाना बनाना और भोजन की तैयारी",
+      "gardening": "बागवानी और पौधों की देखभाल",
+      "other": "अन्य सहायता"
+    }
+  },
+  "provider": {
+    "nearby_requests": "आपके पास उपलब्ध अनुरोध",
+    "no_nearby_requests": "आपके स्थान से {{distance}} मीटर के भीतर कोई अनुरोध नहीं मिला।",
+    "update_location": "वर्तमान स्थान अपडेट करें",
+    "skills": "मेरी कुशलताएं",
+    "bio": "मेरे बारे में",
+    "km_away": "{{distance}} किमी दूर",
+    "meters_away": "{{distance}} मीटर दूर"
+  }
+}
