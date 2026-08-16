@@ -44,7 +44,7 @@ const registerUser = async (req, res) => {
       }
     });
 
-    if (user) {
+      if (user) {
       generateToken(res, user._id);
       res.status(201).json({
         _id: user._id,
@@ -52,7 +52,10 @@ const registerUser = async (req, res) => {
         phone: user.phone,
         role: user.role,
         preferredLanguage: user.preferredLanguage,
-        location: user.location
+        location: user.location,
+        skills: user.skills,
+        bio: user.bio,
+        availability: user.availability
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
@@ -79,7 +82,10 @@ const loginUser = async (req, res) => {
         phone: user.phone,
         role: user.role,
         preferredLanguage: user.preferredLanguage,
-        location: user.location
+        location: user.location,
+        skills: user.skills,
+        bio: user.bio,
+        availability: user.availability
       });
     } else {
       res.status(401).json({ message: 'Invalid phone number or password' });
