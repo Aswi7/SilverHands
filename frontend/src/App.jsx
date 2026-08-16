@@ -3,23 +3,26 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import LandingPage from './pages/LandingPage';
 import './App.css';
 
 function AppContent() {
   const { user, loading } = useAuth();
-  const [view, setView] = useState('login');
+  const [view, setView] = useState('landing');
 
   useEffect(() => {
     if (!loading) {
       if (user) {
-        setView('dashboard');
+        if (view === 'login' || view === 'signup') {
+          setView('dashboard');
+        }
       } else {
         if (view === 'dashboard') {
           setView('login');
         }
       }
     }
-  }, [user, loading]);
+  }, [user, loading, view]);
 
   if (loading) {
     return (
@@ -30,6 +33,8 @@ function AppContent() {
   }
 
   switch (view) {
+    case 'landing':
+      return <LandingPage onNavigate={setView} />;
     case 'signup':
       return <Signup onNavigate={setView} />;
     case 'dashboard':
