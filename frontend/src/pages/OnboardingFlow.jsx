@@ -28,9 +28,12 @@ import {
   Globe
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const OnboardingFlow = ({ onNavigate }) => {
   const { t } = useTranslation();
+  const { updateUserInState } = useAuth();
 
   // Accessibility States
   const [fontSize, setFontSize] = useState('normal'); 
@@ -59,6 +62,10 @@ const OnboardingFlow = ({ onNavigate }) => {
   const [availableDays, setAvailableDays] = useState([]); // ['Mon', 'Tue', ...]
   const [timeSlots, setTimeSlots] = useState([]); // ['morning', 'afternoon', 'evening']
   const [deliveryMode, setDeliveryMode] = useState('both'); // 'online', 'offline', 'both'
+
+  // --- Step 4: Review States ---
+  const [aiBio, setAiBio] = useState('');
+  const [isGeneratingBio, setIsGeneratingBio] = useState(false);
 
   // Sync Root Font Size
   useEffect(() => {
@@ -123,14 +130,43 @@ const OnboardingFlow = ({ onNavigate }) => {
     }, 3000);
   };
 
-  const extractSkills = (text) => {
-    setShowPopIn(true);
-    // Simulate AI parsing text and returning skills
-    setTimeout(() => {
-      const extracted = ["Teaching", "English", "Mathematics", "Gardening", "Plant Care"];
-      setSkills((prev) => [...new Set([...prev, ...extracted])]);
-      setShowPopIn(false);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (chatText && chatText.length > 20) {
+        extractSkills(chatText);
+      }
     }, 800);
+    return () => clearTimeout(handler);
+  }, [chatText]);
+
+  const extractSkills = async (text) => {
+    if (!text || text.trim().length === 0) return;
+    setShowPopIn(true);
+    try {
+      const { data } = await api.post('/ai/extract-skills', { bio: text });
+      if (data && data.skills) {
+        // Map the extracted structured objects to just the skill names, or keep the object.
+        // Currently the UI expects an array of strings or objects. 
+        // We'll map to skillName string for the onboarding UI to match the legacy format,
+        // but we'll add the full object so the UI can be updated later if needed.
+        const extractedNames = data.skills.map(s => typeof s === 'object' ? s.skillName : s);
+        setSkills((prev) => {
+          // Merge unique skills
+          const newSkills = [...prev];
+          extractedNames.forEach(skill => {
+            if (!newSkills.some(s => (typeof s === 'object' ? s.skillName : s) === skill)) {
+              newSkills.push(skill);
+            }
+          });
+          return newSkills;
+        });
+      }
+    } catch (error) {
+      console.error('AI extraction failed:', error);
+      // Fallback: do nothing, let them type manually.
+    } finally {
+      setShowPopIn(false);
+    }
   };
 
   const handleAddManualSkill = (e) => {
@@ -163,9 +199,62 @@ const OnboardingFlow = ({ onNavigate }) => {
   };
 
   // Step 4: Confirm Creation
-  const handleConfirmProfile = () => {
-    // Navigate directly to dashboard on profile create
-    onNavigate('dashboard');
+  useEffect(() => {
+    if (step === 4 && !aiBio && !isGeneratingBio) {
+      const generateBio = async () => {
+        setIsGeneratingBio(true);
+        try {
+          const availabilityString = `${availableDays.join(', ')} during ${timeSlots.join(', ')}`;
+          const { data } = await api.post('/ai/generate-bio', {
+            name: name || 'User',
+            age: age || '--',
+            skills: skills,
+            availability: availabilityString
+          });
+          if (data && data.generatedBio) {
+            setAiBio(data.generatedBio);
+          }
+        } catch (error) {
+          console.error('Bio generation failed:', error);
+          // Fallback to manual string if API fails
+          setAiBio(`${name || 'User'}, aged ${age || '--'}, is a warm neighborhood member offering services nearby. Experienced in ${skills.join(', ')} and looking forward to assisting neighboring households.`);
+        } finally {
+          setIsGeneratingBio(false);
+        }
+      };
+      generateBio();
+    }
+  }, [step]);
+
+  const handleConfirmProfile = async () => {
+    try {
+      const formattedSkills = skills.map(skill => {
+        // If it's already an object, use it; otherwise, structure it.
+        if (typeof skill === 'object') return skill;
+        return {
+          category: 'other',
+          skillName: skill,
+          experienceLevel: 'Not specified',
+          confidence: 1.0
+        };
+      });
+
+      const { data } = await api.put('/users/profile', {
+        skills: formattedSkills,
+        bio: aiBio
+      });
+      
+      // Immediately update local AuthContext so the Dashboard has the data without a reload
+      if (updateUserInState && data) {
+        updateUserInState(data);
+      }
+      
+      onNavigate('dashboard');
+    } catch (err) {
+      console.error('Failed to save profile details', err);
+      // Proceed to dashboard anyway
+      onNavigate('dashboard');
+    }
   };
 
   // Styles computed depending on accessibility settings
@@ -501,10 +590,7 @@ const OnboardingFlow = ({ onNavigate }) => {
                       id="chatInput"
                       rows="3"
                       value={chatText} 
-                      onChange={(e) => {
-                        setChatText(e.target.value);
-                        if (e.target.value.length > 20) extractSkills(e.target.value);
-                      }} 
+                      onChange={(e) => setChatText(e.target.value)} 
                       placeholder="e.g. I am great at baking cookies and teaching traditional stitching..."
                       className={`w-full px-4 py-3 rounded-2xl text-base ${inputTheme}`}
                     />
@@ -814,9 +900,16 @@ const OnboardingFlow = ({ onNavigate }) => {
                       ✨ AI-written
                     </span>
                   </div>
-                  <p className="text-base italic leading-relaxed text-charcoal bg-cream/10 p-4 rounded-xl border border-cream-dark/30 border-dashed">
-                    "{name || 'User'}, aged {age || '--'}, is a warm neighborhood member offering services nearby. Experienced in {skills.join(', ') || 'skills'} and looking forward to assisting neighboring households during {timeSlots.join(', ')} on {availableDays.join(', ')}."
-                  </p>
+                  {isGeneratingBio ? (
+                    <div className="flex items-center gap-2 text-sm text-teal-600 bg-cream/10 p-4 rounded-xl border border-cream-dark/30 border-dashed animate-pulse">
+                      <div className="h-4 w-4 rounded-full border-2 border-teal-600 border-t-transparent animate-spin"></div>
+                      Generating your professional bio...
+                    </div>
+                  ) : (
+                    <p className="text-base italic leading-relaxed text-charcoal bg-cream/10 p-4 rounded-xl border border-cream-dark/30 border-dashed">
+                      "{aiBio}"
+                    </p>
+                  )}
                 </div>
 
                 {/* Skills tags preview */}

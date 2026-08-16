@@ -29,13 +29,15 @@ import {
   X
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import api from '../services/api';
 import { SafetyTipsCard } from '../components/TrustSafety';
+import { MatchExplanation } from '../components/MatchExplanation';
 import { ChatInterface } from '../components/ChatInterface';
 import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
 
 const UserDashboard = ({ onNavigate }) => {
   const { t } = useTranslation();
-  const { user, logout } = useAuth();
+  const { user, logout, updateUserInState } = useAuth();
 
   // Accessibility Global Settings
   const { setPanelOpen, highContrast, fontSize } = useAccessibility();
@@ -75,31 +77,30 @@ const UserDashboard = ({ onNavigate }) => {
   };
 
   const handleExtractSkills = async () => {
-    if (!bioText.trim() || !user?.token) return;
+    if (!bioText.trim() || !user?._id) return;
     
     setIsExtracting(true);
     setExtractError(null);
     
     try {
-      const res = await fetch(`http://localhost:5000/api/providers/${user._id}/extract-skills`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
-        },
-        body: JSON.stringify({ bio: bioText })
-      });
-      
-      const data = await res.json();
-      
-      if (!res.ok) throw new Error(data.message || 'Failed to extract skills');
+      const { data } = await api.post(`/ai/extract-skills`, { bio: bioText });
       
       if (data && data.skills) {
         setExtractedSkills(data.skills);
+        
+        // Save the new bio and skills to the backend automatically
+        const profileUpdate = await api.put('/users/profile', {
+          bio: bioText,
+          skills: data.skills
+        });
+        
+        if (updateUserInState && profileUpdate.data) {
+          updateUserInState(profileUpdate.data);
+        }
       }
     } catch (error) {
       console.error(error);
-      setExtractError(error.message);
+      setExtractError(error.response?.data?.message || error.message || 'Failed to extract skills');
     } finally {
       setIsExtracting(false);
     }
@@ -116,23 +117,13 @@ const UserDashboard = ({ onNavigate }) => {
 
   useEffect(() => {
     const fetchRequests = async () => {
-      if (!user || !user.token) return;
+      if (!user || !user._id) return;
       setIsLoading(true);
       setError(null);
       
       try {
         const maxDist = activeDistance === 'near' ? 5000 : 50000;
-        const res = await fetch(`http://localhost:5000/api/requests/nearby?maxDistance=${maxDist}`, {
-          headers: {
-            'Authorization': `Bearer ${user.token}`
-          }
-        });
-        
-        if (!res.ok) {
-          throw new Error('Failed to fetch nearby opportunities');
-        }
-        
-        const data = await res.json();
+        const { data } = await api.get(`/requests/nearby?maxDistance=${maxDist}`);
         
         const mappedData = data.map((req) => ({
           id: req._id,
@@ -542,14 +533,7 @@ const UserDashboard = ({ onNavigate }) => {
                           <p className={`text-sm ${textSecondaryTheme} leading-relaxed`}>{opp.description}</p>
 
                           {/* AI Match Rationale explanation */}
-                          <div className={`p-3 rounded-xl border border-dashed flex items-start gap-2 ${
-                            highContrast ? 'border-white bg-black' : 'bg-amber-50/50 border-amber-200 text-charcoal'
-                          }`}>
-                            <Sparkles className="h-4 w-4 shrink-0 text-terracotta mt-0.5" />
-                            <p className="text-xs font-semibold leading-relaxed">
-                              "{opp.rationale}"
-                            </p>
-                          </div>
+                          <MatchExplanation opp={opp} highContrast={highContrast} />
 
                           {/* Details Metadata */}
                           <div className="grid grid-cols-2 gap-3 text-xs border-t pt-3 mt-1 border-cream-dark/30">
@@ -757,18 +741,51 @@ const UserDashboard = ({ onNavigate }) => {
           {/* ================= VIEW: MY PROFILE ================= */}
           {activeTab === 'profile' && (
             <div className="flex flex-col gap-6 text-left">
-              <div className="border-b pb-3 border-cream-dark/30">
-                <h2 className="font-serif text-2xl font-bold">My Matching Profile</h2>
+              <div className="border-b pb-3 border-cream-dark/30 mb-6">
+                <h2 className="font-serif text-2xl font-bold">My Profile</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  View and manage details used by the AI matching engine.
+                  View your details and update your AI-extracted skills.
                 </p>
+              </div>
+
+              {/* Profile Overview Card */}
+              <div className={`p-6 rounded-3xl flex flex-col gap-4 mb-2 ${cardTheme}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`h-16 w-16 rounded-full flex items-center justify-center font-serif text-2xl font-extrabold shadow-sm ${highContrast ? 'border-2 border-white bg-black text-white' : 'bg-terracotta text-white'}`}>
+                      {user?.name ? user.name[0] : 'U'}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold font-serif">{user?.name || 'User Name'}</h3>
+                      <p className={`text-sm mt-0.5 ${textSecondaryTheme}`}>
+                        {user?.phone || 'No phone'} • Language: <span className="uppercase font-semibold">{user?.preferredLanguage || 'en'}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider text-center ${
+                    highContrast ? 'border border-white bg-black text-white' : 'bg-forest/10 text-forest'
+                  }`}>
+                    {user?.role === 'provider' ? 'Service Provider' : 'User'}
+                  </span>
+                </div>
+
+                {user?.bio && (
+                  <div className="mt-4 pt-4 border-t border-cream-dark/30">
+                    <h4 className="text-sm font-bold text-forest mb-2 flex items-center gap-1.5">
+                      <User className="h-4 w-4" /> My Bio
+                    </h4>
+                    <p className={`text-sm leading-relaxed ${textSecondaryTheme} italic bg-cream/20 p-4 rounded-xl border border-cream-dark/30`}>
+                      "{user.bio}"
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Bio / AI Extraction Section */}
               <div className={`p-6 rounded-3xl flex flex-col gap-4 ${cardTheme}`}>
-                <h3 className="text-xl font-bold flex items-center gap-2">
+                <h3 className="text-lg font-bold flex items-center gap-2">
                   <Bot className="h-5 w-5 text-terracotta" />
-                  AI Skill Extraction
+                  Update Skills via AI
                 </h3>
                 <p className={`text-sm ${textSecondaryTheme}`}>
                   Tell us about your experience in your own words, and our AI will automatically map your skills.

@@ -26,6 +26,7 @@ import {
   Users
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import api from '../services/api';
 import { 
   VerificationBadge, 
   RatingDisplay, 
@@ -35,6 +36,7 @@ import {
   ReportBlockModal, 
   SafetyTipsCard 
 } from '../components/TrustSafety';
+import { MatchExplanation } from '../components/MatchExplanation';
 import { ChatInterface } from '../components/ChatInterface';
 import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
 
@@ -180,22 +182,36 @@ const EmployerDashboard = ({ onNavigate }) => {
     setRawText("I need a patient person who can cook home-cooked meals for my diabetic father every weekday morning. He likes Gujarati and Gujarati-style food. Preferably someone living near Connaught Place.");
   };
 
-  const handleAIStructureListing = () => {
+  const handleAIStructureListing = async () => {
     if (!rawText.trim()) return;
     setIsAnalyzing(true);
     
-    // Simulate AI parsing text and generating structured fields in 1.5 seconds
-    setTimeout(() => {
-      setPreviewTitle("Gujarati Chef for Diabetic Father");
-      setPreviewCategory("cooking");
-      setPreviewDesc("Prepare healthy, low-sugar Gujarati home-cooked meals every weekday morning for an elderly diabetic parent near Connaught Place.");
-      setPreviewPay("₹350/hr");
-      setPreviewMode("offline");
-      setPreviewTiming("Weekday Mornings (8:00 AM - 10:00 AM)");
+    try {
+      const { data } = await api.post('/ai/structure-listing', { requestText: rawText });
       
+      if (data) {
+        setPreviewTitle(data.title || "Opportunity");
+        setPreviewCategory(data.category || "other");
+        setPreviewDesc(data.cleanedDescription || rawText);
+        setPreviewPay(data.suggestedPayRange || "Negotiable");
+        setPreviewTiming(data.suggestedTiming || "Not specified");
+        
+        // Mode isn't extracted by our schema, so we default to offline
+        setPreviewMode("offline");
+      }
+    } catch (error) {
+      console.error('AI Structuring failed:', error);
+      // Fallback if AI fails: pre-fill with raw data so user isn't blocked
+      setPreviewTitle("Opportunity");
+      setPreviewCategory("other");
+      setPreviewDesc(rawText);
+      setPreviewPay("Negotiable");
+      setPreviewTiming("Not specified");
+      setPreviewMode("offline");
+    } finally {
       setIsAnalyzing(false);
       setShowPreview(true);
-    }, 1500);
+    }
   };
 
   const handlePublishOpportunity = (e) => {
@@ -748,14 +764,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                       </div>
 
                       {/* AI summary block */}
-                      <div className={`p-3 rounded-xl border border-dashed flex items-start gap-2 ${
-                        highContrast ? 'border-white bg-black' : 'bg-amber-50/50 border-amber-200 text-charcoal'
-                      }`}>
-                        <Sparkles className="h-4 w-4 shrink-0 text-terracotta mt-0.5" />
-                        <p className="text-xs leading-relaxed font-semibold">
-                          "{cand.rationale}"
-                        </p>
-                      </div>
+                      <MatchExplanation opp={cand} highContrast={highContrast} />
 
                       {/* Info details */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-500">
