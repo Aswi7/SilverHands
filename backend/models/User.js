@@ -39,12 +39,21 @@ const UserSchema = new mongoose.Schema({
   },
   password: { 
     type: String, 
-    required: true 
-  }, // hashed password
+    required: false // Optional now because we use OTP
+  }, // hashed password (legacy)
   role: { 
     type: String, 
-    enum: ['provider', 'customer'], 
+    enum: ['provider', 'employer'], // Ensure 'employer' is supported 
     required: true 
+  },
+  age: {
+    type: Number,
+    required: false
+  },
+  category: {
+    type: String,
+    enum: ['senior_citizen', 'homemaker', 'both', 'none'],
+    required: false
   },
   preferredLanguage: { 
     type: String, 

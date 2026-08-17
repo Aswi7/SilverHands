@@ -204,10 +204,71 @@ const googleLogin = async (req, res) => {
   }
 };
 
+const sendOtp = async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) {
+      return res.status(400).json({ message: 'Phone number is required' });
+    }
+    // Mock sending OTP
+    res.status(200).json({ message: 'OTP sent successfully (mocked)' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const verifyOtp = async (req, res) => {
+  try {
+    const { phone, otp, role, name, age, category } = req.body;
+    
+    if (!otp) {
+      return res.status(400).json({ message: 'OTP is required' });
+    }
+
+    let user = await User.findOne({ phone });
+
+    if (user) {
+      // Returning user
+      generateToken(res, user._id);
+    } else {
+      // New user
+      user = await User.create({
+        phone,
+        role: role || 'provider',
+        name: name || 'User',
+        age,
+        category,
+        location: {
+          type: 'Point',
+          coordinates: [77.59, 12.97] // mock location
+        }
+      });
+      generateToken(res, user._id);
+    }
+
+    res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      phone: user.phone,
+      role: user.role,
+      preferredLanguage: user.preferredLanguage,
+      location: user.location,
+      skills: user.skills,
+      bio: user.bio,
+      availability: user.availability
+    });
+  } catch (error) {
+    console.error('Verify OTP error:', error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
   logoutUser,
   getMe,
-  googleLogin
+  googleLogin,
+  sendOtp,
+  verifyOtp
 };

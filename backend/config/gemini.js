@@ -1,7 +1,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Model configuration constant for easy swapping
-const DEFAULT_MODEL = "gemini-3.5-flash"; // Fallback to "gemini-3.5-flash-lite" if rate limits are hit
+const DEFAULT_MODEL = "gemini-1.5-flash"; // Stable production model with responseSchema support
 
 let genAI = null;
 
