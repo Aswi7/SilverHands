@@ -237,3 +237,56 @@ exports.submitReview = async (req, res) => {
     res.status(500).json({ message: 'Failed to submit review', error: error.message });
   }
 };
+
+// @desc    Send message in application thread
+// @route   POST /api/applications/:id/messages
+// @access  Private
+exports.sendMessage = async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) {
+      return res.status(400).json({ message: 'Message text is required' });
+    }
+    const application = await Application.findById(req.params.id);
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+    
+    const newMessage = {
+      senderId: req.user._id,
+      text,
+      timestamp: new Date()
+    };
+    
+    application.messages.push(newMessage);
+    await application.save();
+    
+    // Trigger a notification if it's a provider reaching out
+    if (req.user.role === 'provider') {
+      await triggerGuardianNotification('PROVIDER_REACHOUT', {
+        applicationId: application._id,
+        providerName: req.user.name,
+        message: text
+      });
+    }
+    
+    res.status(200).json(application);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to send message', error: error.message });
+  }
+};
+
+// @desc    Get messages in application thread
+// @route   GET /api/applications/:id/messages
+// @access  Private
+exports.getMessages = async (req, res) => {
+  try {
+    const application = await Application.findById(req.params.id);
+    if (!application) {
+      return res.status(404).json({ message: 'Application not found' });
+    }
+    res.status(200).json(application.messages || []);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to get messages', error: error.message });
+  }
+};

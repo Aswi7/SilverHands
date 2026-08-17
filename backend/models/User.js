@@ -43,7 +43,7 @@ const UserSchema = new mongoose.Schema({
   }, // hashed password (legacy)
   role: { 
     type: String, 
-    enum: ['provider', 'employer'], // Ensure 'employer' is supported 
+    enum: ['provider', 'customer', 'employer'], // Support both legacy customer and new employer role aliases
     required: true 
   },
   age: {

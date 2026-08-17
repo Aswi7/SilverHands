@@ -132,8 +132,25 @@ const getOpportunityMatches = async (req, res) => {
   }
 };
 
+// @desc    Get service requests created by the logged-in customer
+// @route   GET /api/requests/my
+// @access  Private (Customer only)
+const getMyRequests = async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ message: 'Only customers can view their requests' });
+    }
+    const requests = await ServiceRequest.find({ customer: req.user._id }).sort({ createdAt: -1 });
+    res.status(200).json(requests);
+  } catch (error) {
+    console.error('Get my requests error:', error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createServiceRequest,
   getNearbyRequests,
-  getOpportunityMatches
+  getOpportunityMatches,
+  getMyRequests
 };

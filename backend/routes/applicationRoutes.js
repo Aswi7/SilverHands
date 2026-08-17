@@ -8,7 +8,9 @@ const {
   checkInApplication,
   completeApplication,
   getUserApplications,
-  submitReview
+  submitReview,
+  sendMessage,
+  getMessages
 } = require('../controllers/applicationController');
 
 router.post('/', protect, createApplication);
@@ -18,5 +20,7 @@ router.patch('/:id/confirm', protect, confirmApplication);
 router.patch('/:id/check-in', protect, checkInApplication);
 router.patch('/:id/complete', protect, completeApplication);
 router.post('/:id/review', protect, submitReview);
+router.post('/:id/messages', protect, sendMessage);
+router.get('/:id/messages', protect, getMessages);
 
 module.exports = router;
