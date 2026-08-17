@@ -26,7 +26,9 @@ import {
   Calendar,
   AlertCircle,
   Bot,
-  X
+  X,
+  Mic,
+  MicOff
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import api from '../services/api';
@@ -41,10 +43,16 @@ const UserDashboard = ({ onNavigate }) => {
   const { user, logout, updateUserInState } = useAuth();
 
   // Accessibility Global Settings
-  const { setPanelOpen, highContrast, fontSize } = useAccessibility();
+  const { setPanelOpen, highContrast, fontSize, speechLocale } = useAccessibility();
 
   // Tab Navigation State
-  const [activeTab, setActiveTab] = useState('matches');
+  const [activeTab, setActiveTab] = useState(() => {
+    return sessionStorage.getItem('providerDashboardTab') || 'matches';
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('providerDashboardTab', activeTab);
+  }, [activeTab]);
 
   // Filter States
   const [activeCategory, setActiveCategory] = useState('all');
@@ -82,18 +90,21 @@ const UserDashboard = ({ onNavigate }) => {
   useEffect(() => {
     if (user?._id) {
       api.get(`/listings/provider/${user._id}`)
-        .then(res => setProviderListings(res.data))
+        .then(res => setProviderListings(Array.isArray(res.data) ? res.data : []))
         .catch(err => console.error("Failed to load listings", err));
     }
   }, [user]);
 
   // Derive relevant forecasts
-  const userSkillCategories = user?.skills?.map(s => typeof s === 'object' ? (s.category || s.skillName) : s) || [];
+  const safeSkills = Array.isArray(user?.skills) ? user.skills : [];
+  const userSkillCategories = safeSkills.map(s => (s && typeof s === 'object') ? (s.category || s.skillName) : s);
   const relevantForecasts = forecastData.map(event => {
     // If the user hasn't completed onboarding, they might have no skills yet.
     // For the sake of the MVP demo, if Asha Devi is logged in, default match cooking.
     const hasSkillMatch = event.relevantCategories.some(cat => 
-      userSkillCategories.some(skill => skill.toLowerCase().includes(cat.toLowerCase()))
+      userSkillCategories.some(skill => 
+        skill && typeof skill === 'string' && skill.toLowerCase().includes(cat.toLowerCase())
+      )
     );
     const isRelevant = hasSkillMatch || (user?.name === 'Asha Devi' && event.relevantCategories.includes('cooking'));
     return { ...event, isRelevant };
@@ -135,11 +146,19 @@ const UserDashboard = ({ onNavigate }) => {
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
   // Profile AI Extraction State
-  const [bioText, setBioText] = useState(user?.bio || '');
-  const [extractedSkills, setExtractedSkills] = useState(user?.skills || []);
+  const [bioText, setBioText] = useState('');
+  const [extractedSkills, setExtractedSkills] = useState([]);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractError, setExtractError] = useState(null);
   const [isListeningBio, setIsListeningBio] = useState(false);
+
+  // Sync state with user when user loads
+  useEffect(() => {
+    if (user) {
+      setBioText(prev => prev || user.bio || '');
+      setExtractedSkills(prev => prev.length ? prev : (Array.isArray(user.skills) ? user.skills : []));
+    }
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -303,7 +322,7 @@ const UserDashboard = ({ onNavigate }) => {
   // Navigation Items
   const sidebarItems = [
     { id: 'matches', label: t('dashboard.provider.tabs.matches'), icon: Sparkles },
-    { id: 'forecast', label: t('dashboard.provider.tabs.forecast') || 'Forecasts', icon: Calendar },
+    { id: 'forecast', label: t('dashboard.provider.tabs.forecast', 'Forecasts'), icon: Calendar },
     { id: 'applications', label: t('dashboard.provider.tabs.applications'), icon: Briefcase },
     { id: 'earnings', label: t('dashboard.provider.tabs.earnings'), icon: TrendingUp },
     { id: 'messages', label: t('dashboard.provider.tabs.messages'), icon: MessageSquare },
@@ -1015,13 +1034,13 @@ const UserDashboard = ({ onNavigate }) => {
               </div>
 
               {/* My Published Services (Listings) */}
-              {user?.role === 'provider' && providerListings.length > 0 && (
+              {user?.role === 'provider' && Array.isArray(providerListings) && providerListings.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-cream-dark/30">
                   <h4 className="text-sm font-bold text-forest mb-4 flex items-center gap-1.5">
                     <Briefcase className="h-4 w-4" /> My Published Services
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {providerListings.map(listing => (
+                    {providerListings.filter(Boolean).map(listing => (
                       <div key={listing._id} className={`p-4 rounded-2xl border flex flex-col gap-2 ${
                         highContrast ? 'border-white bg-black' : 'border-cream-dark bg-white shadow-sm'
                       }`}>
@@ -1052,37 +1071,65 @@ const UserDashboard = ({ onNavigate }) => {
               )}
 
               {/* Bio / AI Extraction Section */}
-              <div className={`p-6 rounded-3xl flex flex-col gap-4 mt-6 ${cardTheme}`}>
+              <div className={`p-6 rounded-3xl flex flex-col gap-4 mt-6 border ${
+                highContrast ? 'border-white bg-black' : 'bg-white border-cream-dark shadow-sm'
+              }`}>
                 <h3 className="text-lg font-bold flex items-center gap-2">
-                  <Bot className="h-5 w-5 text-terracotta" />
+                  <Sparkles className="h-5 w-5 text-terracotta" />
                   Update Skills via AI
                 </h3>
-                <p className={`text-sm ${textSecondaryTheme}`}>
-                  Tell us about your experience in your own words, and our AI will automatically map your skills.
-                </p>
-                
-                <div className="relative">
-                  <textarea 
-                    value={bioText}
-                    onChange={(e) => setBioText(e.target.value)}
-                    placeholder="e.g. I have 15 years of experience as a high school math teacher, and I also love baking cakes for birthdays..."
-                    rows="4"
-                    className={`w-full px-4 py-3 rounded-2xl text-sm border focus:outline-none focus:ring-1 focus:ring-terracotta focus:border-terracotta pr-12 ${
-                      highContrast ? 'border-white bg-black text-white' : 'border-cream-dark bg-cream-dark/20 text-charcoal'
-                    }`}
-                  />
-                  <button 
-                    onClick={handleListenBio}
-                    className={`absolute bottom-3 right-3 p-2 rounded-full transition-all ${
-                      isListeningBio 
-                        ? 'bg-red-500 text-white animate-pulse shadow-lg' 
-                        : (highContrast ? 'bg-white text-black hover:bg-yellow-400' : 'bg-terracotta/10 text-terracotta hover:bg-terracotta/20')
-                    }`}
-                    title="Dictate with voice"
-                  >
-                    <Mic className="h-5 w-5" />
-                  </button>
+
+                {/* AI Balloon */}
+                <div className="flex items-start gap-3 mt-2">
+                  <div className={`h-10 w-10 shrink-0 rounded-full flex items-center justify-center ${highContrast ? 'border border-white text-white' : 'bg-forest text-white'}`}>
+                    <Bot className="h-6 w-6" />
+                  </div>
+                  <div className={`p-4 rounded-2xl rounded-tl-none text-sm leading-relaxed ${highContrast ? 'border border-white bg-black text-white' : 'bg-teal-50 border border-teal-100 text-forest shadow-sm'}`}>
+                    "Hello again! Tell me about any new skills or experience you want to offer. You can type it below or just use your voice, and I'll automatically map it to your profile!"
+                  </div>
                 </div>
+
+                {/* User Input Frame */}
+                <div className="flex items-end gap-3 mt-2">
+                  <div className="flex-grow flex flex-col gap-2 relative">
+                    <textarea 
+                      value={bioText}
+                      onChange={(e) => setBioText(e.target.value)}
+                      placeholder="e.g. I am great at baking cookies and teaching traditional stitching..."
+                      rows="3"
+                      className={`w-full px-4 py-3 rounded-2xl text-base transition-all ${
+                        highContrast 
+                          ? 'bg-black border-2 border-white text-white focus:border-yellow-400' 
+                          : 'bg-cream-dark/20 border border-cream-dark text-charcoal focus:border-terracotta focus:ring-1 focus:ring-terracotta'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Pulsing Voice Mic Button */}
+                  <div className="relative shrink-0 mb-1">
+                    {isListeningBio && (
+                      <span className="absolute inset-0 rounded-2xl bg-terracotta opacity-70 animate-ping" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleListenBio}
+                      className={`relative z-10 h-[52px] w-[52px] rounded-2xl flex items-center justify-center text-white transition-all ${
+                        isListeningBio 
+                          ? 'bg-red-500 animate-pulse shadow-lg' 
+                          : (highContrast ? 'bg-white text-black border border-black hover:bg-yellow-400' : 'bg-terracotta hover:bg-terracotta-hover shadow-md hover:shadow-lg')
+                      }`}
+                      aria-label="Toggle Voice Input"
+                    >
+                      {isListeningBio ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
+                    </button>
+                  </div>
+                </div>
+
+                {isListeningBio && (
+                  <p className="text-xs text-red-500 font-bold text-center mt-1 animate-pulse">
+                    🎤 Listening (Speaking active)...
+                  </p>
+                )}
                 
                 <div className="flex items-center gap-3">
                   <button 
@@ -1106,11 +1153,11 @@ const UserDashboard = ({ onNavigate }) => {
                 </div>
 
                 {/* Extracted Skills UI */}
-                {extractedSkills.length > 0 && (
+                {Array.isArray(extractedSkills) && extractedSkills.length > 0 && (
                   <div className="mt-4 border-t border-cream-dark/30 pt-4">
                     <h4 className="text-sm font-bold mb-3 uppercase tracking-wider text-forest">Extracted Skills Review</h4>
                     <div className="flex flex-wrap gap-2">
-                      {extractedSkills.map((skill, index) => {
+                      {extractedSkills.filter(Boolean).map((skill, index) => {
                         // Check if it's the new object format or the old string format fallback
                         const isObject = typeof skill === 'object';
                         const skillName = isObject ? skill.skillName : skill;
