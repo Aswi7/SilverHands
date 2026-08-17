@@ -45,6 +45,15 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
+  const googleLogin = async (credential) => {
+    const { data } = await api.post('/auth/google', { credential });
+    setUser(data);
+    if (data.preferredLanguage) {
+      i18n.changeLanguage(data.preferredLanguage);
+    }
+    return data;
+  };
+
   const logout = async () => {
     await api.post('/auth/logout');
     setUser(null);
@@ -58,7 +67,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateUserInState }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, googleLogin, logout, updateUserInState }}>
       {children}
     </AuthContext.Provider>
   );

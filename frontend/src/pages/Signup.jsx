@@ -14,6 +14,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState(initialRole);
 
@@ -83,6 +84,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
       await signup({
         name,
         phone,
+        email: email.trim() || undefined,
         password,
         role,
         preferredLanguage: prefLang,
@@ -197,6 +199,21 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
                 onChange={(e) => setPhone(e.target.value)}
                 required
                 placeholder="e.g. 9876543210"
+                className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
+              />
+            </div>
+
+            {/* Email (Optional) */}
+            <div className="flex flex-col gap-2">
+              <label htmlFor="email" className="text-sm font-bold">
+                Email <span className={`font-normal ${textSecondaryTheme}`}>(Optional)</span>
+              </label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@gmail.com"
                 className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
               />
             </div>

@@ -21,9 +21,21 @@ const UserSchema = new mongoose.Schema({
   },
   phone: { 
     type: String, 
-    required: true, 
+    required: true,
     unique: true,
     trim: true 
+  },
+  email: {
+    type: String,
+    unique: true,
+    sparse: true,
+    trim: true,
+    lowercase: true
+  },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true
   },
   password: { 
     type: String, 

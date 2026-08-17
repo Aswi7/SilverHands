@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 import { Type, Eye, Globe } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const Login = ({ onNavigate }) => {
   const { t } = useTranslation();
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   
   // Accessibility States
   const [fontSize, setFontSize] = useState('normal'); 
@@ -47,6 +48,23 @@ const Login = ({ onNavigate }) => {
       onNavigate('dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed. Please check details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setError('');
+    setLoading(true);
+    try {
+      if (!credentialResponse?.credential) {
+        setError('Google Sign-In failed. Please try again.');
+        return;
+      }
+      await googleLogin(credentialResponse.credential);
+      onNavigate('dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Google Sign-In failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -155,6 +173,24 @@ const Login = ({ onNavigate }) => {
               {loading ? '...' : t('auth.login_btn')}
             </button>
           </form>
+
+          <div className="flex items-center gap-4 my-6">
+            <div className={`flex-1 h-px ${highContrast ? 'bg-white' : 'bg-cream-dark'}`} />
+            <span className={`text-sm font-bold ${textSecondaryTheme}`}>OR</span>
+            <div className={`flex-1 h-px ${highContrast ? 'bg-white' : 'bg-cream-dark'}`} />
+          </div>
+
+          <div className={`flex justify-center ${loading ? 'pointer-events-none opacity-50' : ''}`}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('Google Sign-In failed. Please try again.')}
+              useOneTap={false}
+              theme={highContrast ? 'filled_black' : 'outline'}
+              text="continue_with"
+              shape="pill"
+              size="large"
+            />
+          </div>
 
           {/* Toggle auth view */}
           <p 
