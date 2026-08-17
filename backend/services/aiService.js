@@ -5,12 +5,14 @@ const skillExtraction = require('../config/ai-prompts/skillExtraction');
 const bioGeneration = require('../config/ai-prompts/bioGeneration');
 const listingStructuring = require('../config/ai-prompts/listingStructuring');
 const matchExplanation = require('../config/ai-prompts/matchExplanation');
+const sakhiChat = require('../config/ai-prompts/sakhiChat');
 
 const taskMap = {
   'skillExtraction': skillExtraction,
   'bioGeneration': bioGeneration,
   'listingStructuring': listingStructuring,
-  'matchExplanation': matchExplanation
+  'matchExplanation': matchExplanation,
+  'sakhiChat': sakhiChat
 };
 
 /**
@@ -30,7 +32,8 @@ const runAITask = async (taskType, inputData) => {
   const responseSchema = task.schema;
 
   try {
-    const result = await callGemini(systemPrompt, '', responseSchema);
+    const userInput = inputData.userInput || '';
+    const result = await callGemini(systemPrompt, userInput, responseSchema);
     return result;
   } catch (error) {
     console.error(`AI Task '${taskType}' Failed:`, error.message);

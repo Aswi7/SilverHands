@@ -71,4 +71,28 @@ router.post('/explain-match', protect, async (req, res) => {
   }
 });
 
+// POST /api/ai/chat
+router.post('/chat', protect, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) {
+      return res.status(400).json({ message: 'Missing message' });
+    }
+    
+    // Pass user context and the message to Gemini
+    const result = await runAITask('sakhiChat', { 
+      userName: req.user.name, 
+      userRole: req.user.role,
+      userInput: message 
+    });
+    
+    res.status(200).json(result);
+  } catch (error) {
+    if (error.type === 'RATE_LIMIT_ERROR' || error.type === 'SERVICE_UNAVAILABLE_ERROR') {
+       return res.status(503).json({ message: 'AI busy' });
+    }
+    res.status(500).json({ message: 'Failed to chat with Sakhi' });
+  }
+});
+
 module.exports = router;
