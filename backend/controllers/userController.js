@@ -30,6 +30,8 @@ const updateUserProfile = async (req, res) => {
         }
       }
 
+      user.isOnboarded = req.body.isOnboarded !== undefined ? req.body.isOnboarded : user.isOnboarded;
+
       const updatedUser = await user.save();
       res.status(200).json({
         _id: updatedUser._id,
@@ -40,7 +42,8 @@ const updateUserProfile = async (req, res) => {
         location: updatedUser.location,
         skills: updatedUser.skills,
         bio: updatedUser.bio,
-        availability: updatedUser.availability
+        availability: updatedUser.availability,
+        isOnboarded: updatedUser.isOnboarded
       });
     } else {
       res.status(404).json({ message: 'User not found' });

@@ -295,7 +295,8 @@ const OnboardingFlow = ({ onNavigate }) => {
         name,
         preferredLanguage: prefLang,
         skills: formattedSkills,
-        bio: aiBio
+        bio: aiBio,
+        isOnboarded: true
       });
       
       // Immediately update local AuthContext so the Dashboard has the data without a reload

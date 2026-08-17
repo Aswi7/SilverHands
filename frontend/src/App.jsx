@@ -89,14 +89,23 @@ function AppContent() {
   useEffect(() => {
     if (!loading) {
       if (user) {
-        if (view === 'login' || view === 'signup') {
-          if (user.role === 'provider') {
-            navigate('onboarding', 'provider', true);
+        if (user.role === 'provider') {
+          if (!user.isOnboarded) {
+            // Force onboarding if not onboarded yet
+            if (view !== 'onboarding') {
+              navigate('onboarding', 'provider', true);
+            }
           } else {
+            // Already onboarded, don't allow returning to login, signup, or onboarding
+            if (view === 'login' || view === 'signup' || view === 'onboarding') {
+              navigate('dashboard', 'provider', true);
+            }
+          }
+        } else {
+          // Employer/Customer
+          if (view === 'login' || view === 'signup' || view === 'onboarding') {
             navigate('dashboard', 'customer', true);
           }
-        } else if (view === 'onboarding' && user.role === 'customer') {
-          navigate('dashboard', 'customer', true);
         }
       } else {
         if (view === 'dashboard' || view === 'onboarding') {

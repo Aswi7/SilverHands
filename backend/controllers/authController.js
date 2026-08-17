@@ -15,7 +15,8 @@ const formatUserResponse = (user) => ({
   location: user.location,
   skills: user.skills,
   bio: user.bio,
-  availability: user.availability
+  availability: user.availability,
+  isOnboarded: user.isOnboarded
 });
 
 const generateToken = (res, userId) => {
@@ -255,7 +256,8 @@ const verifyOtp = async (req, res) => {
       location: user.location,
       skills: user.skills,
       bio: user.bio,
-      availability: user.availability
+      availability: user.availability,
+      isOnboarded: user.isOnboarded
     });
   } catch (error) {
     console.error('Verify OTP error:', error.message);

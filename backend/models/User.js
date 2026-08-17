@@ -85,6 +85,10 @@ const UserSchema = new mongoose.Schema({
   embedding: {
     type: [Number],
     default: null
+  },
+  isOnboarded: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 
