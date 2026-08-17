@@ -8,8 +8,15 @@ dotenv.config();
 
 const seed = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('MongoDB Connected for seeding...');
+    try {
+      await mongoose.connect(process.env.MONGODB_URI);
+      console.log('MongoDB Connected for seeding...');
+    } catch (dbErr) {
+      console.warn('MongoDB Primary Connection Error during seeding:', dbErr.message);
+      console.log('Attempting to fallback to local MongoDB instance...');
+      await mongoose.connect('mongodb://127.0.0.1:27017/silverhands');
+      console.log('MongoDB Fallback Connected: 127.0.0.1');
+    }
 
     // Clear existing data
     await User.deleteMany({});
@@ -45,7 +52,10 @@ const seed = async () => {
         type: 'Point',
         coordinates: [77.2150, 28.6280] // [longitude, latitude]
       },
-      skills: ['Smartphones', 'Errands'],
+      skills: [
+        { skillName: 'Smartphones', experienceLevel: 'Expert', confidence: 1.0 },
+        { skillName: 'Errands', experienceLevel: 'Intermediate', confidence: 1.0 }
+      ],
       bio: 'Retired teacher, happy to help with technology support and daily tasks.',
       availability: true
     });
@@ -62,7 +72,9 @@ const seed = async () => {
         type: 'Point',
         coordinates: [77.3000, 28.6000] // [longitude, latitude]
       },
-      skills: ['Gardening'],
+      skills: [
+        { skillName: 'Gardening', experienceLevel: 'Expert', confidence: 1.0 }
+      ],
       bio: 'Homemaker who loves gardening and can help you maintain your plants.',
       availability: true
     });

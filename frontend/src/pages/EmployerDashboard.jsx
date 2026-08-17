@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { 
@@ -112,6 +112,95 @@ const EmployerDashboard = ({ onNavigate }) => {
       applicantsCount: 1
     }
   ]);
+
+  const fetchPostings = async () => {
+    try {
+      const { data } = await api.get('/requests/my');
+      if (Array.isArray(data) && data.length > 0) {
+        // Map the backend structure to the format required by postings state
+        const mappedPostings = data.map(post => ({
+          id: post._id,
+          title: post.title,
+          category: post.category,
+          desc: post.description,
+          pay: post.rate,
+          mode: post.mode,
+          timing: post.timing,
+          status: post.status,
+          applicantsCount: post.applicantsCount || 0
+        }));
+        setPostings(mappedPostings);
+      }
+    } catch (err) {
+      console.error('Failed to fetch postings:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchPostings();
+    }
+  }, [user]);
+
+  // Applications Polling & Notification system
+  const [applications, setApplications] = useState([]);
+  const [dashboardAlert, setDashboardAlert] = useState(null);
+  const prevAppsRef = useRef([]);
+
+  const fetchApplications = async () => {
+    if (!user?._id) return;
+    try {
+      const { data } = await api.get(`/applications/user/${user._id}`);
+      const newApps = data || [];
+      
+      if (newApps.length > 0 && prevAppsRef.current.length > 0) {
+        // 1. Check for new applications (provider reached out/applied)
+        const newApp = newApps.find(app => !prevAppsRef.current.some(p => p._id === app._id));
+        if (newApp) {
+          setDashboardAlert({
+            title: t('dashboard.employer.notifications.new_application_title', "New Opportunity Match Reached Out!"),
+            message: t('dashboard.employer.notifications.new_application_msg', "{{name}} applied for your listing '{{title}}'", { 
+              name: newApp.providerId?.name || 'A neighbor', 
+              title: newApp.opportunityId?.title || 'Gig' 
+            }),
+            type: "application"
+          });
+          fetchPostings();
+        } else {
+          // 2. Check for new messages from providers inside existing application threads
+          newApps.forEach(app => {
+            const prevApp = prevAppsRef.current.find(p => p._id === app._id);
+            if (prevApp && Array.isArray(app.messages) && Array.isArray(prevApp.messages)) {
+              if (app.messages.length > prevApp.messages.length) {
+                const lastMsg = app.messages[app.messages.length - 1];
+                // Only trigger if message is sent by the provider, not the customer
+                if (lastMsg.senderId !== user._id && lastMsg.senderId?._id !== user._id) {
+                  setDashboardAlert({
+                    title: t('dashboard.employer.notifications.new_message_title', "New message from {{name}}", { name: app.providerId?.name || 'Provider' }),
+                    message: `"${lastMsg.text}"`,
+                    type: "message"
+                  });
+                }
+              }
+            }
+          });
+        }
+      }
+      
+      prevAppsRef.current = newApps;
+      setApplications(newApps);
+    } catch (err) {
+      console.error('Failed to poll applications:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchApplications();
+      const interval = setInterval(fetchApplications, 8000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // Mock Candidate list for matched profiles
 
@@ -239,6 +328,29 @@ const EmployerDashboard = ({ onNavigate }) => {
   return (
     <div className={`min-h-screen flex flex-col md:flex-row ${bgTheme} transition-colors duration-200 font-sans`}>
       
+      {/* Floating Notification Toast */}
+      {dashboardAlert && (
+        <div className={`fixed top-4 right-4 z-[9999] p-4 rounded-2xl shadow-xl flex items-start gap-3 border max-w-sm ${
+          highContrast 
+            ? 'bg-black text-white border-2 border-white' 
+            : 'bg-white border-cream-dark text-charcoal'
+        }`}>
+          <div className="bg-orange-100 text-terracotta p-2 rounded-xl shrink-0">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div className="flex-grow text-left">
+            <h4 className="font-bold text-sm">{dashboardAlert.title}</h4>
+            <p className="text-xs text-charcoal-light mt-0.5">{dashboardAlert.message}</p>
+          </div>
+          <button 
+            onClick={() => setDashboardAlert(null)}
+            className="text-gray-400 hover:text-charcoal text-xs font-bold font-serif px-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* 1. LEFT SIDEBAR (Desktop) / BOTTOM NAV (Mobile) */}
       <aside className={`w-full md:w-64 md:min-h-screen shrink-0 border-r md:sticky md:top-0 z-40 ${
         highContrast ? 'border-white bg-black' : 'border-cream-dark/50 bg-white'

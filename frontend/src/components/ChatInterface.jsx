@@ -55,6 +55,25 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
             time: new Date(app.createdAt).toLocaleTimeString(),
             isBot: true
           });
+
+          // Add real database messages if they exist
+          if (Array.isArray(app.messages)) {
+            app.messages.forEach(msg => {
+              const isMe = msg.senderId === user._id || (msg.senderId && (msg.senderId._id === user._id || msg.senderId === user._id));
+              userThreads[otherId].messages.push({
+                id: msg._id || Math.random(),
+                sender: isMe ? 'sender' : 'receiver',
+                text: msg.text,
+                time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              });
+            });
+            // Update lastMessage
+            if (app.messages.length > 0) {
+              const lastMsg = app.messages[app.messages.length - 1];
+              userThreads[otherId].lastMessage = lastMsg.text;
+              userThreads[otherId].timestamp = new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+          }
         });
 
         const mappedConvs = Object.values(userThreads);
@@ -170,6 +189,12 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
       }
       return c;
     }));
+
+    // Send message to backend database
+    if (activeConv && activeConv.applicationId) {
+      api.post(`/applications/${activeConv.applicationId}/messages`, { text: newMsgText })
+        .catch(err => console.error("Failed to persist message in DB:", err));
+    }
 
     // If talking to Sakhi, make real API call
     if (activeConvId === '3') {

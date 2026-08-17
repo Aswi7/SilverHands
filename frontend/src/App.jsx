@@ -91,8 +91,8 @@ function AppContent() {
       if (user) {
         if (user.role === 'provider') {
           if (!user.isOnboarded) {
-            // Force onboarding if not onboarded yet
-            if (view !== 'onboarding') {
+            // Force onboarding if trying to access dashboard, login, or signup, but allow landing page
+            if (view === 'dashboard' || view === 'login' || view === 'signup') {
               navigate('onboarding', 'provider', true);
             }
           } else {
