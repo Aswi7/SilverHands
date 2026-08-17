@@ -79,8 +79,8 @@ const EmployerDashboard = ({ onNavigate }) => {
   // Mock Postings Database
   const [postings, setPostings] = useState([
     {
-      id: 1,
-      title: "Smart TV & Gadgets Setup Tutor",
+      id: "mock1",
+      title: "Smartphone & Smart TV Setup Tutor",
       category: "tech",
       desc: "Need a patient teacher to explain smartphone features and configure a smart television once a week.",
       pay: "₹400/hr",
@@ -114,57 +114,6 @@ const EmployerDashboard = ({ onNavigate }) => {
   ]);
 
   // Mock Candidate list for matched profiles
-  const candidatesDatabase = {
-    1: [ // Applicants for TV & Gadgets Tutor
-      {
-        id: 101,
-        name: "Suresh Patel",
-        age: 65,
-        score: 94,
-        rationale: "Suresh has 25 years background in telecom engineering and is free on weekend afternoons.",
-        verified: ["ID", "Background", "References"],
-        skills: ["Smartphone Tutoring", "Smart TV Configuration", "Technical Support", "Patient Teacher"],
-        availability: "Saturdays & Sundays (Afternoon)",
-        rating: 5.0,
-        reviewsCount: 12,
-        reviews: [
-          { author: "Amit S.", rating: 5, comment: "Suresh was extremely patient. He spent two hours showing my grandfather how to use video calls." }
-        ]
-      },
-      {
-        id: 102,
-        name: "Col. Raghavan (Retd.)",
-        age: 68,
-        score: 87,
-        rationale: "Raghavan has extensive tech setup skills and live within 3km of Vasant Kunj.",
-        verified: ["ID", "References"],
-        skills: ["Gadgets configuration", "Computer training", "Android setup"],
-        availability: "Weekends & Weekdays",
-        rating: 4.8,
-        reviewsCount: 8,
-        reviews: [
-          { author: "Kiran R.", rating: 5, comment: "Very professional and methodical. Highly recommended for senior tech tutoring." }
-        ]
-      }
-    ],
-    2: [ // Applicants for Gujarati Home Chef
-      {
-        id: 201,
-        name: "Asha Devi",
-        age: 62,
-        score: 95,
-        rationale: "Asha Devi has 15 years experience cooking Gujarati dishes and is free on your exact morning timeslots.",
-        verified: ["ID", "Background", "Health Check"],
-        skills: ["Gujarati Cuisine", "Diabetic Meal prep", "Low-Salt diet planning", "Traditional Spices"],
-        availability: "Weekday Mornings (8:00 AM - 12:00 PM)",
-        rating: 4.9,
-        reviewsCount: 22,
-        reviews: [
-          { author: "Mrunal Patel", rating: 5, comment: "Asha cooks just like home. Her diabetic meals are tasty and low in oil." }
-        ]
-      }
-    ]
-  };
 
 
 
@@ -214,25 +163,48 @@ const EmployerDashboard = ({ onNavigate }) => {
     }
   };
 
-  const handlePublishOpportunity = (e) => {
+  const handlePublishOpportunity = async (e) => {
     e.preventDefault();
-    const newPosting = {
-      id: postings.length + 1,
-      title: previewTitle,
-      category: previewCategory,
-      desc: previewDesc,
-      pay: previewPay,
-      mode: previewMode,
-      timing: previewTiming,
-      status: "open",
-      applicantsCount: 0
-    };
+    
+    try {
+      const payload = {
+        title: previewTitle,
+        description: previewDesc,
+        category: previewCategory,
+        rate: previewPay,
+        timing: previewTiming,
+        mode: previewMode,
+        location: {
+          longitude: user?.location?.coordinates?.[0] || 0,
+          latitude: user?.location?.coordinates?.[1] || 0
+        }
+      };
 
-    setPostings([newPosting, ...postings]);
-    setRawText('');
-    setShowPreview(false);
-    setActiveTab('postings');
-    alert(`Successfully published "${previewTitle}" opportunity list!`);
+      const { data } = await api.post('/requests', payload);
+
+      // Append returned data format to mock postings for immediate UI response
+      const newPosting = {
+        id: data._id,
+        title: data.title,
+        category: data.category,
+        desc: data.description,
+        pay: data.rate,
+        mode: data.mode,
+        timing: data.timing,
+        status: data.status,
+        applicantsCount: 0
+      };
+
+      setPostings([newPosting, ...postings]);
+      setRawText('');
+      setShowPreview(false);
+      setActiveTab('postings');
+      // Replace alert with a less obtrusive approach or keep it for MVP
+      alert(`Successfully published "${previewTitle}" opportunity list!`);
+    } catch (err) {
+      console.error('Failed to publish opportunity:', err);
+      alert(err.response?.data?.message || 'Failed to publish opportunity. Please try again.');
+    }
   };
 
   // --- Accessibility Styling Tokens ---
@@ -535,10 +507,18 @@ const EmployerDashboard = ({ onNavigate }) => {
                         onChange={(e) => setPreviewCategory(e.target.value)}
                         className={`px-3 py-2 rounded-xl text-sm ${inputTheme}`}
                       >
-                        <option value="tech">Technology</option>
                         <option value="cooking">Cooking / Meal Prep</option>
+                        <option value="tailoring">Tailoring / Alterations</option>
+                        <option value="tutoring">Tutoring</option>
+                        <option value="traditional-crafts">Traditional Crafts</option>
+                        <option value="caregiving">Caregiving</option>
+                        <option value="mentoring">Mentoring</option>
+                        <option value="consulting">Consulting</option>
+                        <option value="home-services">Home Services</option>
+                        <option value="tech-support">Tech Support</option>
                         <option value="gardening">Gardening / Plant Care</option>
                         <option value="errands">Errands / Deliveries</option>
+                        <option value="other">Other</option>
                       </select>
                     </div>
 
@@ -679,16 +659,26 @@ const EmployerDashboard = ({ onNavigate }) => {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 border-t pt-4 border-cream-dark/30">
-                      {candidatesDatabase[post.id] ? (
+                      {post.id !== "mock1" && post.id !== 2 && post.id !== 3 ? (
                         <button
-                          onClick={() => {
+                          onClick={async () => {
                             setSelectedPosting(post);
                             setActiveTab('candidates');
+                            setIsLoadingMatches(true);
+                            setMatchedCandidates([]);
+                            try {
+                              const { data } = await api.get(`/requests/${post.id}/matches`);
+                              setMatchedCandidates(data || []);
+                            } catch (err) {
+                              console.error('Failed to fetch matches', err);
+                            } finally {
+                              setIsLoadingMatches(false);
+                            }
                           }}
                           className={`grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${secondaryBtnTheme}`}
                         >
                           <Users className="h-4 w-4" />
-                          {t('dashboard.employer.postings.view_matches', { count: post.applicantsCount })}
+                          {t('dashboard.employer.postings.view_matches', { count: post.applicantsCount || 0 })}
                         </button>
                       ) : (
                         <p className="text-xs text-gray-400 italic py-2 grow text-center">{t('dashboard.employer.postings.ai_searching')}</p>
@@ -726,9 +716,23 @@ const EmployerDashboard = ({ onNavigate }) => {
 
               {/* Matched Candidates Grid */}
               <div className="grid gap-6">
-                {(candidatesDatabase[selectedPosting.id] || []).map((cand) => (
+                {isLoadingMatches && (
+                  <div className="p-8 flex justify-center items-center text-forest animate-pulse font-bold">
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    Finding best AI matches...
+                  </div>
+                )}
+                {!isLoadingMatches && matchedCandidates.length === 0 && (
+                  <div className="p-8 text-center text-gray-500 italic">
+                    No candidates found yet. Try expanding your criteria.
+                  </div>
+                )}
+                {!isLoadingMatches && matchedCandidates.map((match) => {
+                  const cand = match.provider;
+                  if (!cand) return null;
+                  return (
                   <div 
-                    key={cand.id} 
+                    key={match._id} 
                     className={`p-6 rounded-3xl flex flex-col sm:flex-row gap-5 relative overflow-hidden ${cardTheme}`}
                   >
                     
@@ -736,7 +740,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                     <div className={`absolute top-4 right-4 h-14 w-14 rounded-full flex flex-col items-center justify-center text-white text-xs font-bold leading-none ${
                       highContrast ? 'border-2 border-white bg-black' : 'bg-forest shadow-sm'
                     }`}>
-                      <span className="text-base">{cand.score}%</span>
+                      <span className="text-base">{match.score}%</span>
                       <span className="text-[8px] uppercase font-bold">{t('dashboard.employer.candidates.match')}</span>
                     </div>
 
@@ -744,7 +748,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                     <div className={`h-16 w-16 rounded-full shrink-0 flex items-center justify-center text-2xl font-serif font-extrabold ${
                       highContrast ? 'border-2 border-white text-white' : 'bg-orange-100 text-terracotta border border-orange-200'
                     }`}>
-                      {cand.name[0]}
+                      {cand.name ? cand.name[0] : '?'}
                     </div>
 
                     {/* Right Info info-dense panel */}
@@ -752,24 +756,22 @@ const EmployerDashboard = ({ onNavigate }) => {
                       
                       {/* Name, Age, Badges */}
                       <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="text-xl font-bold">{cand.name}</h4>
-                        <span className={`text-xs ${textSecondaryTheme}`}>{t('dashboard.employer.candidates.age', { age: cand.age })}</span>
+                        <h4 className="text-xl font-bold">{cand.name || 'Anonymous Provider'}</h4>
+                        <span className={`text-xs ${textSecondaryTheme}`}>{cand.role === 'provider' ? 'Provider' : ''}</span>
                         
                         {/* Badges list */}
                         <div className="flex gap-1.5 flex-wrap">
-                          {cand.verified.map(v => (
-                            <VerificationBadge key={v} type={v} highContrast={highContrast} />
-                          ))}
+                           <VerificationBadge key="ID" type="ID" highContrast={highContrast} />
                         </div>
                       </div>
 
                       {/* AI summary block */}
-                      <MatchExplanation opp={cand} highContrast={highContrast} />
+                      <MatchExplanation opp={{ ...match, rationale: "Matched based on skills and proximity." }} highContrast={highContrast} />
 
                       {/* Info details */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-500">
-                        <span>💪 <strong>{t('dashboard.employer.candidates.skills')}</strong> {cand.skills.slice(0, 3).join(', ')}</span>
-                        <span>📅 <strong>{t('dashboard.employer.candidates.availability')}</strong> {cand.availability}</span>
+                        <span>💪 <strong>{t('dashboard.employer.candidates.skills')}</strong> {cand.skills && cand.skills.length > 0 ? cand.skills.slice(0, 3).map(s => typeof s === 'object' ? s.skillName : s).join(', ') : 'Not specified'}</span>
+                        <span>📅 <strong>{t('dashboard.employer.candidates.availability')}</strong> {cand.availability ? 'Available' : 'Unavailable'}</span>
                       </div>
 
                       {/* Actions */}
@@ -794,7 +796,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                     </div>
 
                   </div>
-                ))}
+                )})}
               </div>
 
             </div>

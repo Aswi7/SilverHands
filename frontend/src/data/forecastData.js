@@ -1,0 +1,52 @@
+export const forecastData = [
+  {
+    id: "f1",
+    eventName: "🪔 Diwali",
+    dateRange: "Oct 20 to Nov 5",
+    relevantCategories: ["cooking", "tailoring", "home-services"],
+    demandUplift: "+40%",
+    insight: "Sweets & Snacks demand is predicted to rise 40% in your area.",
+    suggestionTitle: "Homemade Diwali Sweets & Snacks",
+    suggestionCategory: "cooking"
+  },
+  {
+    id: "f2",
+    eventName: "💍 Wedding Season",
+    dateRange: "Nov 15 to Dec 15",
+    relevantCategories: ["tailoring", "traditional-crafts"],
+    demandUplift: "+35%",
+    insight: "Custom alterations and traditional crafts usually see a 35% spike.",
+    suggestionTitle: "Bridal & Wedding Guest Alterations",
+    suggestionCategory: "tailoring"
+  },
+  {
+    id: "f3",
+    eventName: "🎒 Back to School",
+    dateRange: "June 1 to June 30",
+    relevantCategories: ["tutoring", "mentoring"],
+    demandUplift: "+50%",
+    insight: "Tutoring requests for Mathematics and Science jump by 50%.",
+    suggestionTitle: "Primary School Math & Science Tutoring",
+    suggestionCategory: "tutoring"
+  },
+  {
+    id: "f4",
+    eventName: "☀️ Summer Holidays",
+    dateRange: "April 15 to May 31",
+    relevantCategories: ["caregiving", "cooking", "gardening"],
+    demandUplift: "+25%",
+    insight: "Childcare and summer camp cooking activities rise by 25%.",
+    suggestionTitle: "Summer Vacation Childcare & Activities",
+    suggestionCategory: "caregiving"
+  },
+  {
+    id: "f5",
+    eventName: "🌧️ Monsoon Prep",
+    dateRange: "July 1 to Aug 15",
+    relevantCategories: ["home-services", "errands"],
+    demandUplift: "+30%",
+    insight: "Home repairs and errand running demand increases by 30% due to rain.",
+    suggestionTitle: "Monsoon Errand & Delivery Support",
+    suggestionCategory: "errands"
+  }
+];

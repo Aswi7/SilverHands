@@ -34,6 +34,7 @@ import { SafetyTipsCard } from '../components/TrustSafety';
 import { MatchExplanation } from '../components/MatchExplanation';
 import { ChatInterface } from '../components/ChatInterface';
 import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
+import { forecastData } from '../data/forecastData';
 
 const UserDashboard = ({ onNavigate }) => {
   const { t } = useTranslation();
@@ -59,6 +60,78 @@ const UserDashboard = ({ onNavigate }) => {
     { id: 2, text: "New English tutoring opportunity nearby", time: "2h ago", unread: true },
     { id: 3, text: "Application confirmed for Math Tuitions", time: "1d ago", unread: false }
   ]);
+
+  // Forecast state
+  const [showForecastModal, setShowForecastModal] = useState(false);
+  const [selectedForecast, setSelectedForecast] = useState(null);
+  
+  // Listing Creation Form state
+  const [listingForm, setListingForm] = useState({ 
+    title: '', 
+    category: '', 
+    description: '', 
+    rateType: 'daily', 
+    rateAmount: '', 
+    packageDuration: '' 
+  });
+  const [isCreatingListing, setIsCreatingListing] = useState(false);
+  
+  // Provider Active Listings
+  const [providerListings, setProviderListings] = useState([]);
+  
+  useEffect(() => {
+    if (user?._id) {
+      api.get(`/listings/provider/${user._id}`)
+        .then(res => setProviderListings(res.data))
+        .catch(err => console.error("Failed to load listings", err));
+    }
+  }, [user]);
+
+  // Derive relevant forecasts
+  const userSkillCategories = user?.skills?.map(s => typeof s === 'object' ? (s.category || s.skillName) : s) || [];
+  const relevantForecasts = forecastData.map(event => {
+    // If the user hasn't completed onboarding, they might have no skills yet.
+    // For the sake of the MVP demo, if Asha Devi is logged in, default match cooking.
+    const hasSkillMatch = event.relevantCategories.some(cat => 
+      userSkillCategories.some(skill => skill.toLowerCase().includes(cat.toLowerCase()))
+    );
+    const isRelevant = hasSkillMatch || (user?.name === 'Asha Devi' && event.relevantCategories.includes('cooking'));
+    return { ...event, isRelevant };
+  });
+
+  const topForecast = relevantForecasts.find(f => f.isRelevant) || relevantForecasts[0];
+
+  const handlePrepareListing = (forecast) => {
+    setSelectedForecast(forecast);
+    setListingForm({
+      title: forecast.suggestionTitle,
+      category: forecast.suggestionCategory,
+      description: `I am offering ${forecast.suggestionTitle.toLowerCase()} services for the upcoming ${forecast.eventName}.`,
+      rateType: 'daily',
+      rateAmount: '500',
+      packageDuration: ''
+    });
+    setShowForecastModal(true);
+  };
+
+  const handleSubmitListing = async () => {
+    if (!listingForm.title || !listingForm.category || !listingForm.rateAmount || !listingForm.description) {
+      alert("Please fill all required fields.");
+      return;
+    }
+    setIsCreatingListing(true);
+    try {
+      const { data } = await api.post('/listings', listingForm);
+      setProviderListings([data, ...providerListings]);
+      setShowForecastModal(false);
+      setActiveTab('profile'); // Send them to profile to see the new listing
+    } catch (error) {
+      console.error("Error creating listing", error);
+      alert("Failed to create listing.");
+    } finally {
+      setIsCreatingListing(false);
+    }
+  };
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
   // Profile AI Extraction State
@@ -129,10 +202,10 @@ const UserDashboard = ({ onNavigate }) => {
           id: req._id,
           title: req.title,
           category: req.category,
-          score: Math.floor(Math.random() * (98 - 75) + 75), // Phase 7 placeholder
-          rationale: "Matched based on your profile skills and location.", // Phase 7 placeholder
+          score: req.score || 50,
+          scoreBreakdown: req.scoreBreakdown || null,
           rate: req.rate || "Negotiable",
-          location: req.mode === 'online' ? 'Online' : `Coordinates: [${req.location.coordinates[0].toFixed(2)}, ${req.location.coordinates[1].toFixed(2)}]`,
+          location: req.mode === 'online' ? 'Online' : (req.location?.coordinates ? `Coordinates: [${req.location.coordinates[0].toFixed(2)}, ${req.location.coordinates[1].toFixed(2)}]` : 'Unknown'),
           mode: req.mode || "offline",
           posted: new Date(req.createdAt).toLocaleDateString(),
           description: req.description
@@ -195,6 +268,7 @@ const UserDashboard = ({ onNavigate }) => {
   // Navigation Items
   const sidebarItems = [
     { id: 'matches', label: t('dashboard.provider.tabs.matches'), icon: Sparkles },
+    { id: 'forecast', label: t('dashboard.provider.tabs.forecast') || 'Forecasts', icon: Calendar },
     { id: 'applications', label: t('dashboard.provider.tabs.applications'), icon: Briefcase },
     { id: 'earnings', label: t('dashboard.provider.tabs.earnings'), icon: TrendingUp },
     { id: 'messages', label: t('dashboard.provider.tabs.messages'), icon: MessageSquare },
@@ -374,6 +448,38 @@ const UserDashboard = ({ onNavigate }) => {
           {activeTab === 'matches' && (
             <div className="flex flex-col gap-6 text-left">
               
+              {/* Dynamic Opportunity Forecast Banner */}
+              {topForecast && (
+                <div className={`p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border-2 ${
+                  highContrast 
+                    ? 'border-white bg-black text-white' 
+                    : 'bg-gradient-to-r from-orange-50 to-amber-50 border-terracotta text-charcoal'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    <div className="text-3xl shrink-0 mt-1">{topForecast.eventName.split(' ')[0]}</div>
+                    <div className="flex flex-col">
+                      <h4 className="font-bold text-lg text-terracotta flex items-center gap-2">
+                        {topForecast.eventName} is coming up! 
+                        <span className="px-2 py-0.5 rounded-full bg-terracotta/10 text-terracotta text-[10px] uppercase font-bold tracking-wider">
+                          AI Forecast
+                        </span>
+                      </h4>
+                      <p className="text-sm font-semibold mt-1">{topForecast.insight}</p>
+                      <p className="text-xs text-gray-500 mt-1 italic">
+                        *AI estimate based on historical seasonal patterns
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => handlePrepareListing(topForecast)}
+                    className={`shrink-0 px-6 py-3 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm ${primaryBtnTheme}`}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Prepare My Listing
+                  </button>
+                </div>
+              )}
+
               {/* AI learning preference banner */}
               <div className={`p-4 rounded-2xl flex items-start gap-3 border ${
                 highContrast 
@@ -590,6 +696,93 @@ const UserDashboard = ({ onNavigate }) => {
             </div>
           )}
 
+          {/* ================= VIEW: OPPORTUNITY FORECAST ================= */}
+          {activeTab === 'forecast' && (
+            <div className="flex flex-col gap-6 text-left">
+              
+              <div className="border-b pb-4 border-cream-dark/30 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                  <h2 className="font-serif text-3xl font-bold flex items-center gap-2">
+                    <TrendingUp className="h-8 w-8 text-terracotta" />
+                    Opportunity Forecast
+                  </h2>
+                  <p className={`text-sm ${textSecondaryTheme} mt-2`}>
+                    Plan ahead and prepare your services. <br/>
+                    <span className="italic text-xs text-gray-500">*AI estimate based on historical seasonal patterns</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-6">
+                {relevantForecasts.map((event) => (
+                  <div 
+                    key={event.id} 
+                    className={`p-6 rounded-3xl border-2 flex flex-col md:flex-row justify-between gap-6 relative overflow-hidden transition-all ${
+                      event.isRelevant
+                        ? (highContrast ? 'border-yellow-400 bg-black' : 'border-terracotta bg-orange-50/30')
+                        : cardTheme
+                    }`}
+                  >
+                    {event.isRelevant && (
+                      <div className="absolute top-0 right-0 bg-terracotta text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl shadow-sm flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" /> Relevant to you
+                      </div>
+                    )}
+                    
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-3xl">{event.eventName.split(' ')[0]}</span>
+                        <div>
+                          <h3 className="font-serif text-2xl font-bold">{event.eventName.slice(2)}</h3>
+                          <span className="text-sm font-bold text-gray-500 flex items-center gap-1">
+                            <Calendar className="h-4 w-4" /> {event.dateRange}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-2">
+                        <span className="text-xs font-bold text-gray-500 uppercase">Relevant Categories</span>
+                        <div className="flex gap-2 mt-1">
+                          {event.relevantCategories.map(cat => (
+                            <span key={cat} className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
+                              highContrast ? 'border border-white text-white' : 'bg-cream-dark/30 text-charcoal'
+                            }`}>
+                              {cat}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`md:w-72 shrink-0 p-5 rounded-2xl flex flex-col justify-center border border-dashed ${
+                      highContrast ? 'border-gray-600' : 'bg-white border-terracotta/30 shadow-sm'
+                    }`}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingUp className="h-5 w-5 text-green-600" />
+                        <span className="font-bold text-lg text-green-700">Demand {event.demandUplift}</span>
+                      </div>
+                      <p className={`text-sm ${textSecondaryTheme} leading-relaxed`}>{event.insight}</p>
+                      
+                      {event.isRelevant && (
+                        <button
+                          onClick={() => handlePrepareListing(event)}
+                          className={`mt-4 w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                            highContrast ? 'bg-white text-black hover:bg-yellow-400' : 'bg-terracotta hover:bg-terracotta-hover text-white shadow-md'
+                          }`}
+                        >
+                          <Sparkles className="h-4 w-4" />
+                          Prepare My Listing
+                        </button>
+                      )}
+                    </div>
+
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          )}
+
           {/* ================= VIEW: APPLICATIONS KANBAN ================= */}
           {activeTab === 'applications' && (
             <div className="flex flex-col gap-6 text-left">
@@ -734,7 +927,12 @@ const UserDashboard = ({ onNavigate }) => {
                 </p>
               </div>
 
-              <ChatInterface user={user} highContrast={highContrast} onNavigate={onNavigate} />
+              <ChatInterface 
+                user={user} 
+                highContrast={highContrast} 
+                onNavigate={onNavigate} 
+                onPrepareListing={() => handlePrepareListing(topForecast)} 
+              />
             </div>
           )}
 
@@ -781,8 +979,45 @@ const UserDashboard = ({ onNavigate }) => {
                 )}
               </div>
 
+              {/* My Published Services (Listings) */}
+              {user?.role === 'provider' && providerListings.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-cream-dark/30">
+                  <h4 className="text-sm font-bold text-forest mb-4 flex items-center gap-1.5">
+                    <Briefcase className="h-4 w-4" /> My Published Services
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {providerListings.map(listing => (
+                      <div key={listing._id} className={`p-4 rounded-2xl border flex flex-col gap-2 ${
+                        highContrast ? 'border-white bg-black' : 'border-cream-dark bg-white shadow-sm'
+                      }`}>
+                        <div className="flex justify-between items-start">
+                          <h5 className="font-bold text-sm text-charcoal">{listing.title}</h5>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                            highContrast ? 'bg-yellow-400 text-black' : 'bg-terracotta text-white'
+                          }`}>
+                            Active
+                          </span>
+                        </div>
+                        <span className="text-xs text-forest font-semibold uppercase">{listing.category}</span>
+                        <p className={`text-xs mt-1 leading-relaxed line-clamp-2 ${highContrast ? 'text-gray-300' : 'text-gray-500'}`}>
+                          {listing.description}
+                        </p>
+                        <div className="mt-2 pt-2 border-t border-cream-dark/20 flex justify-between items-center text-sm font-bold">
+                          <span className="flex items-center gap-1">
+                            <span className="flex items-center"><IndianRupee className="h-3 w-3" />{listing.rateAmount}</span>
+                            <span className={`text-[10px] uppercase font-semibold ${highContrast ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {listing.rateType === 'package' ? `/ ${listing.packageDuration || 'Package'}` : '/ Day'}
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Bio / AI Extraction Section */}
-              <div className={`p-6 rounded-3xl flex flex-col gap-4 ${cardTheme}`}>
+              <div className={`p-6 rounded-3xl flex flex-col gap-4 mt-6 ${cardTheme}`}>
                 <h3 className="text-lg font-bold flex items-center gap-2">
                   <Bot className="h-5 w-5 text-terracotta" />
                   Update Skills via AI
@@ -907,6 +1142,155 @@ const UserDashboard = ({ onNavigate }) => {
         </main>
       </div>
 
+      {/* --- PREPARE LISTING MODAL (Module 7 Full Form) --- */}
+      {showForecastModal && selectedForecast && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-4 pt-12 overflow-y-auto backdrop-blur-sm">
+          <div className={`w-full max-w-xl rounded-3xl p-8 relative shadow-2xl mb-12 ${
+            highContrast ? 'bg-black border-2 border-white text-white' : 'bg-white text-charcoal'
+          }`}>
+            <button 
+              onClick={() => setShowForecastModal(false)}
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
+              disabled={isCreatingListing}
+            >
+              <X className={`h-6 w-6 ${highContrast ? 'text-white' : 'text-gray-500'}`} />
+            </button>
+            
+            <div className="flex flex-col gap-5">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 bg-orange-100 rounded-full flex items-center justify-center shrink-0 border border-orange-200">
+                  <Sparkles className="h-8 w-8 text-terracotta" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-serif font-bold">Create Service Listing</h3>
+                  <p className={`text-sm ${highContrast ? 'text-gray-300' : 'text-gray-600'}`}>
+                    Publish your offering to meet the upcoming <strong>{selectedForecast.eventName}</strong> demand.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-4 mt-2">
+                <div>
+                  <label className="text-sm font-bold text-gray-500 uppercase">Service Title</label>
+                  <input
+                    type="text"
+                    value={listingForm.title}
+                    onChange={(e) => setListingForm({...listingForm, title: e.target.value})}
+                    className={`w-full p-3 rounded-xl border mt-1 focus:outline-none transition-all ${
+                      highContrast 
+                        ? 'bg-black border-white focus:border-yellow-400 text-white' 
+                        : 'bg-white border-cream-dark focus:border-terracotta text-charcoal'
+                    }`}
+                  />
+                </div>
+                
+                <div>
+                  <label className="text-sm font-bold text-gray-500 uppercase">Category</label>
+                  <input
+                    type="text"
+                    value={listingForm.category}
+                    onChange={(e) => setListingForm({...listingForm, category: e.target.value})}
+                    className={`w-full p-3 rounded-xl border mt-1 focus:outline-none transition-all ${
+                      highContrast 
+                        ? 'bg-black border-white focus:border-yellow-400 text-white' 
+                        : 'bg-white border-cream-dark focus:border-terracotta text-charcoal'
+                    }`}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-bold text-gray-500 uppercase">Rate Structure</label>
+                    <div className="flex gap-4 mt-1">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="radio" 
+                          name="rateType" 
+                          value="daily" 
+                          checked={listingForm.rateType === 'daily'}
+                          onChange={(e) => setListingForm({...listingForm, rateType: e.target.value})}
+                          className="w-4 h-4 text-terracotta"
+                        />
+                        <span className="text-sm font-semibold">One-Day Rate</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input 
+                          type="radio" 
+                          name="rateType" 
+                          value="package" 
+                          checked={listingForm.rateType === 'package'}
+                          onChange={(e) => setListingForm({...listingForm, rateType: e.target.value})}
+                          className="w-4 h-4 text-terracotta"
+                        />
+                        <span className="text-sm font-semibold">Package Rate</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-bold text-gray-500 uppercase">
+                      {listingForm.rateType === 'daily' ? 'Amount (per day)' : 'Total Package Amount'}
+                    </label>
+                    <input
+                      type="number"
+                      value={listingForm.rateAmount}
+                      onChange={(e) => setListingForm({...listingForm, rateAmount: e.target.value})}
+                      placeholder="e.g. 500"
+                      className={`w-full p-3 rounded-xl border mt-1 focus:outline-none transition-all ${
+                        highContrast 
+                          ? 'bg-black border-white focus:border-yellow-400 text-white' 
+                          : 'bg-white border-cream-dark focus:border-terracotta text-charcoal'
+                      }`}
+                    />
+                  </div>
+
+                  {listingForm.rateType === 'package' && (
+                    <div>
+                      <label className="text-sm font-bold text-gray-500 uppercase">Package Duration</label>
+                      <input
+                        type="text"
+                        value={listingForm.packageDuration}
+                        onChange={(e) => setListingForm({...listingForm, packageDuration: e.target.value})}
+                        placeholder="e.g. 3 Days or 1 Week"
+                        className={`w-full p-3 rounded-xl border mt-1 focus:outline-none transition-all ${
+                          highContrast 
+                            ? 'bg-black border-white focus:border-yellow-400 text-white' 
+                            : 'bg-white border-cream-dark focus:border-terracotta text-charcoal'
+                        }`}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-bold text-gray-500 uppercase">Description</label>
+                  <textarea
+                    rows={4}
+                    value={listingForm.description}
+                    onChange={(e) => setListingForm({...listingForm, description: e.target.value})}
+                    className={`w-full p-3 rounded-xl border mt-1 focus:outline-none transition-all ${
+                      highContrast 
+                        ? 'bg-black border-white focus:border-yellow-400 text-white' 
+                        : 'bg-white border-cream-dark focus:border-terracotta text-charcoal'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <button 
+                onClick={handleSubmitListing}
+                disabled={isCreatingListing}
+                className={`w-full py-4 rounded-xl font-bold mt-4 text-base transition-all ${
+                  isCreatingListing ? 'opacity-70 cursor-not-allowed' : ''
+                } ${primaryBtnTheme}`}
+              >
+                {isCreatingListing ? 'Publishing...' : 'Publish Listing'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
     </div>
   );
 };

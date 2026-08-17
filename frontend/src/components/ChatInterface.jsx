@@ -12,8 +12,9 @@ import {
   Volume2
 } from 'lucide-react';
 import { ScamAlertBanner, ReportBlockModal } from './TrustSafety';
+import api from '../services/api';
 
-export const ChatInterface = ({ user, highContrast = false, onNavigate }) => {
+export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepareListing }) => {
   // Pre-seed conversation database
   const [conversations, setConversations] = useState([
     {
@@ -48,11 +49,32 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate }) => {
         { id: 201, sender: 'sender', text: 'Hi Suresh, is 10 AM good for television setup?', time: 'Yesterday' },
         { id: 202, sender: 'receiver', text: 'I will be there by 10 AM tomorrow to help.', time: 'Yesterday' }
       ]
+    },
+    {
+      id: '3',
+      name: 'Sakhi (AI Assistant)',
+      role: 'System',
+      avatarBg: 'bg-indigo-100 text-indigo-600',
+      lastMessage: 'Diwali is coming up in 3 weeks — want me to help you prepare a sweets listing?',
+      timestamp: 'Just now',
+      unread: 1,
+      messages: [
+        { 
+          id: 301, 
+          sender: 'receiver', 
+          text: 'Diwali is coming up in 3 weeks — want me to help you prepare a sweets listing?', 
+          time: 'Just now',
+          isBot: true,
+          ctaTitle: 'Prepare My Listing',
+          ctaAction: 'prepare_listing'
+        }
+      ]
     }
   ]);
 
   const [activeConvId, setActiveConvId] = useState('1');
   const [inputValue, setInputValue] = useState('');
+  const [isSakhiTyping, setIsSakhiTyping] = useState(false);
   
   // Voice Recording Mock States
   const [isRecording, setIsRecording] = useState(false);
@@ -135,7 +157,50 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate }) => {
       return c;
     }));
 
-    // Trigger mock automatic response after 1.5 seconds
+    // If talking to Sakhi, make real API call
+    if (activeConvId === '3') {
+      setIsSakhiTyping(true);
+      
+      api.post('/ai/chat', { message: newMsgText })
+        .then(({ data }) => {
+          const aiReply = {
+            id: Date.now() + 1,
+            sender: 'receiver',
+            text: data.response || "I'm sorry, I couldn't understand that.",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isBot: true
+          };
+          setConversations(prev => prev.map(c => {
+            if (c.id === activeConvId) {
+              return {
+                ...c,
+                lastMessage: aiReply.text,
+                timestamp: 'Just now',
+                messages: [...c.messages, aiReply]
+              };
+            }
+            return c;
+          }));
+        })
+        .catch(err => {
+          console.error("Sakhi AI error", err);
+          const errorReply = {
+            id: Date.now() + 1,
+            sender: 'receiver',
+            text: "Oops, I'm having trouble connecting to the network right now.",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isBot: true
+          };
+          setConversations(prev => prev.map(c => c.id === activeConvId ? {...c, messages: [...c.messages, errorReply]} : c));
+        })
+        .finally(() => {
+          setIsSakhiTyping(false);
+        });
+      
+      return; // Skip the mock response below
+    }
+
+    // Trigger mock automatic response after 1.5 seconds for normal users
     setTimeout(() => {
       let replyText = "Alright, let's sync up later.";
       let triggersScam = false;
@@ -427,7 +492,28 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate }) => {
                           <span className="text-xs font-bold">{msg.text}</span>
                         </div>
                       ) : (
-                        <p className="text-xs leading-relaxed break-words">{msg.text}</p>
+                        <div className="flex flex-col gap-2">
+                          <p className="text-xs leading-relaxed break-words">{msg.text}</p>
+                          {msg.isBot && msg.ctaTitle && (
+                            <button
+                              onClick={() => {
+                                if (onPrepareListing) {
+                                  onPrepareListing();
+                                } else {
+                                  alert(`CTA Clicked: ${msg.ctaAction} (Will open Module 7)`);
+                                }
+                              }}
+                              className={`w-full px-4 py-2 mt-1 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm ${
+                                highContrast 
+                                  ? 'bg-white text-black hover:bg-yellow-400 border border-black' 
+                                  : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                              }`}
+                            >
+                              <Sparkles className="h-3.5 w-3.5" />
+                              {msg.ctaTitle}
+                            </button>
+                          )}
+                        </div>
                       )}
 
                       <span className={`text-[9px] self-end mt-0.5 ${
@@ -442,6 +528,20 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate }) => {
                   </div>
                 );
               })}
+              {activeConvId === '3' && isSakhiTyping && (
+                <div className="flex flex-col gap-1 w-full">
+                  <div className={`max-w-[75%] p-4 rounded-2xl self-start flex items-center gap-1 shadow-sm ${
+                    highContrast ? 'bg-black border border-white' : 'bg-cream-dark/30'
+                  }`}>
+                    <div className="flex space-x-1.5">
+                      <div className="h-2 w-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                      <div className="h-2 w-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                      <div className="h-2 w-2 bg-indigo-500 rounded-full animate-bounce"></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div ref={feedEndRef} />
             </div>
 
