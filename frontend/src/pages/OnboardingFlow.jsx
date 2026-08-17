@@ -30,10 +30,12 @@ import {
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useAccessibility } from '../context/AccessibilityContext';
 
 const OnboardingFlow = ({ onNavigate }) => {
   const { t } = useTranslation();
   const { updateUserInState } = useAuth();
+  const { speechLocale } = useAccessibility();
 
   // Accessibility States
   const [fontSize, setFontSize] = useState('normal'); 
@@ -112,22 +114,36 @@ const OnboardingFlow = ({ onNavigate }) => {
 
   // Step 2: Voice Simulation & AI Skill Extraction
   const handleVoiceInput = () => {
-    if (isListening) {
-      setIsListening(false);
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice dictation is not supported by your browser.");
       return;
     }
 
-    setIsListening(true);
-    // Simulate speech-to-text writing in 3 seconds
-    setTimeout(() => {
-      setChatText((prev) => {
-        const text = "I am a retired teacher. I can teach primary school English and Mathematics. I also do garden design and love taking care of house plants.";
-        // Trigger automated skill extraction
-        extractSkills(text);
-        return text;
-      });
+    if (isListening) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = speechLocale || 'en-IN';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => setIsListening(true);
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map(result => result[0].transcript)
+        .join('');
+      setChatText(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
       setIsListening(false);
-    }, 3000);
+    };
+
+    recognition.onend = () => setIsListening(false);
+
+    recognition.start();
   };
 
   useEffect(() => {

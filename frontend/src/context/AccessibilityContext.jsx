@@ -120,6 +120,17 @@ export const AccessibilityProvider = ({ children }) => {
     window.speechSynthesis.speak(utterance);
   };
 
+  // Map language to speech locale
+  const getSpeechLocale = () => {
+    switch (language) {
+      case 'hi': return 'hi-IN';
+      case 'ta': return 'ta-IN';
+      default: return 'en-IN';
+    }
+  };
+
+  const speechLocale = getSpeechLocale();
+
   return (
     <AccessibilityContext.Provider value={{
       fontSize,
@@ -130,6 +141,7 @@ export const AccessibilityProvider = ({ children }) => {
       setTtsEnabled,
       language,
       setLanguage,
+      speechLocale,
       panelOpen,
       setPanelOpen,
       speakText,

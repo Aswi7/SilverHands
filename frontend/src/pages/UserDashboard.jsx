@@ -139,6 +139,7 @@ const UserDashboard = ({ onNavigate }) => {
   const [extractedSkills, setExtractedSkills] = useState(user?.skills || []);
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractError, setExtractError] = useState(null);
+  const [isListeningBio, setIsListeningBio] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -147,6 +148,40 @@ const UserDashboard = ({ onNavigate }) => {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  // Handle Voice Dictation for Bio
+  const handleListenBio = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Your browser does not support voice dictation.");
+      return;
+    }
+
+    if (isListeningBio) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = speechLocale || 'en-IN';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => setIsListeningBio(true);
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map(result => result[0].transcript)
+        .join('');
+      setBioText(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+      setIsListeningBio(false);
+    };
+
+    recognition.onend = () => setIsListeningBio(false);
+
+    recognition.start();
   };
 
   const handleExtractSkills = async () => {
@@ -1026,15 +1061,28 @@ const UserDashboard = ({ onNavigate }) => {
                   Tell us about your experience in your own words, and our AI will automatically map your skills.
                 </p>
                 
-                <textarea 
-                  value={bioText}
-                  onChange={(e) => setBioText(e.target.value)}
-                  placeholder="e.g. I have 15 years of experience as a high school math teacher, and I also love baking cakes for birthdays..."
-                  rows="4"
-                  className={`w-full px-4 py-3 rounded-2xl text-sm border focus:outline-none focus:ring-1 focus:ring-terracotta focus:border-terracotta ${
-                    highContrast ? 'border-white bg-black text-white' : 'border-cream-dark bg-cream-dark/20 text-charcoal'
-                  }`}
-                />
+                <div className="relative">
+                  <textarea 
+                    value={bioText}
+                    onChange={(e) => setBioText(e.target.value)}
+                    placeholder="e.g. I have 15 years of experience as a high school math teacher, and I also love baking cakes for birthdays..."
+                    rows="4"
+                    className={`w-full px-4 py-3 rounded-2xl text-sm border focus:outline-none focus:ring-1 focus:ring-terracotta focus:border-terracotta pr-12 ${
+                      highContrast ? 'border-white bg-black text-white' : 'border-cream-dark bg-cream-dark/20 text-charcoal'
+                    }`}
+                  />
+                  <button 
+                    onClick={handleListenBio}
+                    className={`absolute bottom-3 right-3 p-2 rounded-full transition-all ${
+                      isListeningBio 
+                        ? 'bg-red-500 text-white animate-pulse shadow-lg' 
+                        : (highContrast ? 'bg-white text-black hover:bg-yellow-400' : 'bg-terracotta/10 text-terracotta hover:bg-terracotta/20')
+                    }`}
+                    title="Dictate with voice"
+                  >
+                    <Mic className="h-5 w-5" />
+                  </button>
+                </div>
                 
                 <div className="flex items-center gap-3">
                   <button 

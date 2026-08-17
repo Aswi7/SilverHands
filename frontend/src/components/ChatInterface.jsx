@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { ScamAlertBanner, ReportBlockModal } from './TrustSafety';
 import api from '../services/api';
+import { useAccessibility } from '../context/AccessibilityContext';
 
 export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepareListing }) => {
   // Pre-seed conversation database
@@ -75,6 +76,7 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
   const [activeConvId, setActiveConvId] = useState('1');
   const [inputValue, setInputValue] = useState('');
   const [isSakhiTyping, setIsSakhiTyping] = useState(false);
+  const { speechLocale } = useAccessibility();
   
   // Voice Recording Mock States
   const [isRecording, setIsRecording] = useState(false);
@@ -237,30 +239,50 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
     }, 1500);
   };
 
-  // Voice message submission handler
-  const handleSendVoiceMessage = () => {
-    setIsRecording(false);
-    
-    const newMsg = {
-      id: Date.now(),
-      sender: 'sender',
-      text: `🎤 Voice Message (${recordingSeconds}s)`,
-      isVoice: true,
-      duration: recordingSeconds,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  // Voice dictation handler
+  const handleStartVoice = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice dictation is not supported by your browser.");
+      return;
+    }
+
+    if (isRecording) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = speechLocale || 'en-IN';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+      window._chatRecognition = recognition;
     };
 
-    setConversations(prev => prev.map(c => {
-      if (c.id === activeConvId) {
-        return {
-          ...c,
-          lastMessage: "🎤 Sent a voice message",
-          timestamp: 'Just now',
-          messages: [...c.messages, newMsg]
-        };
-      }
-      return c;
-    }));
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map(result => result[0].transcript)
+        .join('');
+      setInputValue(transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error", event.error);
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.start();
+  };
+
+  const handleStopVoice = () => {
+    if (window._chatRecognition) {
+      window._chatRecognition.stop();
+    }
+    setIsRecording(false);
   };
 
   // Clear/Reset conversations (Empty state demo)
@@ -571,16 +593,22 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setIsRecording(false)}
+                      onClick={() => {
+                        handleStopVoice();
+                        setInputValue('');
+                      }}
                       className="px-3 py-1.5 text-xs font-bold text-charcoal hover:bg-cream-dark/30 rounded-lg"
                     >
                       Cancel
                     </button>
                     <button
-                      onClick={handleSendVoiceMessage}
+                      onClick={() => {
+                        handleStopVoice();
+                        handleSendMessage();
+                      }}
                       className="px-3 py-1.5 text-xs font-bold bg-red-600 text-white rounded-lg hover:bg-red-700"
                     >
-                      Send Recording
+                      Send Message
                     </button>
                   </div>
                 </div>
@@ -590,7 +618,7 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
                   {/* Microphone voice recorder trigger */}
                   <button
                     type="button"
-                    onClick={() => setIsRecording(true)}
+                    onClick={handleStartVoice}
                     className={`p-3 rounded-xl border flex items-center justify-center transition-all ${
                       highContrast 
                         ? 'border-white hover:bg-white hover:text-black text-white' 
