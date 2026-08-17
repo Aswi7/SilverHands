@@ -78,7 +78,27 @@ const callGemini = async (systemPrompt, userInput, responseSchema) => {
   }
 };
 
+/**
+ * Generates an embedding vector for a given text using text-embedding-004.
+ * 
+ * @param {string} text - The input string to embed.
+ * @returns {Promise<Array<number>>} - The embedding vector (768 dimensions).
+ */
+const generateEmbedding = async (text) => {
+  try {
+    const ai = initGemini();
+    const model = ai.getGenerativeModel({ model: "text-embedding-004" });
+    const result = await model.embedContent(text);
+    return result.embedding.values;
+  } catch (err) {
+    console.error('Failed to generate embedding:', err.message);
+    // Return null or throw depending on how hard we want to fail
+    return null;
+  }
+};
+
 module.exports = {
   callGemini,
+  generateEmbedding,
   DEFAULT_MODEL
 };

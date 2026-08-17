@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { generateEmbedding } = require('../config/gemini');
 
 // @desc    Update user profile details (language preference, bio, status)
 // @route   PUT /api/users/profile
@@ -13,10 +14,19 @@ const updateUserProfile = async (req, res) => {
       
       // Update provider specific details
       if (user.role === 'provider') {
+        const skillsChanged = JSON.stringify(req.body.skills) !== JSON.stringify(user.skills);
+        const bioChanged = req.body.bio !== user.bio;
+
         user.skills = req.body.skills || user.skills;
         user.bio = req.body.bio || user.bio;
         if (req.body.availability !== undefined) {
           user.availability = req.body.availability;
+        }
+
+        if (skillsChanged || bioChanged) {
+          const skillsStr = user.skills.map(s => s.skillName || s).join(', ');
+          const textToEmbed = `Skills: ${skillsStr}. Bio: ${user.bio || ''}`;
+          user.embedding = await generateEmbedding(textToEmbed);
         }
       }
 

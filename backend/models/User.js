@@ -60,6 +60,10 @@ const UserSchema = new mongoose.Schema({
   availability: {
     type: Boolean,
     default: true
+  },
+  embedding: {
+    type: [Number],
+    default: null
   }
 }, { timestamps: true });
 

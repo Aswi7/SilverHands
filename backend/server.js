@@ -6,6 +6,9 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const requestRoutes = require('./routes/requestRoutes');
+const providerRoutes = require('./routes/providerRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+const listingRoutes = require('./routes/listingRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -24,15 +27,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-const providerRoutes = require('./routes/providerRoutes');
-const aiRoutes = require('./routes/aiRoutes');
-
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/providers', providerRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/listings', listingRoutes);
 
 // Base health check route
 app.get('/api/health', (req, res) => {

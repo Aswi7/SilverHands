@@ -57,6 +57,10 @@ const ServiceRequestSchema = new mongoose.Schema({
     type: String,
     enum: ['pending', 'accepted', 'completed', 'cancelled'],
     default: 'pending'
+  },
+  embedding: {
+    type: [Number],
+    default: null
   }
 }, { timestamps: true });
 
