@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   ShieldCheck, 
   Phone, 
@@ -432,25 +433,26 @@ export const ReportBlockModal = ({ isOpen, onClose, onSubmit, targetName = "this
    5. SAFETY TIPS CARD
    ========================================================================== */
 export const SafetyTipsCard = ({ highContrast = false }) => {
+  const { t } = useTranslation();
   const [currentTip, setCurrentTip] = useState(0);
   const [dismissed, setDismissed] = useState(false);
 
   const safetyTips = [
     {
-      title: "Meet in Public First",
-      text: "When arranging the first job matching consultation, meet in a public location like a neighborhood cafe or apartment clubhouse."
+      title: t('safety.tip1_title', 'Meet in Public First'),
+      text: t('safety.tip1_text', 'When arranging the first job matching consultation, meet in a public location like a neighborhood cafe or apartment clubhouse.')
     },
     {
-      title: "No Advance Payments",
-      text: "Never send payments or advance cash deposits before any work starts. Always inspect completed tasks before releasing gig earnings."
+      title: t('safety.tip2_title', 'No Advance Payments'),
+      text: t('safety.tip2_text', 'Never send payments or advance cash deposits before any work starts. Always inspect completed tasks before releasing gig earnings.')
     },
     {
-      title: "Share Job Location",
-      text: "Always inform a family member, neighbor, or friend about the gig location and expected timings before starting home visits."
+      title: t('safety.tip3_title', 'Share Job Location'),
+      text: t('safety.tip3_text', 'Always inform a family member, neighbor, or friend about the gig location and expected timings before starting home visits.')
     },
     {
-      title: "Keep Chats in App",
-      text: "Keep messages inside SilverHands. This allows our AI safety tools to protect you from payment scams and verify credentials."
+      title: t('safety.tip4_title', 'Keep Chats in App'),
+      text: t('safety.tip4_text', 'Keep messages inside SilverHands. This allows our AI safety tools to protect you from payment scams and verify credentials.')
     }
   ];
 
@@ -484,7 +486,7 @@ export const SafetyTipsCard = ({ highContrast = false }) => {
         <div className={`p-1.5 rounded-lg ${highContrast ? 'bg-white text-black' : 'bg-forest/10 text-forest'}`}>
           <Info className="h-4.5 w-4.5" />
         </div>
-        <span className="text-xs font-bold uppercase tracking-wider text-forest">Safety Center</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-forest">{t('safety.title', 'Safety Center')}</span>
       </div>
 
       {/* Tip Content */}
@@ -498,7 +500,7 @@ export const SafetyTipsCard = ({ highContrast = false }) => {
       {/* Navigation Controls */}
       <div className="flex items-center justify-between border-t border-cream-dark/20 pt-3 mt-1">
         <span className="text-[10px] font-bold text-charcoal-light">
-          Tip {currentTip + 1} of {safetyTips.length}
+          {t('safety.tip_counter', 'Tip {{current}} of {{total}}', { current: currentTip + 1, total: safetyTips.length })}
         </span>
         
         <div className="flex gap-1.5">

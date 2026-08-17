@@ -34,7 +34,7 @@ import { useAccessibility } from '../context/AccessibilityContext';
 
 const OnboardingFlow = ({ onNavigate }) => {
   const { t } = useTranslation();
-  const { updateUserInState } = useAuth();
+  const { user, updateUserInState } = useAuth();
   const { speechLocale } = useAccessibility();
 
   // Accessibility States
@@ -49,9 +49,37 @@ const OnboardingFlow = ({ onNavigate }) => {
   const [age, setAge] = useState('');
   const [phone, setPhone] = useState('');
   const [prefLang, setPrefLang] = useState('en');
+  const [cityName, setCityName] = useState('Delhi');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [locationState, setLocationState] = useState(''); // 'detecting', 'success', 'error'
+
+  const CITY_COORDINATES = {
+    'delhi': [77.2090, 28.6139],
+    'new delhi': [77.2090, 28.6139],
+    'connaught place': [77.2197, 28.6304],
+    'mumbai': [72.8777, 19.0760],
+    'bengaluru': [77.5946, 12.9716],
+    'bangalore': [77.5946, 12.9716],
+    'chennai': [80.2707, 13.0827],
+    'kolkata': [88.3639, 22.5726],
+    'noida': [77.3910, 28.5355],
+    'gurgaon': [77.0266, 28.4595]
+  };
+
+  // Pre-seed basic info from authenticated user state
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setAge(user.age || '');
+      setPhone(user.phone || '');
+      setPrefLang(user.preferredLanguage || 'en');
+      if (user.location?.coordinates) {
+        setLongitude(user.location.coordinates[0] || '');
+        setLatitude(user.location.coordinates[1] || '');
+      }
+    }
+  }, [user]);
 
   // --- Step 2: Skills & AI States ---
   const [chatText, setChatText] = useState('');
@@ -255,7 +283,17 @@ const OnboardingFlow = ({ onNavigate }) => {
         };
       });
 
+      // Update location coordinates matched from city selection
+      const cityKey = cityName.trim().toLowerCase();
+      const coords = CITY_COORDINATES[cityKey] || [77.2090, 28.6139];
+      await api.put('/users/location', {
+        longitude: coords[0],
+        latitude: coords[1]
+      });
+
       const { data } = await api.put('/users/profile', {
+        name,
+        preferredLanguage: prefLang,
         skills: formattedSkills,
         bio: aiBio
       });
@@ -440,9 +478,9 @@ const OnboardingFlow = ({ onNavigate }) => {
             <div className="flex flex-col gap-6">
               
               <div className="text-left border-b pb-4 border-cream-dark/50">
-                <h2 className="font-serif text-2xl font-bold">Tell us about yourself</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('onboarding.title', 'Tell us about yourself')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Please fill in your basic details. This helps local neighbors find you.
+                  {t('onboarding.subtitle', 'Please fill in your basic details. This helps local neighbors find you.')}
                 </p>
               </div>
 
@@ -450,7 +488,7 @@ const OnboardingFlow = ({ onNavigate }) => {
                 
                 {/* Full Name */}
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="name" className="text-sm font-bold">Full Name</label>
+                  <label htmlFor="name" className="text-sm font-bold">{t('onboarding.full_name', 'Full Name')}</label>
                   <input 
                     type="text" 
                     id="name"
@@ -464,7 +502,7 @@ const OnboardingFlow = ({ onNavigate }) => {
 
                 {/* Age */}
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="age" className="text-sm font-bold">Age (in years)</label>
+                  <label htmlFor="age" className="text-sm font-bold">{t('onboarding.age', 'Age (in years)')}</label>
                   <input 
                     type="number" 
                     id="age"
@@ -478,7 +516,7 @@ const OnboardingFlow = ({ onNavigate }) => {
 
                 {/* Phone Number */}
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="phone" className="text-sm font-bold">Phone Number (for verification)</label>
+                  <label htmlFor="phone" className="text-sm font-bold">{t('onboarding.phone', 'Phone Number (for verification)')}</label>
                   <input 
                     type="text" 
                     id="phone"
@@ -492,7 +530,7 @@ const OnboardingFlow = ({ onNavigate }) => {
 
                 {/* Preferred Language */}
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="prefLang" className="text-sm font-bold">Preferred Language</label>
+                  <label htmlFor="prefLang" className="text-sm font-bold">{t('onboarding.language', 'Preferred Language')}</label>
                   <select 
                     id="prefLang"
                     value={prefLang} 
@@ -507,66 +545,39 @@ const OnboardingFlow = ({ onNavigate }) => {
 
               </div>
 
-              {/* Location Coordinates */}
-              <div className="flex flex-col gap-3 text-left border-t pt-6 border-cream-dark/50">
-                <label className="text-sm font-bold">My Location</label>
-                
-                <button
-                  type="button"
-                  onClick={handleDetectLocation}
-                  className={`w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-xl ${outlineBtnTheme}`}
-                >
-                  <MapPin className="h-5 w-5 text-terracotta" />
-                  Use My Current Location
-                </button>
-
-                {locationState === 'detecting' && (
-                  <p className="text-xs text-forest animate-pulse text-center">Detecting location coordinates...</p>
-                )}
-                {locationState === 'success' && (
-                  <p className="text-xs text-green-600 text-center">Coordinates matching successfully: {latitude}, {longitude}</p>
-                )}
-                {locationState === 'error' && (
-                  <p className="text-xs text-red-500 text-center">Failed to acquire location. Please enter manually below.</p>
-                )}
-
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="lat" className="text-xs text-gray-500">Latitude</label>
-                    <input 
-                      type="number" 
-                      step="any"
-                      id="lat"
-                      value={latitude} 
-                      onChange={(e) => setLatitude(e.target.value)} 
-                      placeholder="e.g. 28.6304"
-                      className={`px-3 py-2 rounded-lg text-sm ${inputTheme}`}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="lng" className="text-xs text-gray-500">Longitude</label>
-                    <input 
-                      type="number" 
-                      step="any"
-                      id="lng"
-                      value={longitude} 
-                      onChange={(e) => setLongitude(e.target.value)} 
-                      placeholder="e.g. 77.2197"
-                      className={`px-3 py-2 rounded-lg text-sm ${inputTheme}`}
-                    />
-                  </div>
-                </div>
-
+              {/* City Location Section */}
+              <div className="flex flex-col gap-2 border-t pt-6 border-cream-dark/50 text-left">
+                <label htmlFor="cityName" className="text-sm font-bold">
+                  {t('onboarding.city_location', 'City / Location')}
+                </label>
+                <input
+                  type="text"
+                  id="cityName"
+                  value={cityName}
+                  onChange={(e) => setCityName(e.target.value)}
+                  required
+                  placeholder={t('onboarding.city_placeholder', 'e.g. Delhi, Mumbai')}
+                  className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
+                />
+                <p className="text-xs text-gray-500">
+                  {t('onboarding.city_desc', 'Enter your city name. We will use this to show jobs and opportunities nearby.')}
+                </p>
               </div>
 
               {/* Navigation Buttons */}
               <div className="flex justify-end gap-4 mt-6 border-t pt-6 border-cream-dark/50">
                 <button 
-                  onClick={() => setStep(2)}
-                  disabled={!name || !age || !phone || !latitude || !longitude}
+                  onClick={() => {
+                    const cityKey = cityName.trim().toLowerCase();
+                    const coords = CITY_COORDINATES[cityKey] || [77.2090, 28.6139];
+                    setLongitude(coords[0]);
+                    setLatitude(coords[1]);
+                    setStep(2);
+                  }}
+                  disabled={!name || !age || !phone || !cityName}
                   className={`flex items-center justify-center gap-2 px-8 py-3 rounded-2xl text-base disabled:opacity-50 disabled:cursor-not-allowed ${primaryBtnTheme}`}
                 >
-                  Next: Tell Us What You Can Do
+                  {t('onboarding.next_skills', 'Next: Tell Us What You Can Do')}
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </div>
@@ -579,9 +590,9 @@ const OnboardingFlow = ({ onNavigate }) => {
             <div className="flex flex-col gap-6">
               
               <div className="text-left border-b pb-4 border-cream-dark/50">
-                <h2 className="font-serif text-2xl font-bold">What are you good at?</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('onboarding.step2_title', 'What are you good at?')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Talk or type naturally. Our AI will build your matching skills list.
+                  {t('onboarding.step2_desc', 'Talk or type naturally. Our AI will build your matching skills list.')}
                 </p>
               </div>
 
@@ -594,20 +605,20 @@ const OnboardingFlow = ({ onNavigate }) => {
                     <Bot className="h-6 w-6" />
                   </div>
                   <div className={`p-4 rounded-2xl rounded-tl-none max-w-[80%] text-sm sm:text-base leading-relaxed ${highContrast ? 'border border-white bg-black' : 'bg-white border border-cream-dark shadow-sm'}`}>
-                    "Namaste! Tell me about the skills you want to offer. It can be anything — from home cooking, sewing, knitting, gardening, to babysitting or school homework tutoring."
+                    {t('onboarding.ai_greeting', 'Namaste! Tell me about the skills you want to offer. It can be anything — from home cooking, sewing, knitting, gardening, to babysitting or school homework tutoring.')}
                   </div>
                 </div>
 
                 {/* User Input Frame */}
                 <div className="flex items-end gap-3 mt-4">
                   <div className="flex-grow flex flex-col gap-2">
-                    <label htmlFor="chatInput" className="text-xs text-gray-500 font-bold">Describe your skills here</label>
+                    <label htmlFor="chatInput" className="text-xs text-gray-500 font-bold">{t('onboarding.describe_skills', 'Describe your skills here')}</label>
                     <textarea 
                       id="chatInput"
                       rows="3"
                       value={chatText} 
                       onChange={(e) => setChatText(e.target.value)} 
-                      placeholder="e.g. I am great at baking cookies and teaching traditional stitching..."
+                      placeholder={t('onboarding.skills_placeholder', 'e.g. I am great at baking cookies and teaching traditional stitching...')}
                       className={`w-full px-4 py-3 rounded-2xl text-base ${inputTheme}`}
                     />
                   </div>
@@ -634,7 +645,7 @@ const OnboardingFlow = ({ onNavigate }) => {
 
                 {isListening && (
                   <p className="text-xs text-red-500 font-bold text-center mt-1">
-                    🎤 Listening (Speaking simulation active)...
+                    🎤 {t('onboarding.listening', 'Listening (Speaking simulation active)...')}
                   </p>
                 )}
 
@@ -644,17 +655,17 @@ const OnboardingFlow = ({ onNavigate }) => {
               <div className="text-left mt-4">
                 <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5">
                   <Sparkles className="h-4 w-4 text-terracotta" />
-                  Your Skills Profile List
+                  {t('onboarding.skills_profile_list', 'Your Skills Profile List')}
                 </h4>
 
                 {/* Processing Indicator */}
                 {showPopIn && (
-                  <p className="text-xs text-teal-600 font-semibold mb-2 animate-pulse">✨ AI is parsing your matching skills tags...</p>
+                  <p className="text-xs text-teal-600 font-semibold mb-2 animate-pulse">✨ {t('onboarding.ai_parsing', 'AI is parsing your matching skills tags...')}</p>
                 )}
 
                 <div className="flex flex-wrap gap-2.5 min-h-[48px] p-3 rounded-2xl border border-dashed border-cream-dark/50 bg-cream/10">
                   {skills.length === 0 ? (
-                    <span className="text-xs text-gray-500 italic p-1">No skills extracted yet. Type above or tap the microphone.</span>
+                    <span className="text-xs text-gray-500 italic p-1">{t('onboarding.no_skills_extracted', 'No skills extracted yet. Type above or tap the microphone.')}</span>
                   ) : (
                     skills.map((skill) => (
                       <div 
@@ -684,7 +695,7 @@ const OnboardingFlow = ({ onNavigate }) => {
                     type="text" 
                     value={manualSkill}
                     onChange={(e) => setManualSkill(e.target.value)}
-                    placeholder="Add skill manually (e.g. Baby Sitting)"
+                    placeholder={t('onboarding.manual_skill_placeholder', 'Add skill manually (e.g. Baby Sitting)')}
                     className={`flex-grow px-3 py-2 rounded-xl text-sm ${inputTheme}`}
                   />
                   <button 
@@ -692,7 +703,7 @@ const OnboardingFlow = ({ onNavigate }) => {
                     className={`px-4 rounded-xl flex items-center justify-center font-bold ${outlineBtnTheme}`}
                   >
                     <Plus className="h-5 w-5" />
-                    <span>Add</span>
+                    <span>{t('onboarding.add_button', 'Add')}</span>
                   </button>
                 </form>
 
@@ -705,14 +716,14 @@ const OnboardingFlow = ({ onNavigate }) => {
                   className={`flex items-center justify-center gap-2 px-6 ${outlineBtnTheme}`}
                 >
                   <ArrowLeft className="h-5 w-5" />
-                  Back
+                  {t('onboarding.back', 'Back')}
                 </button>
                 <button 
                   onClick={() => setStep(3)}
                   disabled={skills.length === 0}
                   className={`flex items-center justify-center gap-2 px-8 ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  Next: Availability
+                  {t('onboarding.next_availability', 'Next: Availability')}
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </div>

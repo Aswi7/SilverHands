@@ -122,7 +122,8 @@ export const AccessibilityProvider = ({ children }) => {
 
   // Map language to speech locale
   const getSpeechLocale = () => {
-    switch (language) {
+    const activeLang = i18n.language || language;
+    switch (activeLang) {
       case 'hi': return 'hi-IN';
       case 'ta': return 'ta-IN';
       default: return 'en-IN';

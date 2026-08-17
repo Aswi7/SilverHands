@@ -1,5 +1,79 @@
 {
   "welcome": "Welcome back, {{name}}",
+  "safety": {
+    "title": "Safety Center",
+    "tip_counter": "Tip {{current}} of {{total}}",
+    "tip1_title": "Meet in Public First",
+    "tip1_text": "When arranging the first job matching consultation, meet in a public location like a neighborhood cafe or apartment clubhouse.",
+    "tip2_title": "No Advance Payments",
+    "tip2_text": "Never send payments or advance cash deposits before any work starts. Always inspect completed tasks before releasing gig earnings.",
+    "tip3_title": "Share Job Location",
+    "tip3_text": "Always inform a family member, neighbor, or friend about the gig location and expected timings before starting home visits.",
+    "tip4_title": "Keep Chats in App",
+    "tip4_text": "Keep messages inside SilverHands. This allows our AI safety tools to protect you from payment scams and verify credentials."
+  },
+  "forecast": {
+    "coming_up": "is coming up!",
+    "ai_badge": "AI Forecast",
+    "disclaimer": "*AI estimate based on historical seasonal patterns",
+    "prepare_btn": "Prepare My Listing",
+    "f1": {
+      "eventName": "🪔 Diwali",
+      "insight": "Sweets & Snacks demand is predicted to rise 40% in your area."
+    },
+    "f2": {
+      "eventName": "💍 Wedding Season",
+      "insight": "Custom alterations and traditional crafts usually see a 35% spike."
+    },
+    "f3": {
+      "eventName": "🎒 Back to School",
+      "insight": "Tutoring requests for Mathematics and Science jump by 50%."
+    },
+    "f4": {
+      "eventName": "☀️ Summer Holidays",
+      "insight": "Childcare and summer camp cooking activities rise by 25%."
+    },
+    "f5": {
+      "eventName": "🌧️ Monsoon Prep",
+      "insight": "Home repairs and errand running demand increases by 30% due to rain."
+    }
+  },
+  "onboarding": {
+    "title": "Tell us about yourself",
+    "subtitle": "Please fill in your basic details. This helps local neighbors find you.",
+    "full_name": "Full Name",
+    "age": "Age (in years)",
+    "phone": "Phone Number (for verification)",
+    "language": "Preferred Language",
+    "city_location": "City / Location",
+    "city_placeholder": "e.g. Delhi, Mumbai",
+    "city_desc": "Enter your city name. We will use this to show jobs and opportunities nearby.",
+    "next_skills": "Next: Tell Us What You Can Do",
+    "step2_title": "What are you good at?",
+    "step2_desc": "Talk or type naturally. Our AI will build your matching skills list.",
+    "ai_greeting": "Namaste! Tell me about the skills you want to offer. It can be anything — from home cooking, sewing, knitting, gardening, to babysitting or school homework tutoring.",
+    "describe_skills": "Describe your skills here",
+    "skills_placeholder": "e.g. I am great at baking cookies and teaching traditional stitching...",
+    "listening": "Listening (Speaking simulation active)...",
+    "skills_profile_list": "Your Skills Profile List",
+    "ai_parsing": "AI is parsing your matching skills tags...",
+    "no_skills_extracted": "No skills extracted yet. Type above or tap the microphone.",
+    "manual_skill_placeholder": "Add skill manually (e.g. Baby Sitting)",
+    "add_button": "Add",
+    "back": "Back",
+    "next_availability": "Next: Availability"
+  },
+  "providerEntry": {
+    "name": "What is your full name?",
+    "name_heading": "Almost there!",
+    "age": "How old are you?",
+    "household_question": "Do you manage your household — cooking, childcare, or similar?",
+    "yes": "Yes",
+    "no": "No",
+    "reject_msg": "This platform is designed for specific providers. Please consider applying as an Employer instead.",
+    "next": "Next",
+    "go_employer": "Go to Employer Signup"
+  },
   "auth": {
     "login_title": "Login to SilverHands",
     "signup_title": "Create an Account",
@@ -117,6 +191,7 @@
     },
     "employer": {
       "greeting": "Welcome back, {{name}}",
+      "speaking_greeting": "Good morning, Colonel Raghavan. Welcome back to your SilverHands Employer Dashboard.",
       "tabs": {
         "post": "Post Request",
         "postings": "My Postings",
@@ -147,7 +222,10 @@
         "desc": "Manage your open requests.",
         "post_new": "Post New Request",
         "view_matches": "View Matches ({{count}})",
-        "ai_searching": "AI is finding matches..."
+        "ai_searching": "AI is finding matches...",
+        "status_open": "open",
+        "status_in_progress": "in-progress",
+        "status_filled": "filled"
       },
       "candidates": {
         "back": "Back to Postings",
@@ -158,8 +236,42 @@
         "skills": "Skills:",
         "availability": "Availability:",
         "view_profile": "View Profile",
-        "contact": "Contact Candidate"
+        "contact": "Contact Candidate",
+        "modal_age_rating": "Age {{age}} • Rating {{rating}} ★",
+        "verification_checks": "Verification Checks",
+        "specialized_skills": "Specialized Skills",
+        "availability_summary": "Availability Summary",
+        "past_reviews": "Past Neighbor Reviews ({{count}})",
+        "close_profile": "Close Profile",
+        "start_chat": "Start Chat",
+        "close_aria": "Close modal"
+      },
+      "settings": {
+        "title": "Account Settings",
+        "desc": "Manage preferences, billing, and help support contacts.",
+        "helpline": "Helpline assistance",
+        "helpline_desc": "For employer billing, corporate sponsorships, and verified listing checks, please call:"
+      },
+      "messages": {
+        "title": "Candidate Messages",
+        "desc": "Communicate securely with senior citizens and homemakers matching your gigs."
       }
     }
+  },
+  "listing": {
+    "modal_title": "Create Service Listing",
+    "modal_subtitle": "Publish your offering to meet the upcoming",
+    "demand_suffix": "demand.",
+    "title_label": "Service Title",
+    "category_label": "Category",
+    "rate_structure_label": "Rate Structure",
+    "one_day_rate": "One-Day Rate",
+    "package_rate": "Package Rate",
+    "amount_per_day": "Amount (per day)",
+    "total_package_amount": "Total Package Amount",
+    "package_duration_label": "Package Duration",
+    "description_label": "Description",
+    "publishing_btn": "Publishing...",
+    "publish_btn": "Publish Listing"
   }
 }

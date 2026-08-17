@@ -17,61 +17,73 @@ import { useAccessibility } from '../context/AccessibilityContext';
 
 export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepareListing }) => {
   // Pre-seed conversation database
-  const [conversations, setConversations] = useState([
-    {
-      id: '1',
-      name: 'Asha Devi',
-      role: 'Livelihood Provider',
-      avatarBg: 'bg-orange-100 text-terracotta',
-      lastMessage: 'Please transfer a ₹3,500 security advance to my GPay...',
-      timestamp: '12:35 PM',
-      unread: 1,
-      messages: [
-        { id: 101, sender: 'receiver', text: 'Namaste. I am ready to start cooking for your father tomorrow morning.', time: '12:34 PM' },
-        { 
-          id: 102, 
-          sender: 'receiver', 
-          text: 'Please transfer a ₹3,500 security advance to my GPay number 98765-54321 today so I can purchase custom organic groceries.', 
-          time: '12:35 PM',
-          isScamTriggered: true,
-          scamAlertText: "This message requests an advance cash transfer before work has commenced. This violates community safety guidelines."
-        }
-      ]
-    },
-    {
-      id: '2',
-      name: 'Suresh Patel',
-      role: 'Livelihood Provider',
-      avatarBg: 'bg-teal-100 text-forest',
-      lastMessage: 'I will be there by 10 AM tomorrow to help.',
-      timestamp: 'Yesterday',
-      unread: 0,
-      messages: [
-        { id: 201, sender: 'sender', text: 'Hi Suresh, is 10 AM good for television setup?', time: 'Yesterday' },
-        { id: 202, sender: 'receiver', text: 'I will be there by 10 AM tomorrow to help.', time: 'Yesterday' }
-      ]
-    },
-    {
-      id: '3',
-      name: 'Sakhi (AI Assistant)',
-      role: 'System',
-      avatarBg: 'bg-indigo-100 text-indigo-600',
-      lastMessage: 'Diwali is coming up in 3 weeks — want me to help you prepare a sweets listing?',
-      timestamp: 'Just now',
-      unread: 1,
-      messages: [
-        { 
-          id: 301, 
-          sender: 'receiver', 
-          text: 'Diwali is coming up in 3 weeks — want me to help you prepare a sweets listing?', 
-          time: 'Just now',
-          isBot: true,
-          ctaTitle: 'Prepare My Listing',
-          ctaAction: 'prepare_listing'
-        }
-      ]
+  const [conversations, setConversations] = useState([]);
+  
+  useEffect(() => {
+    if (user?._id) {
+      api.get(`/applications/user/${user._id}`).then(res => {
+        const apps = res.data || [];
+        // Group applications by the other user to create a single chat thread per pair
+        const userThreads = {};
+        apps.forEach(app => {
+          const isEmployer = user.role === 'employer' || user.userType === 'employer';
+          const otherUser = isEmployer ? app.providerId : app.employerId;
+          
+          if (!otherUser || !otherUser._id) return;
+          
+          const otherId = otherUser._id;
+          
+          if (!userThreads[otherId]) {
+            userThreads[otherId] = {
+              id: otherId,
+              name: otherUser.name || 'EMPLOYER',
+              role: isEmployer ? 'Provider' : 'Employer',
+              avatarBg: 'bg-teal-100 text-forest',
+              lastMessage: `Application status: ${app.status}`,
+              timestamp: new Date(app.updatedAt || app.createdAt).toLocaleDateString(),
+              unread: 0,
+              applicationId: app._id,
+              messages: []
+            };
+          }
+          
+          // Add a system message for this application update
+          userThreads[otherId].messages.push({
+            id: app._id,
+            sender: 'receiver',
+            text: `System: Applied for ${app.opportunityId?.title || 'Gig'} (${app.status})`,
+            time: new Date(app.createdAt).toLocaleTimeString(),
+            isBot: true
+          });
+        });
+
+        const mappedConvs = Object.values(userThreads);
+        
+        const mockBot = {
+          id: '3',
+          name: 'Sakhi (AI Assistant)',
+          role: 'System',
+          avatarBg: 'bg-indigo-100 text-indigo-600',
+          lastMessage: 'Diwali is coming up in 3 weeks — want me to help you prepare a sweets listing?',
+          timestamp: 'Just now',
+          unread: 1,
+          messages: [
+            { 
+              id: 301, 
+              sender: 'receiver', 
+              text: 'Diwali is coming up in 3 weeks — want me to help you prepare a sweets listing?', 
+              time: 'Just now',
+              isBot: true,
+              ctaTitle: 'Prepare My Listing',
+              ctaAction: 'prepare_listing'
+            }
+          ]
+        };
+        
+        setConversations([mockBot, ...mappedConvs]);
+      }).catch(err => console.error(err));
     }
-  ]);
+  }, [user]);
 
   const [activeConvId, setActiveConvId] = useState('1');
   const [inputValue, setInputValue] = useState('');

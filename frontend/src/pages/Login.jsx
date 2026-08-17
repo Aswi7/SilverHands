@@ -7,14 +7,15 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const Login = ({ onNavigate }) => {
   const { t } = useTranslation();
-  const { login, googleLogin } = useAuth();
+  const { login, googleLogin, sendOtp, verifyOtp } = useAuth();
   
   // Accessibility States
   const [fontSize, setFontSize] = useState('normal'); 
   const [highContrast, setHighContrast] = useState(false);
 
   const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState('phone');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -44,10 +45,25 @@ const Login = ({ onNavigate }) => {
     setError('');
     setLoading(true);
     try {
-      await login(phone, password);
-      onNavigate('dashboard');
+      if (step === 'phone') {
+        await sendOtp(phone);
+        setStep('otp');
+      } else {
+        // Find state in history if passed from provider entry
+        const providerState = window.history.state || {};
+        
+        await verifyOtp({ 
+          phone, 
+          otp,
+          role: providerState.role || 'provider',
+          name: providerState.name,
+          age: providerState.age,
+          category: providerState.category
+        });
+        onNavigate('dashboard');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please check details.');
+      setError(err.response?.data?.message || 'Action failed. Please check details.');
     } finally {
       setLoading(false);
     }
@@ -150,28 +166,40 @@ const Login = ({ onNavigate }) => {
               />
             </div>
 
-            {/* Password */}
-            <div className="flex flex-col gap-2">
-              <label htmlFor="password" className="text-sm font-bold">{t('auth.password')}</label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
-              />
-            </div>
+            {/* Password / OTP */}
+            {step === 'phone' ? (
+              <button
+                type="submit"
+                disabled={loading || !phone}
+                className={`w-full font-bold flex items-center justify-center ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed mt-2`}
+              >
+                {loading ? '...' : t('auth.login_btn', 'Get OTP')}
+              </button>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="otp" className="text-sm font-bold">OTP</label>
+                  <input
+                    type="text"
+                    id="otp"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    required
+                    placeholder="Enter OTP"
+                    className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || !otp}
+                  className={`w-full font-bold flex items-center justify-center ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed mt-2`}
+                >
+                  {loading ? '...' : 'Verify OTP & Login'}
+                </button>
+              </>
+            )}
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full font-bold flex items-center justify-center ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed mt-2`}
-            >
-              {loading ? '...' : t('auth.login_btn')}
-            </button>
+
           </form>
 
           <div className="flex items-center gap-4 my-6">

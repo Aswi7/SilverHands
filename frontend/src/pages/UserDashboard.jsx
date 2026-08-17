@@ -50,6 +50,26 @@ const UserDashboard = ({ onNavigate }) => {
     return sessionStorage.getItem('providerDashboardTab') || 'matches';
   });
 
+  const [applications, setApplications] = useState([]);
+  
+  useEffect(() => {
+    if (activeTab === 'applications' && user?._id) {
+      api.get(`/applications/user/${user._id}`)
+        .then(res => setApplications(res.data))
+        .catch(err => console.error(err));
+    }
+  }, [activeTab, user]);
+
+  const updateApplicationStatus = async (appId, newStatus) => {
+    try {
+      await api.patch(`/applications/${appId}/${newStatus === 'completed' ? 'complete' : newStatus === 'in_progress' ? 'check-in' : 'status'}`, { status: newStatus });
+      setApplications(applications.map(app => app._id === appId ? { ...app, status: newStatus } : app));
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update status');
+    }
+  };
+
   useEffect(() => {
     sessionStorage.setItem('providerDashboardTab', activeTab);
   }, [activeTab]);
@@ -115,9 +135,12 @@ const UserDashboard = ({ onNavigate }) => {
   const handlePrepareListing = (forecast) => {
     setSelectedForecast(forecast);
     setListingForm({
-      title: forecast.suggestionTitle,
+      title: t(`forecast.${forecast.id}.suggestionTitle`, forecast.suggestionTitle),
       category: forecast.suggestionCategory,
-      description: `I am offering ${forecast.suggestionTitle.toLowerCase()} services for the upcoming ${forecast.eventName}.`,
+      description: t('forecast.prefill_desc', 'I am offering {{title}} services for the upcoming {{event}}.', {
+        title: t(`forecast.${forecast.id}.suggestionTitle`, forecast.suggestionTitle).toLowerCase(),
+        event: t(`forecast.${forecast.id}.eventName`, forecast.eventName)
+      }),
       rateType: 'daily',
       rateAmount: '500',
       packageDuration: ''
@@ -262,7 +285,8 @@ const UserDashboard = ({ onNavigate }) => {
           location: req.mode === 'online' ? 'Online' : (req.location?.coordinates ? `Coordinates: [${req.location.coordinates[0].toFixed(2)}, ${req.location.coordinates[1].toFixed(2)}]` : 'Unknown'),
           mode: req.mode || "offline",
           posted: new Date(req.createdAt).toLocaleDateString(),
-          description: req.description
+          description: req.description,
+          employerId: req.customer?._id || req.customer
         }));
         
         setOpportunities(mappedData);
@@ -439,6 +463,12 @@ const UserDashboard = ({ onNavigate }) => {
           {/* Quick Accessibility and Profile Dropdown */}
           <div className="flex items-center gap-3">
             
+            {/* Language Switcher */}
+            <div className="flex items-center gap-1 text-sm">
+              <Globe className="h-4 w-4 text-terracotta" />
+              <LanguageSwitcher />
+            </div>
+            
             {/* Aa Accessibility Controls */}
             <button 
               onClick={() => setPanelOpen(true)}
@@ -510,17 +540,17 @@ const UserDashboard = ({ onNavigate }) => {
                     : 'bg-gradient-to-r from-orange-50 to-amber-50 border-terracotta text-charcoal'
                 }`}>
                   <div className="flex items-start gap-3">
-                    <div className="text-3xl shrink-0 mt-1">{topForecast.eventName.split(' ')[0]}</div>
-                    <div className="flex flex-col">
+                    <div className="text-3xl shrink-0 mt-1">{t(`forecast.${topForecast.id}.eventName`, topForecast.eventName).split(' ')[0]}</div>
+                    <div className="flex flex-col text-left">
                       <h4 className="font-bold text-lg text-terracotta flex items-center gap-2">
-                        {topForecast.eventName} is coming up! 
+                        {t(`forecast.${topForecast.id}.eventName`, topForecast.eventName)} {t('forecast.coming_up', 'is coming up!')}
                         <span className="px-2 py-0.5 rounded-full bg-terracotta/10 text-terracotta text-[10px] uppercase font-bold tracking-wider">
-                          AI Forecast
+                          {t('forecast.ai_badge', 'AI Forecast')}
                         </span>
                       </h4>
-                      <p className="text-sm font-semibold mt-1">{topForecast.insight}</p>
+                      <p className="text-sm font-semibold mt-1">{t(`forecast.${topForecast.id}.insight`, topForecast.insight)}</p>
                       <p className="text-xs text-gray-500 mt-1 italic">
-                        *AI estimate based on historical seasonal patterns
+                        {t('forecast.disclaimer', '*AI estimate based on historical seasonal patterns')}
                       </p>
                     </div>
                   </div>
@@ -529,7 +559,7 @@ const UserDashboard = ({ onNavigate }) => {
                     className={`shrink-0 px-6 py-3 rounded-xl text-sm font-bold flex items-center gap-2 shadow-sm ${primaryBtnTheme}`}
                   >
                     <Sparkles className="h-4 w-4" />
-                    Prepare My Listing
+                    {t('forecast.prepare_btn', 'Prepare My Listing')}
                   </button>
                 </div>
               )}
@@ -713,8 +743,19 @@ const UserDashboard = ({ onNavigate }) => {
                         {/* Action buttons */}
                         <div className="flex items-center gap-2 mt-6 border-t pt-4 border-cream-dark/30">
                           <button
-                            onClick={() => {
-                              alert(`Applied for "${opp.title}" opportunity match!`);
+                            onClick={async () => {
+                              try {
+                                await api.post('/applications', {
+                                  opportunityId: opp.id,
+                                  providerId: user._id,
+                                  employerId: opp.employerId || opp.user
+                                });
+                                alert('Applied successfully!');
+                                setActiveTab('applications');
+                              } catch (err) {
+                                console.error(err);
+                                alert('Error applying');
+                              }
                             }}
                             className={`grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${primaryBtnTheme}`}
                           >
@@ -758,11 +799,11 @@ const UserDashboard = ({ onNavigate }) => {
                 <div>
                   <h2 className="font-serif text-3xl font-bold flex items-center gap-2">
                     <TrendingUp className="h-8 w-8 text-terracotta" />
-                    Opportunity Forecast
+                    {t('forecast.page_title', 'Opportunity Forecast')}
                   </h2>
                   <p className={`text-sm ${textSecondaryTheme} mt-2`}>
-                    Plan ahead and prepare your services. <br/>
-                    <span className="italic text-xs text-gray-500">*AI estimate based on historical seasonal patterns</span>
+                    {t('forecast.page_subtitle', 'Plan ahead and prepare your services.')} <br/>
+                    <span className="italic text-xs text-gray-500">{t('forecast.disclaimer', '*AI estimate based on historical seasonal patterns')}</span>
                   </p>
                 </div>
               </div>
@@ -779,29 +820,29 @@ const UserDashboard = ({ onNavigate }) => {
                   >
                     {event.isRelevant && (
                       <div className="absolute top-0 right-0 bg-terracotta text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl shadow-sm flex items-center gap-1">
-                        <Sparkles className="h-3 w-3" /> Relevant to you
+                        <Sparkles className="h-3 w-3" /> {t('forecast.relevant_badge', 'Relevant to you')}
                       </div>
                     )}
                     
                     <div className="flex flex-col gap-3">
                       <div className="flex items-center gap-3">
-                        <span className="text-3xl">{event.eventName.split(' ')[0]}</span>
+                        <span className="text-3xl">{t(`forecast.${event.id}.eventName`, event.eventName).split(' ')[0]}</span>
                         <div>
-                          <h3 className="font-serif text-2xl font-bold">{event.eventName.slice(2)}</h3>
+                          <h3 className="font-serif text-2xl font-bold">{t(`forecast.${event.id}.eventName`, event.eventName).substring(t(`forecast.${event.id}.eventName`, event.eventName).indexOf(' ') + 1)}</h3>
                           <span className="text-sm font-bold text-gray-500 flex items-center gap-1">
-                            <Calendar className="h-4 w-4" /> {event.dateRange}
+                            <Calendar className="h-4 w-4" /> {t(`forecast.${event.id}.dateRange`, event.dateRange)}
                           </span>
                         </div>
                       </div>
                       
                       <div className="mt-2">
-                        <span className="text-xs font-bold text-gray-500 uppercase">Relevant Categories</span>
+                        <span className="text-xs font-bold text-gray-500 uppercase">{t('forecast.relevant_categories', 'Relevant Categories')}</span>
                         <div className="flex gap-2 mt-1">
                           {event.relevantCategories.map(cat => (
                             <span key={cat} className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
                               highContrast ? 'border border-white text-white' : 'bg-cream-dark/30 text-charcoal'
                             }`}>
-                              {cat}
+                              {t(`customer.categories.${cat}`, cat)}
                             </span>
                           ))}
                         </div>
@@ -813,9 +854,9 @@ const UserDashboard = ({ onNavigate }) => {
                     }`}>
                       <div className="flex items-center gap-2 mb-2">
                         <TrendingUp className="h-5 w-5 text-green-600" />
-                        <span className="font-bold text-lg text-green-700">Demand {event.demandUplift}</span>
+                        <span className="font-bold text-lg text-green-700">{t('forecast.demand_label', 'Demand')} {event.demandUplift}</span>
                       </div>
-                      <p className={`text-sm ${textSecondaryTheme} leading-relaxed`}>{event.insight}</p>
+                      <p className={`text-sm ${textSecondaryTheme} leading-relaxed`}>{t(`forecast.${event.id}.insight`, event.insight)}</p>
                       
                       {event.isRelevant && (
                         <button
@@ -825,7 +866,7 @@ const UserDashboard = ({ onNavigate }) => {
                           }`}
                         >
                           <Sparkles className="h-4 w-4" />
-                          Prepare My Listing
+                          {t('forecast.prepare_btn', 'Prepare My Listing')}
                         </button>
                       )}
                     </div>
@@ -849,57 +890,71 @@ const UserDashboard = ({ onNavigate }) => {
               </div>
 
               {/* Kanban Columns */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-start">
+              <div className="grid grid-cols-5 gap-3 items-start pb-4">
                 
-                {/* Column 1: Applied */}
-                <div className={`p-4 rounded-2xl border ${highContrast ? 'border-white' : 'bg-cream-dark/10 border-cream-dark/50'}`}>
-                  <h4 className="font-serif font-bold text-base mb-3 flex justify-between items-center text-charcoal">
-                    <span>{t('dashboard.provider.applications.applied')}</span>
-                    <span className="text-xs bg-cream-dark/40 px-2 py-0.5 rounded font-mono">1</span>
-                  </h4>
-                  <div className="flex flex-col gap-3">
-                    <div className={`p-4 rounded-xl text-xs flex flex-col gap-2 ${cardTheme}`}>
-                      <span className="font-bold block text-sm">Primary School English Tutor</span>
-                      <p className={textSecondaryTheme}>By: Mrunal Patel</p>
-                      <span className="font-mono text-gray-400 block border-t pt-2">Applied: Aug 15, 2026</span>
-                    </div>
-                  </div>
-                </div>
+                {['applied', 'contacted', 'confirmed', 'in_progress', 'completed'].map(statusCol => {
+                  const columnApps = applications.filter(a => a.status === statusCol);
+                  return (
+                    <div key={statusCol} className={`p-2.5 rounded-2xl border ${highContrast ? 'border-white' : 'bg-cream/40 border-cream-dark/50'} shadow-sm`}>
+                      <h4 className="font-serif font-bold text-[11px] mb-2 flex justify-between items-center capitalize text-charcoal">
+                        <span>{statusCol.replace('_', ' ')}</span>
+                        <span className="text-[9px] bg-cream-dark/40 px-1.5 py-0.5 rounded font-mono">{columnApps.length}</span>
+                      </h4>
+                      <div className="flex flex-col gap-2">
+                        {columnApps.map(app => (
+                          <div key={app._id} className={`p-2.5 rounded-xl flex flex-col gap-1.5 ${cardTheme}`}>
+                            <span className="font-bold block text-xs leading-tight truncate">{app.opportunityId?.title || 'Unknown Gig'}</span>
+                            <p className="text-[9px] text-gray-500 truncate">{app.employerId?.name || 'Unknown Employer'}</p>
+                            
+                            {/* Status-specific concise content */}
+                            {statusCol === 'applied' && (
+                              <div className="mt-1 flex flex-col gap-1.5">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-[10px] font-mono text-gray-600">📞 {app.employerId?.phone?.slice(-4) || '3210'}</span>
+                                  <button onClick={() => setActiveTab('messages')} className="text-[9px] text-indigo-600 font-bold hover:underline">💬 Chat</button>
+                                </div>
+                                <button onClick={() => updateApplicationStatus(app._id, 'contacted')} className="bg-terracotta text-white px-2 py-1.5 rounded text-[9px] font-bold w-full text-center hover:bg-terracotta-hover transition-colors">✓ Mark Contacted</button>
+                              </div>
+                            )}
 
-                {/* Column 2: Contacted */}
-                <div className={`p-4 rounded-2xl border ${highContrast ? 'border-white' : 'bg-cream-dark/10 border-cream-dark/50'}`}>
-                  <h4 className="font-serif font-bold text-base mb-3 flex justify-between items-center text-forest">
-                    <span>{t('dashboard.provider.applications.contacted')}</span>
-                    <span className="text-xs bg-cream-dark/40 px-2 py-0.5 rounded font-mono">1</span>
-                  </h4>
-                  <div className="flex flex-col gap-3">
-                    <div className={`p-4 rounded-xl text-xs flex flex-col gap-2 ${cardTheme} border-l-4 border-l-forest`}>
-                      <span className="font-bold block text-sm">Traditional South Indian Cooking</span>
-                      <p className={textSecondaryTheme}>By: Col. Raghavan</p>
-                      <span className="font-semibold text-forest block">📞 Phone Interview scheduled</span>
-                      <span className="font-mono text-gray-400 block border-t pt-2">Contacted: Today 10 AM</span>
-                    </div>
-                  </div>
-                </div>
+                            {statusCol === 'contacted' && (
+                              <button onClick={() => updateApplicationStatus(app._id, 'confirmed')} className="mt-1 bg-teal-600 text-white px-2 py-1.5 rounded text-[9px] font-bold w-full text-center hover:bg-teal-700 transition-colors">🤝 Confirm Terms</button>
+                            )}
 
-                {/* Column 3: Confirmed */}
-                <div className={`p-4 rounded-2xl border ${highContrast ? 'border-white' : 'bg-cream-dark/10 border-cream-dark/50'}`}>
-                  <h4 className="font-serif font-bold text-base mb-3 flex justify-between items-center text-teal-600">
-                    <span>{t('dashboard.provider.applications.confirmed')}</span>
-                    <span className="text-xs bg-cream-dark/40 px-2 py-0.5 rounded font-mono">1</span>
-                  </h4>
-                  <div className="flex flex-col gap-3">
-                    <div className={`p-4 rounded-xl text-xs flex flex-col gap-2 ${cardTheme} border-l-4 border-l-teal-500`}>
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-sm">Houseplant Care & Gardening</span>
-                        <CheckCircle className="h-4 w-4 text-teal-500 shrink-0" />
+                            {statusCol === 'confirmed' && (
+                              <button onClick={() => updateApplicationStatus(app._id, 'in_progress')} className="mt-1 bg-blue-600 text-white px-2 py-1.5 rounded text-[9px] font-bold w-full text-center hover:bg-blue-700 transition-colors">📍 Check-In</button>
+                            )}
+
+                            {statusCol === 'in_progress' && (
+                              <button onClick={() => updateApplicationStatus(app._id, 'completed')} className="mt-1 bg-purple-600 text-white px-2 py-1.5 rounded text-[9px] font-bold w-full text-center hover:bg-purple-700 transition-colors">⭐ Complete</button>
+                            )}
+
+                            {statusCol === 'completed' && (
+                              <div className="mt-1 flex gap-1">
+                                <button onClick={() => {
+                                  const confirmedTerms = { rate: 500, date: new Date().toISOString(), time: '10:00 AM', taskDescription: 'Repeat booking' };
+                                  api.patch(`/applications/${app._id}/confirm`, { confirmedTerms }).then(() => {
+                                    alert('Re-booked!');
+                                    updateApplicationStatus(app._id, 'confirmed');
+                                  });
+                                }} className="bg-forest text-white flex-1 py-1 rounded text-[9px] font-bold hover:bg-forest-hover transition-colors text-center">Re-Book</button>
+                                {!app.reviewSubmitted && (
+                                  <button onClick={() => {
+                                    const rating = prompt('Rating (1-5):', '5');
+                                    const comment = prompt('Comment:', 'Great experience!');
+                                    if(rating && comment) {
+                                      api.post(`/applications/${app._id}/review`, { targetUserId: app.employerId?._id || app.employerId, rating: Number(rating), comment }).then(() => alert('Reviewed!'));
+                                    }
+                                  }} className="bg-cream-dark/50 text-charcoal flex-1 py-1 rounded text-[9px] font-bold hover:bg-cream-dark transition-colors text-center">Review</button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
-                      <p className={textSecondaryTheme}>By: Asha Devi</p>
-                      <span className="font-semibold text-teal-600">📅 Gigs starts next Monday</span>
-                      <span className="font-mono text-gray-400 block border-t pt-2">Confirmed: Aug 14, 2026</span>
                     </div>
-                  </div>
-                </div>
+                  );
+                })}
 
               </div>
 
@@ -925,23 +980,23 @@ const UserDashboard = ({ onNavigate }) => {
                     <IndianRupee className="h-8 w-8" />
                     12,400
                   </h3>
-                  <p className="text-xs text-green-600 mt-1">✓ Direct bank deposits complete</p>
+                  <p className="text-xs text-green-600 mt-1">✓ {t('dashboard.provider.earnings.deposits_complete', 'Direct bank deposits complete')}</p>
                 </div>
                 <div className="flex flex-col justify-center gap-1.5 border-t sm:border-t-0 sm:border-l border-cream-dark/50 pt-4 sm:pt-0 sm:pl-6 text-left">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-gray-400">{t('dashboard.provider.earnings.total_hours')}</span>
-                    <p className="text-base font-bold">36 Hours</p>
+                    <p className="text-base font-bold">36 {t('dashboard.provider.earnings.hours_suffix', 'Hours')}</p>
                   </div>
                   <div>
                     <span className="text-[10px] uppercase font-bold text-gray-400">{t('dashboard.provider.earnings.services_provided')}</span>
-                    <p className="text-base font-bold">3 Local Households</p>
+                    <p className="text-base font-bold">3 {t('dashboard.provider.earnings.households_suffix', 'Local Households')}</p>
                   </div>
                 </div>
               </div>
 
               {/* Stylized Bar Chart Placeholder */}
               <div className={`p-6 rounded-3xl flex flex-col gap-4 ${cardTheme}`}>
-                <h4 className="font-bold text-sm text-gray-400 uppercase">Monthly Earnings chart</h4>
+                <h4 className="font-bold text-sm text-gray-400 uppercase">{t('dashboard.provider.earnings.chart_title', 'Monthly Earnings Chart')}</h4>
                 
                 <div className="h-48 flex items-end gap-5 border-b border-cream-dark/50 pb-2">
                   {/* Columns */}
@@ -1257,16 +1312,16 @@ const UserDashboard = ({ onNavigate }) => {
                   <Sparkles className="h-8 w-8 text-terracotta" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-serif font-bold">Create Service Listing</h3>
+                  <h3 className="text-2xl font-serif font-bold">{t('listing.modal_title', 'Create Service Listing')}</h3>
                   <p className={`text-sm ${highContrast ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Publish your offering to meet the upcoming <strong>{selectedForecast.eventName}</strong> demand.
+                    {t('listing.modal_subtitle', 'Publish your offering to meet the upcoming')} <strong>{t(`forecast.${selectedForecast.id}.eventName`, selectedForecast.eventName)}</strong> {t('listing.demand_suffix', 'demand.')}
                   </p>
                 </div>
               </div>
 
               <div className="flex flex-col gap-4 mt-2">
                 <div>
-                  <label className="text-sm font-bold text-gray-500 uppercase">Service Title</label>
+                  <label className="text-sm font-bold text-gray-500 uppercase">{t('listing.title_label', 'Service Title')}</label>
                   <input
                     type="text"
                     value={listingForm.title}
@@ -1280,22 +1335,22 @@ const UserDashboard = ({ onNavigate }) => {
                 </div>
                 
                 <div>
-                  <label className="text-sm font-bold text-gray-500 uppercase">Category</label>
+                  <label className="text-sm font-bold text-gray-500 uppercase">{t('listing.category_label', 'Category')}</label>
                   <input
                     type="text"
-                    value={listingForm.category}
-                    onChange={(e) => setListingForm({...listingForm, category: e.target.value})}
-                    className={`w-full p-3 rounded-xl border mt-1 focus:outline-none transition-all ${
+                    value={t(`customer.categories.${listingForm.category}`, listingForm.category)}
+                    disabled
+                    className={`w-full p-3 rounded-xl border mt-1 focus:outline-none transition-all opacity-70 ${
                       highContrast 
-                        ? 'bg-black border-white focus:border-yellow-400 text-white' 
-                        : 'bg-white border-cream-dark focus:border-terracotta text-charcoal'
+                        ? 'bg-black border-white text-white' 
+                        : 'bg-cream-dark/20 border-cream-dark text-charcoal'
                     }`}
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                   <div className="md:col-span-2">
-                    <label className="text-sm font-bold text-gray-500 uppercase">Rate Structure</label>
+                    <label className="text-sm font-bold text-gray-500 uppercase">{t('listing.rate_structure_label', 'Rate Structure')}</label>
                     <div className="flex gap-4 mt-1">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input 
@@ -1306,7 +1361,7 @@ const UserDashboard = ({ onNavigate }) => {
                           onChange={(e) => setListingForm({...listingForm, rateType: e.target.value})}
                           className="w-4 h-4 text-terracotta"
                         />
-                        <span className="text-sm font-semibold">One-Day Rate</span>
+                        <span className="text-sm font-semibold">{t('listing.one_day_rate', 'One-Day Rate')}</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input 
@@ -1317,14 +1372,14 @@ const UserDashboard = ({ onNavigate }) => {
                           onChange={(e) => setListingForm({...listingForm, rateType: e.target.value})}
                           className="w-4 h-4 text-terracotta"
                         />
-                        <span className="text-sm font-semibold">Package Rate</span>
+                        <span className="text-sm font-semibold">{t('listing.package_rate', 'Package Rate')}</span>
                       </label>
                     </div>
                   </div>
 
                   <div>
                     <label className="text-sm font-bold text-gray-500 uppercase">
-                      {listingForm.rateType === 'daily' ? 'Amount (per day)' : 'Total Package Amount'}
+                      {listingForm.rateType === 'daily' ? t('listing.amount_per_day', 'Amount (per day)') : t('listing.total_package_amount', 'Total Package Amount')}
                     </label>
                     <input
                       type="number"
@@ -1341,7 +1396,7 @@ const UserDashboard = ({ onNavigate }) => {
 
                   {listingForm.rateType === 'package' && (
                     <div>
-                      <label className="text-sm font-bold text-gray-500 uppercase">Package Duration</label>
+                      <label className="text-sm font-bold text-gray-500 uppercase">{t('listing.package_duration_label', 'Package Duration')}</label>
                       <input
                         type="text"
                         value={listingForm.packageDuration}
@@ -1358,7 +1413,7 @@ const UserDashboard = ({ onNavigate }) => {
                 </div>
 
                 <div>
-                  <label className="text-sm font-bold text-gray-500 uppercase">Description</label>
+                  <label className="text-sm font-bold text-gray-500 uppercase">{t('listing.description_label', 'Description')}</label>
                   <textarea
                     rows={4}
                     value={listingForm.description}
@@ -1379,7 +1434,7 @@ const UserDashboard = ({ onNavigate }) => {
                   isCreatingListing ? 'opacity-70 cursor-not-allowed' : ''
                 } ${primaryBtnTheme}`}
               >
-                {isCreatingListing ? 'Publishing...' : 'Publish Listing'}
+                {isCreatingListing ? t('listing.publishing_btn', 'Publishing...') : t('listing.publish_btn', 'Publish Listing')}
               </button>
             </div>
           </div>

@@ -7,6 +7,7 @@ import LandingPage from './pages/LandingPage';
 import OnboardingFlow from './pages/OnboardingFlow';
 import UserDashboard from './pages/UserDashboard';
 import EmployerDashboard from './pages/EmployerDashboard';
+import ProviderEntry from './pages/ProviderEntry';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -15,16 +16,20 @@ function AppContent() {
 
   // Unified navigation helper supporting push and replace history entries
   const navigate = (newView, role = 'provider', replace = false) => {
-    setView(newView);
-    if (newView === 'signup') {
+    let targetView = newView;
+    if (newView === 'signup' && role === 'provider') {
+      targetView = 'provider-entry';
+    }
+    setView(targetView);
+    if (targetView === 'signup') {
       setSignupRole(role);
     }
-    const targetHash = `#/${newView}`;
+    const targetHash = `#/${targetView}`;
     if (window.location.hash !== targetHash) {
       if (replace) {
-        window.history.replaceState({ view: newView, signupRole: role }, '', targetHash);
+        window.history.replaceState({ view: targetView, signupRole: role }, '', targetHash);
       } else {
-        window.history.pushState({ view: newView, signupRole: role }, '', targetHash);
+        window.history.pushState({ view: targetView, signupRole: role }, '', targetHash);
       }
     }
   };
@@ -37,14 +42,23 @@ function AppContent() {
   useEffect(() => {
     const handlePopState = (event) => {
       if (event.state && event.state.view) {
-        setView(event.state.view);
+        let targetView = event.state.view;
+        let role = event.state.signupRole || 'provider';
+        if (targetView === 'signup' && role === 'provider') {
+          targetView = 'provider-entry';
+        }
+        setView(targetView);
         if (event.state.signupRole) {
           setSignupRole(event.state.signupRole);
         }
       } else {
         const hash = window.location.hash;
         if (hash.startsWith('#/')) {
-          setView(hash.slice(2));
+          let parsedView = hash.slice(2);
+          if (parsedView === 'signup' && signupRole === 'provider') {
+            parsedView = 'provider-entry';
+          }
+          setView(parsedView);
         } else {
           setView('landing');
         }
@@ -56,7 +70,10 @@ function AppContent() {
     // Parse hash on initial load
     const hash = window.location.hash;
     if (hash.startsWith('#/')) {
-      const parsedView = hash.slice(2);
+      let parsedView = hash.slice(2);
+      if (parsedView === 'signup' && signupRole === 'provider') {
+        parsedView = 'provider-entry';
+      }
       setView(parsedView);
       window.history.replaceState({ view: parsedView, signupRole }, '', hash);
     } else {
@@ -101,6 +118,9 @@ function AppContent() {
     case 'landing':
       return <LandingPage onNavigate={handleNavigate} />;
     case 'signup':
+      if (signupRole === 'provider') {
+        return <ProviderEntry onNavigate={handleNavigate} />;
+      }
       return <Signup onNavigate={handleNavigate} initialRole={signupRole} />;
     case 'onboarding':
       return <OnboardingFlow onNavigate={handleNavigate} />;
@@ -110,6 +130,8 @@ function AppContent() {
           ? <EmployerDashboard onNavigate={handleNavigate} /> 
           : <UserDashboard onNavigate={handleNavigate} />
       ) : <Login onNavigate={handleNavigate} />;
+    case 'provider-entry':
+      return <ProviderEntry onNavigate={handleNavigate} />;
     case 'login':
     default:
       return <Login onNavigate={handleNavigate} />;

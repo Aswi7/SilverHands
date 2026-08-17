@@ -332,7 +332,7 @@ const EmployerDashboard = ({ onNavigate }) => {
             }`}
           >
             <MessageSquare className="h-5 w-5" />
-            <span>Messages</span>
+            <span>{t('dashboard.employer.tabs.messages', 'Messages')}</span>
           </button>
           <button
             onClick={() => setActiveTab('safety')}
@@ -341,7 +341,7 @@ const EmployerDashboard = ({ onNavigate }) => {
             }`}
           >
             <Shield className="h-5 w-5" />
-            <span>{t('dashboard.employer.tabs.safety')}</span>
+            <span>{t('dashboard.employer.tabs.safety', 'Safety')}</span>
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -350,7 +350,7 @@ const EmployerDashboard = ({ onNavigate }) => {
             }`}
           >
             <Settings className="h-5 w-5" />
-            <span>Settings</span>
+            <span>{t('dashboard.employer.tabs.settings', 'Settings')}</span>
           </button>
         </nav>
 
@@ -385,7 +385,7 @@ const EmployerDashboard = ({ onNavigate }) => {
           <div className="text-left">
             <h1 className="text-xl font-bold font-serif md:text-2xl flex items-center gap-1.5">
               <span>{t('dashboard.employer.greeting', { name: user?.name || 'Col. Raghavan' })}</span>
-              <SpeakerButton text="Good morning, Colonel Raghavan. Welcome back to your SilverHands Employer Dashboard." id="employer-dashboard-greeting" />
+              <SpeakerButton text={t('dashboard.employer.speaking_greeting', 'Good morning, Colonel Raghavan. Welcome back to your SilverHands Employer Dashboard.')} id="employer-dashboard-greeting" />
             </h1>
           </div>
 
@@ -468,7 +468,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                     disabled={isAnalyzing || !rawText.trim()}
                     className={`px-8 ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
-                    {isAnalyzing ? "{t('dashboard.employer.post.analyzing')}" : "{t('dashboard.employer.post.analyze_btn')}"}
+                    {isAnalyzing ? t('dashboard.employer.post.analyzing') : t('dashboard.employer.post.analyze_btn')}
                   </button>
                 </div>
 
@@ -507,18 +507,18 @@ const EmployerDashboard = ({ onNavigate }) => {
                         onChange={(e) => setPreviewCategory(e.target.value)}
                         className={`px-3 py-2 rounded-xl text-sm ${inputTheme}`}
                       >
-                        <option value="cooking">Cooking / Meal Prep</option>
-                        <option value="tailoring">Tailoring / Alterations</option>
-                        <option value="tutoring">Tutoring</option>
-                        <option value="traditional-crafts">Traditional Crafts</option>
-                        <option value="caregiving">Caregiving</option>
-                        <option value="mentoring">Mentoring</option>
-                        <option value="consulting">Consulting</option>
-                        <option value="home-services">Home Services</option>
-                        <option value="tech-support">Tech Support</option>
-                        <option value="gardening">Gardening / Plant Care</option>
-                        <option value="errands">Errands / Deliveries</option>
-                        <option value="other">Other</option>
+                        <option value="cooking">{t('customer.categories.cooking', 'Cooking / Meal Prep')}</option>
+                        <option value="tailoring">{t('customer.categories.tailoring', 'Tailoring / Alterations')}</option>
+                        <option value="tutoring">{t('customer.categories.tutoring', 'Tutoring')}</option>
+                        <option value="traditional-crafts">{t('customer.categories.traditional-crafts', 'Traditional Crafts')}</option>
+                        <option value="caregiving">{t('customer.categories.caregiving', 'Caregiving')}</option>
+                        <option value="mentoring">{t('customer.categories.mentoring', 'Mentoring')}</option>
+                        <option value="consulting">{t('customer.categories.consulting', 'Consulting')}</option>
+                        <option value="home-services">{t('customer.categories.home-services', 'Home Services')}</option>
+                        <option value="tech-support">{t('customer.categories.tech-support', 'Tech Support')}</option>
+                        <option value="gardening">{t('customer.categories.gardening', 'Gardening / Plant Care')}</option>
+                        <option value="errands">{t('customer.categories.errands', 'Errands / Deliveries')}</option>
+                        <option value="other">{t('customer.categories.other', 'Other')}</option>
                       </select>
                     </div>
 
@@ -561,7 +561,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                                 : 'bg-white border-cream-dark text-charcoal hover:bg-cream-dark/10'
                             }`}
                           >
-                            {mode === 'online' ? 'Online/Virtual' : 'In Person (Offline)'}
+                            {mode === 'online' ? t('customer.modes.online', 'Online/Virtual') : t('customer.modes.offline', 'In Person (Offline)')}
                           </button>
                         ))}
                       </div>
@@ -628,7 +628,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                         <span className={`px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
                           post.category === 'tech' ? 'bg-orange-50 text-terracotta border border-orange-200' : 'bg-teal-50 text-forest border border-teal-200'
                         }`}>
-                          {post.category}
+                          {t('customer.categories.' + post.category, post.category)}
                         </span>
 
                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
@@ -636,7 +636,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                             ? 'bg-green-100 text-green-700' 
                             : (post.status === 'in-progress' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600')
                         }`}>
-                          {post.status}
+                          {post.status === 'open' ? t('dashboard.employer.postings.status_open', 'open') : (post.status === 'in-progress' ? t('dashboard.employer.postings.status_in_progress', 'in-progress') : t('dashboard.employer.postings.status_filled', 'filled'))}
                         </span>
                       </div>
 
@@ -649,7 +649,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                           <IndianRupee className="h-3.5 w-3.5" /> {post.pay}
                         </span>
                         <span className="flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5 text-terracotta" /> {post.mode === 'online' ? 'Online' : 'In Person'}
+                          <MapPin className="h-3.5 w-3.5 text-terracotta" /> {post.mode === 'online' ? t('customer.modes.online_short', 'Online') : t('customer.modes.offline_short', 'In Person')}
                         </span>
                         <span className="flex items-center gap-1 col-span-2">
                           <Clock className="h-3.5 w-3.5 text-gray-400" /> {post.timing}
@@ -783,8 +783,18 @@ const EmployerDashboard = ({ onNavigate }) => {
                           {t('dashboard.employer.candidates.view_profile')}
                         </button>
                         <button
-                          onClick={() => {
-                            setActiveTab('messages');
+                          onClick={async () => {
+                            try {
+                              const res = await api.post('/applications', {
+                                opportunityId: selectedPosting.id,
+                                providerId: cand._id,
+                                employerId: user._id
+                              });
+                              setActiveTab('messages');
+                            } catch (err) {
+                              console.error(err);
+                              setActiveTab('messages');
+                            }
                           }}
                           className={`px-6 text-sm font-bold flex items-center gap-1.5 ${primaryBtnTheme}`}
                         >
@@ -806,15 +816,15 @@ const EmployerDashboard = ({ onNavigate }) => {
           {activeTab === 'settings' && (
             <div className="flex flex-col gap-6 max-w-2xl mx-auto">
               <div className="border-b pb-3 border-cream-dark/30">
-                <h2 className="font-serif text-2xl font-bold">Account Settings</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.settings.title', 'Account Settings')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Manage preferences, billing, and help support contacts.
+                  {t('dashboard.employer.settings.desc', 'Manage preferences, billing, and help support contacts.')}
                 </p>
               </div>
 
               <div className={`p-6 rounded-3xl ${cardTheme} flex flex-col gap-3`}>
-                <h4 className="font-serif font-bold text-sm text-forest">Helpline assistance</h4>
-                <p className="text-sm">For employer billing, corporate sponsorships, and verified listing checks, please call: <strong>+91 99999-77777</strong></p>
+                <h4 className="font-serif font-bold text-sm text-forest">{t('dashboard.employer.settings.helpline', 'Helpline assistance')}</h4>
+                <p className="text-sm">{t('dashboard.employer.settings.helpline_desc', 'For employer billing, corporate sponsorships, and verified listing checks, please call:')} <strong>+91 99999-77777</strong></p>
               </div>
             </div>
           )}
@@ -823,9 +833,9 @@ const EmployerDashboard = ({ onNavigate }) => {
           {activeTab === 'messages' && (
             <div className="flex flex-col gap-6 text-left">
               <div className="border-b pb-3 border-cream-dark/30">
-                <h2 className="font-serif text-2xl font-bold">Candidate Messages</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.messages.title', 'Candidate Messages')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Communicate securely with senior citizens and homemakers matching your gigs.
+                  {t('dashboard.employer.messages.desc', 'Communicate securely with senior citizens and homemakers matching your gigs.')}
                 </p>
               </div>
 
@@ -841,10 +851,10 @@ const EmployerDashboard = ({ onNavigate }) => {
               <div className="border-b pb-4 border-cream-dark/30">
                 <h2 className="font-serif text-3xl font-bold flex items-center gap-2">
                   <Shield className="h-7 w-7 text-forest" />
-                  Trust & Safety Center
+                  {t('safety.employer.title', 'Trust & Safety Center')}
                 </h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1.5 max-w-2xl`}>
-                  SilverHands leverages smart local validation and AI guard tools to keep our community safe. Review live alerts, report accounts, or write neighborhood endorsements below.
+                  {t('safety.employer.desc', 'SilverHands leverages smart local validation and AI guard tools to keep our community safe. Review live alerts, report accounts, or write neighborhood endorsements below.')}
                 </p>
               </div>
 
@@ -858,11 +868,11 @@ const EmployerDashboard = ({ onNavigate }) => {
                   <div className={`p-6 rounded-3xl border flex flex-col gap-4 ${cardTheme}`}>
                     <div className="flex items-center gap-2 border-b pb-2 border-cream-dark/20">
                       <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-ping"></span>
-                      <h3 className="font-serif font-bold text-base text-charcoal">Demo: AI scam detection in action</h3>
+                      <h3 className="font-serif font-bold text-base text-charcoal">{t('safety.employer.demo_title', 'Demo: AI scam detection in action')}</h3>
                     </div>
 
                     <p className="text-xs text-charcoal-light">
-                      Below is a preview simulation of a secure message thread where our AI scanner flagged a suspicious message:
+                      {t('safety.employer.demo_desc', 'Below is a preview simulation of a secure message thread where our AI scanner flagged a suspicious message:')}
                     </p>
 
                     {/* Chat Simulation Box */}
@@ -871,14 +881,14 @@ const EmployerDashboard = ({ onNavigate }) => {
                     }`}>
                       {/* Chat Header */}
                       <div className="px-4 py-2 bg-cream-dark/20 border-b border-cream-dark/20 flex items-center justify-between text-xs font-bold">
-                        <span>💬 Secure chat with candidate: Ramesh S.</span>
-                        <span className="text-[10px] text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full font-sans">Active Match</span>
+                        <span>💬 {t('safety.employer.chat_header', 'Secure chat with candidate: Ramesh S.')}</span>
+                        <span className="text-[10px] text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full font-sans">{t('safety.employer.active_match', 'Active Match')}</span>
                       </div>
 
                       {/* Scam warning banner inserted above chat message */}
                       <div className="p-3 bg-white border-b border-cream-dark/20">
                         <ScamAlertBanner 
-                          message="This message requests an advance cash transfer before work has commenced. This violates community safety guidelines."
+                          message={t('safety.employer.alert_message', 'This message requests an advance cash transfer before work has commenced. This violates community safety guidelines.')}
                           onLearnMore={() => alert("Scam Guards detect UPI IDs, bank details, and keywords like 'advance', 'upfront', 'deposit' in initial chats to protect elders from online fraud.")}
                           onReport={() => setIsReportOpen(true)}
                           highContrast={highContrast}
@@ -889,8 +899,8 @@ const EmployerDashboard = ({ onNavigate }) => {
                       <div className="p-4 flex flex-col gap-3">
                         <div className="self-start max-w-[85%] rounded-2xl p-3 text-xs bg-cream-dark/30 text-charcoal text-left">
                           <p className="font-bold text-forest mb-0.5">Ramesh S.</p>
-                          <p>Namaste. I am ready to start cooking for your father tomorrow morning. Please transfer a ₹3,500 security advance to my GPay number 98765-54321 today so I can purchase custom organic groceries.</p>
-                          <span className="text-[9px] text-charcoal-light mt-1 block">Sent 12:35 PM</span>
+                          <p>{t('safety.employer.chat_body', 'Namaste. I am ready to start cooking for your father tomorrow morning. Please transfer a ₹3,500 security advance to my GPay number 98765-54321 today so I can purchase custom organic groceries.')}</p>
+                          <span className="text-[9px] text-charcoal-light mt-1 block">{t('safety.employer.sent_time', 'Sent 12:35 PM')}</span>
                         </div>
                       </div>
                     </div>
@@ -898,7 +908,7 @@ const EmployerDashboard = ({ onNavigate }) => {
 
                   {/* Dynamic Reviews Feed */}
                   <div className="flex flex-col gap-4">
-                    <h3 className="font-serif text-xl font-bold">Recent Neighborhood Endorsements</h3>
+                    <h3 className="font-serif text-xl font-bold">{t('safety.employer.endorsements_title', 'Recent Neighborhood Endorsements')}</h3>
                     <div className="grid gap-4 sm:grid-cols-2">
                       {reviewsList.map((rev, idx) => (
                         <ReviewCard 
@@ -941,10 +951,10 @@ const EmployerDashboard = ({ onNavigate }) => {
                   <div className={`p-5 rounded-3xl border text-xs leading-relaxed ${
                     highContrast ? 'border-white bg-black' : 'bg-white border-cream-dark/50 text-charcoal-light'
                   }`}>
-                    <h4 className="font-serif font-bold text-sm text-charcoal mb-2">Our Safety Guarantee</h4>
-                    <p className="mb-2">✓ All providers undergo digital identity verification before matching.</p>
-                    <p className="mb-2">✓ Dynamic 2dsphere location search prevents matching with distant unknown accounts.</p>
-                    <p>✓ Endorsements can only be submitted by verified residents inside the same block group.</p>
+                     <h4 className="font-serif font-bold text-sm text-charcoal mb-2">{t('safety.employer.guarantee_title', 'Our Safety Guarantee')}</h4>
+                    <p className="mb-2">✓ {t('safety.employer.guarantee_1', 'All providers undergo digital identity verification before matching.')}</p>
+                    <p className="mb-2">✓ {t('safety.employer.guarantee_2', 'Dynamic 2dsphere location search prevents matching with distant unknown accounts.')}</p>
+                    <p>✓ {t('safety.employer.guarantee_3', 'Endorsements can only be submitted by verified residents inside the same block group.')}</p>
                   </div>
 
                 </div>
@@ -992,7 +1002,9 @@ const EmployerDashboard = ({ onNavigate }) => {
               </div>
               <div>
                 <h3 className="text-2xl font-bold font-serif">{selectedCandidate.name}</h3>
-                <p className={`text-sm ${textSecondaryTheme}`}>Age {selectedCandidate.age} • Rating {selectedCandidate.rating} ★</p>
+                <p className={`text-sm ${textSecondaryTheme}`}>
+                  {t('dashboard.employer.candidates.modal_age_rating', 'Age {{age}} • Rating {{rating}} ★', { age: selectedCandidate.age, rating: selectedCandidate.rating })}
+                </p>
               </div>
             </div>
 
@@ -1001,7 +1013,7 @@ const EmployerDashboard = ({ onNavigate }) => {
               
               {/* Verification indicators */}
               <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-bold text-gray-400 uppercase">Verification Checks</span>
+                <span className="text-xs font-bold text-gray-400 uppercase">{t('dashboard.employer.candidates.verification_checks', 'Verification Checks')}</span>
                 <div className="flex flex-wrap gap-2">
                   {selectedCandidate.verified.map(v => (
                     <VerificationBadge key={v} type={v} highContrast={highContrast} />
@@ -1011,11 +1023,11 @@ const EmployerDashboard = ({ onNavigate }) => {
 
               {/* Skills Chips */}
               <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-bold text-gray-400 uppercase">Specialized Skills</span>
+                <span className="text-xs font-bold text-gray-400 uppercase">{t('dashboard.employer.candidates.specialized_skills', 'Specialized Skills')}</span>
                 <div className="flex flex-wrap gap-2">
                   {selectedCandidate.skills.map(s => (
                     <span key={s} className="bg-teal-50 text-forest border border-teal-200 px-2.5 py-1 rounded-xl text-xs font-bold">
-                      {s}
+                      {t(`customer.skills.${s.toLowerCase().replace(' ', '_')}`, s)}
                     </span>
                   ))}
                 </div>
@@ -1023,15 +1035,15 @@ const EmployerDashboard = ({ onNavigate }) => {
 
               {/* Availability */}
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-bold text-gray-400 uppercase">Availability Summary</span>
-                <p className="font-bold text-charcoal">{selectedCandidate.availability}</p>
+                <span className="text-xs font-bold text-gray-400 uppercase">{t('dashboard.employer.candidates.availability_summary', 'Availability Summary')}</span>
+                <p className="font-bold text-charcoal">{t(`customer.availability.${selectedCandidate.availability.toLowerCase().replace(' ', '_')}`, selectedCandidate.availability)}</p>
               </div>
 
               {/* Reviews section */}
               <div className="flex flex-col gap-2.5 border-t pt-4 border-cream-dark/30">
                 <span className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1">
                   <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                  Past Neighbor Reviews ({selectedCandidate.reviewsCount})
+                  {t('dashboard.employer.candidates.past_reviews', 'Past Neighbor Reviews ({{count}})', { count: selectedCandidate.reviewsCount })}
                 </span>
                 
                 {selectedCandidate.reviews.map((r, idx) => (
@@ -1053,7 +1065,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                 onClick={() => setSelectedCandidate(null)}
                 className={`grow ${outlineBtnTheme}`}
               >
-                Close Profile
+                {t('dashboard.employer.candidates.close_profile', 'Close Profile')}
               </button>
               <button 
                 onClick={() => {
@@ -1062,7 +1074,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                 }}
                 className={`grow ${primaryBtnTheme}`}
               >
-                Start Chat
+                {t('dashboard.employer.candidates.start_chat', 'Start Chat')}
               </button>
             </div>
 

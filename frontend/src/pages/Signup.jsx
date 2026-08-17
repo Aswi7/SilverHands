@@ -22,8 +22,20 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
     setRole(initialRole);
   }, [initialRole]);
   const [prefLang, setPrefLang] = useState('en');
-  const [longitude, setLongitude] = useState('');
-  const [latitude, setLatitude] = useState('');
+  const [cityName, setCityName] = useState('Delhi');
+  
+  const CITY_COORDINATES = {
+    'delhi': [77.2090, 28.6139],
+    'new delhi': [77.2090, 28.6139],
+    'connaught place': [77.2197, 28.6304],
+    'mumbai': [72.8777, 19.0760],
+    'bengaluru': [77.5946, 12.9716],
+    'bangalore': [77.5946, 12.9716],
+    'chennai': [80.2707, 13.0827],
+    'kolkata': [88.3639, 22.5726],
+    'noida': [77.3910, 28.5355],
+    'gurgaon': [77.0266, 28.4595]
+  };
   
   const [geoState, setGeoState] = useState(''); // 'detecting', 'success', 'error'
   const [error, setError] = useState('');
@@ -50,34 +62,12 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
     else setFontSize('normal');
   };
 
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      setGeoState('error');
-      setError('Geolocation is not supported by your browser.');
-      return;
-    }
-    setGeoState('detecting');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLongitude(position.coords.longitude.toFixed(6));
-        setLatitude(position.coords.latitude.toFixed(6));
-        setGeoState('success');
-      },
-      (err) => {
-        console.error(err);
-        setGeoState('error');
-      }
-    );
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
-    if (!longitude || !latitude) {
-      setError('Location coordinates are required.');
-      return;
-    }
+    const cityKey = cityName.trim().toLowerCase();
+    const coords = CITY_COORDINATES[cityKey] || [77.2090, 28.6139]; // Default to Delhi coordinates
 
     setLoading(true);
     try {
@@ -89,8 +79,8 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
         role,
         preferredLanguage: prefLang,
         location: {
-          longitude: parseFloat(longitude),
-          latitude: parseFloat(latitude)
+          longitude: coords[0],
+          latitude: coords[1]
         }
       });
       if (role === 'customer') {
@@ -278,55 +268,23 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
               </select>
             </div>
 
-            {/* Geolocation Section */}
-            <div className="flex flex-col gap-3 border-t pt-4 border-cream-dark/30">
-              <label className="text-sm font-bold">Location Coordinates</label>
-              
-              <button
-                type="button"
-                onClick={handleGetLocation}
-                className={`w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-xl ${outlineBtnTheme}`}
-              >
-                <MapPin className="h-5 w-5 text-terracotta" />
-                {t('auth.detect_location')}
-              </button>
-              
-              {geoState === 'detecting' && (
-                <p className="text-xs text-center text-forest animate-pulse">Detecting Coordinates...</p>
-              )}
-              {geoState === 'success' && (
-                <p className="text-xs text-center text-green-600 font-semibold">{t('auth.location_detected')}</p>
-              )}
-              {geoState === 'error' && (
-                <p className="text-xs text-center text-red-500 font-semibold">{t('auth.location_failed')}</p>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="latitude" className="text-xs text-gray-500">{t('auth.latitude')}</label>
-                  <input
-                    type="number"
-                    step="any"
-                    id="latitude"
-                    value={latitude}
-                    onChange={(e) => setLatitude(e.target.value)}
-                    required
-                    className={`px-3 py-2 rounded-lg text-sm ${inputTheme}`}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="longitude" className="text-xs text-gray-500">{t('auth.longitude')}</label>
-                  <input
-                    type="number"
-                    step="any"
-                    id="longitude"
-                    value={longitude}
-                    onChange={(e) => setLongitude(e.target.value)}
-                    required
-                    className={`px-3 py-2 rounded-lg text-sm ${inputTheme}`}
-                  />
-                </div>
-              </div>
+            {/* City Location Section */}
+            <div className="flex flex-col gap-2 border-t pt-4 border-cream-dark/30">
+              <label htmlFor="cityName" className="text-sm font-bold">
+                {t('auth.city_location', 'City / Location')}
+              </label>
+              <input
+                type="text"
+                id="cityName"
+                value={cityName}
+                onChange={(e) => setCityName(e.target.value)}
+                required
+                placeholder="e.g. Delhi, Mumbai, Noida"
+                className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
+              />
+              <p className="text-[10px] text-gray-500">
+                Enter your city name. We will use this to show jobs and opportunities nearby.
+              </p>
             </div>
 
             {/* Submit Button */}
