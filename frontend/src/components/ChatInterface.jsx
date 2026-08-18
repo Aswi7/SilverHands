@@ -30,6 +30,23 @@ const INITIAL_SAKHI_MESSAGES = [
   }
 ];
 
+const formatTime = (dateVal) => {
+  if (!dateVal) return '';
+  try {
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return '';
+  }
+};
+
+const getInitials = (nameStr) => {
+  if (!nameStr || typeof nameStr !== 'string') return 'U';
+  const trimmed = nameStr.trim();
+  return trimmed.length > 0 ? trimmed[0].toUpperCase() : 'U';
+};
+
 const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversation, onPrepareListing }) => {
   const [conversations, setConversations] = useState([SAKHI_CONVERSATION]);
   const [selectedConv, setSelectedConv] = useState(SAKHI_CONVERSATION);
@@ -39,6 +56,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isSakhiTyping, setIsSakhiTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
   const cardTheme = highContrast
@@ -58,7 +76,10 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
       setConversations(fullList);
 
       if (autoSelectMatchId) {
-        const target = convList.find(c => (c.match?._id || c.match) === autoSelectMatchId);
+        const target = convList.find(c => {
+          const mId = (c.matchId?._id || c.matchId || c.match?._id || c.match)?.toString();
+          return mId === autoSelectMatchId.toString();
+        });
         if (target) {
           setSelectedConv(target);
         }
@@ -78,14 +99,16 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
       if (initialMatchId) {
         try {
           const { data } = await api.post('/chat/conversations', { matchId: initialMatchId });
-          setSelectedConv(data);
-          fetchConversations(initialMatchId);
+          if (data && data._id) {
+            setSelectedConv(data);
+          }
+          await fetchConversations(initialMatchId);
         } catch (err) {
           console.error('Failed to auto open conversation:', err);
-          fetchConversations();
+          await fetchConversations();
         }
       } else {
-        fetchConversations();
+        await fetchConversations();
       }
     };
 
@@ -132,7 +155,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
           })
           .catch(err => console.error(err));
       }
-    }, 3000);
+    }, 4000);
 
     return () => clearInterval(interval);
   }, [selectedConv?._id]);
@@ -159,6 +182,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
       const updatedSakhiMsgs = [...sakhiMessages, userMsg];
       setSakhiMessages(updatedSakhiMsgs);
       setMessages(updatedSakhiMsgs);
+      setIsSakhiTyping(true);
       setTimeout(scrollToBottom, 50);
 
       try {
@@ -193,20 +217,20 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
         SAKHI_CONVERSATION.lastMessage = replyText;
         SAKHI_CONVERSATION.lastMessageAt = new Date();
       } catch (err) {
-        console.error('Sakhi AI Chat Error:', err);
+        console.error('Sakhi AI chat error:', err);
         const fallbackReply = {
-          _id: 'sakhi_' + Date.now(),
+          _id: 'sakhi_err_' + Date.now(),
           sender: { name: 'Sakhi (AI Assistant)', role: 'AI Assistant' },
-          message: 'Namaste! I am your AI business assistant. For the upcoming festival season, creating a specialized listing can boost your earnings by up to 40%. Would you like to prepare your festive listing now?',
+          message: 'I am here to support you! You can ask me how to price your skills or optimize your listings for maximum demand.',
           createdAt: new Date(),
-          isSakhi: true,
-          ctaTitle: '✨ Prepare My Listing'
+          isSakhi: true
         };
-        const finalSakhiMsgs = [...updatedSakhiMsgs, fallbackReply];
-        setSakhiMessages(finalSakhiMsgs);
-        setMessages(finalSakhiMsgs);
+        const fallbackMsgs = [...updatedSakhiMsgs, fallbackReply];
+        setSakhiMessages(fallbackMsgs);
+        setMessages(fallbackMsgs);
       } finally {
         setIsSending(false);
+        setIsSakhiTyping(false);
         setTimeout(scrollToBottom, 50);
       }
       return;
@@ -234,8 +258,18 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
     if (!conv) return { name: 'Partner', role: '' };
     if (conv.isSakhi) return { name: 'Sakhi (AI Assistant)', role: 'System' };
     if (!user) return { name: 'Partner', role: '' };
-    const isCustomer = user.role === 'customer' || conv.customer?._id === user._id;
-    return isCustomer ? conv.provider || { name: 'Provider' } : conv.customer || { name: 'Customer' };
+
+    const customerObj = conv.customerId || conv.customer;
+    const providerObj = conv.providerId || conv.provider;
+
+    const customerUserId = (customerObj?._id || customerObj)?.toString();
+    const currentUserId = user?._id?.toString();
+
+    if (currentUserId === customerUserId) {
+      return providerObj && typeof providerObj === 'object' ? providerObj : { name: providerObj || 'Provider' };
+    } else {
+      return customerObj && typeof customerObj === 'object' ? customerObj : { name: customerObj || 'Customer' };
+    }
   };
 
   return (
@@ -253,7 +287,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
           </p>
         </div>
         <button
-          onClick={() => { fetchConversations(); if (selectedConv) fetchMessages(selectedConv._id); }}
+          onClick={() => { fetchConversations(); if (selectedConv?._id) fetchMessages(selectedConv._id); }}
           className="px-3 py-1.5 text-xs font-bold rounded-xl border border-cream-dark hover:bg-gray-100 flex items-center gap-1.5"
         >
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
@@ -281,11 +315,12 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
               {conversations.map((conv) => {
                 const partner = getPartner(conv);
                 const isSelected = selectedConv?._id === conv._id;
-                const isSakhi = conv.isSakhi;
+                const isSakhi = Boolean(conv.isSakhi);
+                const partnerName = partner?.name || (isSakhi ? 'Sakhi (AI Assistant)' : 'User');
 
                 return (
                   <button
-                    key={conv._id}
+                    key={conv._id || Math.random()}
                     onClick={() => { setSelectedConv(conv); if (onSelectConversation) onSelectConversation(conv); }}
                     className={`w-full p-4 text-left transition-all flex items-start gap-3 hover:bg-cream-dark/10 ${
                       isSelected 
@@ -298,13 +333,13 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                         ? 'bg-terracotta text-white shadow-sm'
                         : (highContrast ? 'bg-black text-white border' : 'bg-orange-100 text-terracotta border border-orange-200')
                     }`}>
-                      {isSakhi ? <Sparkles className="h-5 w-5 text-yellow-200" /> : (partner.name ? partner.name[0].toUpperCase() : 'U')}
+                      {isSakhi ? <Sparkles className="h-5 w-5 text-yellow-200" /> : getInitials(partnerName)}
                     </div>
 
                     <div className="grow min-w-0">
                       <div className="flex justify-between items-baseline">
                         <h4 className="font-bold text-sm truncate flex items-center gap-1.5">
-                          <span>{partner.name || 'User'}</span>
+                          <span>{partnerName}</span>
                           {isSakhi && (
                             <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-terracotta text-white uppercase tracking-wider">
                               AI
@@ -313,7 +348,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                         </h4>
                         {conv.lastMessageAt && (
                           <span className="text-[10px] text-gray-400 font-mono">
-                            {new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {formatTime(conv.lastMessageAt)}
                           </span>
                         )}
                       </div>
@@ -322,9 +357,9 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                         {conv.lastMessage || 'No messages yet'}
                       </p>
 
-                      {conv.match?.opportunity?.title && (
+                      {(conv.matchId?.requestId?.title || conv.matchId?.title || conv.match?.opportunity?.title) && (
                         <span className="inline-block text-[10px] font-extrabold text-forest uppercase tracking-wider bg-forest/10 px-1.5 py-0.5 rounded mt-1 truncate max-w-full">
-                          {conv.match.opportunity.title}
+                          {conv.matchId?.requestId?.title || conv.matchId?.title || conv.match?.opportunity?.title}
                         </span>
                       )}
                     </div>
@@ -355,11 +390,11 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                       ? 'bg-terracotta text-white shadow-md'
                       : 'bg-orange-100 text-terracotta border border-orange-200'
                   }`}>
-                    {selectedConv.isSakhi ? <Sparkles className="h-5 w-5 text-yellow-200" /> : (getPartner(selectedConv).name ? getPartner(selectedConv).name[0].toUpperCase() : 'U')}
+                    {selectedConv.isSakhi ? <Sparkles className="h-5 w-5 text-yellow-200" /> : getInitials(getPartner(selectedConv)?.name)}
                   </div>
                   <div>
                     <h3 className="font-bold text-base flex items-center gap-2">
-                      <span>{getPartner(selectedConv).name || 'Connection Partner'}</span>
+                      <span>{getPartner(selectedConv)?.name || 'Connection Partner'}</span>
                       {selectedConv.isSakhi && (
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-terracotta text-white uppercase tracking-wider">
                           Official AI Companion
@@ -369,7 +404,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                     <p className="text-xs text-gray-500">
                       {selectedConv.isSakhi 
                         ? 'Powered by Gemini AI • Smart business guidance & seasonal forecasts'
-                        : `Service: ${selectedConv.match?.opportunity?.title || 'Service Connection'}`}
+                        : `Service: ${selectedConv.matchId?.requestId?.title || selectedConv.matchId?.title || selectedConv.match?.opportunity?.title || 'Service Connection'}`}
                     </p>
                   </div>
                 </div>
@@ -395,12 +430,14 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                   </div>
                 ) : (
                   messages.map((msg) => {
-                    const isMe = !msg.isSakhi && ((msg.sender?._id || msg.sender) === user?._id || (msg.sender?.name === (user?.name || 'You')));
-                    const isSakhiMsg = msg.isSakhi || msg.sender?.name === 'Sakhi (AI Assistant)';
+                    const senderIdStr = (msg.senderId?._id || msg.senderId || msg.sender?._id || msg.sender)?.toString();
+                    const currentUserIdStr = user?._id?.toString();
+                    const isMe = !msg.isSakhi && Boolean(currentUserIdStr && senderIdStr === currentUserIdStr);
+                    const isSakhiMsg = Boolean(msg.isSakhi || msg.sender?.name === 'Sakhi (AI Assistant)');
 
                     return (
                       <div
-                        key={msg._id}
+                        key={msg._id || Math.random()}
                         className={`flex flex-col max-w-[80%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}
                       >
                         {isSakhiMsg && (
@@ -438,7 +475,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                         </div>
 
                         <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-1 px-1">
-                          <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span>{formatTime(msg.createdAt)}</span>
                           {isMe && (
                             msg.status === 'read' ? (
                               <CheckCheck className="h-3 w-3 text-teal-600" />
@@ -451,6 +488,24 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                     );
                   })
                 )}
+
+                {/* Sakhi AI Animated Typing Bubble */}
+                {selectedConv.isSakhi && isSakhiTyping && (
+                  <div className="flex flex-col max-w-[80%] self-start items-start animate-fade-in">
+                    <div className="flex items-center gap-1.5 mb-1 text-xs font-extrabold text-terracotta">
+                      <Sparkles className="h-3.5 w-3.5 text-terracotta animate-spin" />
+                      <span>Sakhi is thinking...</span>
+                    </div>
+                    <div className="px-4 py-3 rounded-2xl bg-orange-100/90 border border-orange-200 shadow-sm flex items-center gap-2">
+                      <div className="flex space-x-1.5 items-center py-1 px-1">
+                        <div className="h-2.5 w-2.5 bg-terracotta rounded-full animate-bounce [animation-delay:-0.3s]" />
+                        <div className="h-2.5 w-2.5 bg-terracotta rounded-full animate-bounce [animation-delay:-0.15s]" />
+                        <div className="h-2.5 w-2.5 bg-terracotta rounded-full animate-bounce" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div ref={messagesEndRef} />
               </div>
 

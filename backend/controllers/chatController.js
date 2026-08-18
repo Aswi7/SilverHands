@@ -13,7 +13,7 @@ const createOrGetConversation = async (req, res) => {
       return res.status(400).json({ message: 'matchId is required' });
     }
 
-    const match = await Match.findById(matchId).populate('customer provider opportunity');
+    const match = await Match.findById(matchId).populate('requestId providerId customerId');
 
     if (!match) {
       return res.status(404).json({ message: 'Match not found' });
@@ -37,9 +37,9 @@ const createOrGetConversation = async (req, res) => {
     let conversation = await Conversation.findOne({
       $or: [{ matchId: match._id }, { match: match._id }]
     })
-      .populate('customer', 'name phone city preferredLanguage')
-      .populate('provider', 'name phone city skills bio category')
-      .populate('match');
+      .populate('customerId', 'name phone city preferredLanguage')
+      .populate('providerId', 'name phone city skills bio category')
+      .populate('matchId');
 
     if (!conversation) {
       conversation = await Conversation.create({
@@ -51,9 +51,9 @@ const createOrGetConversation = async (req, res) => {
       });
 
       conversation = await Conversation.findById(conversation._id)
-        .populate('customer', 'name phone city preferredLanguage')
-        .populate('provider', 'name phone city skills bio category')
-        .populate('match');
+        .populate('customerId', 'name phone city preferredLanguage')
+        .populate('providerId', 'name phone city skills bio category')
+        .populate('matchId');
     }
 
     res.status(200).json(conversation);
@@ -76,9 +76,9 @@ const getUserConversations = async (req, res) => {
         { providerId: userId }, { provider: userId }
       ]
     })
-      .populate('customer', 'name phone city preferredLanguage')
-      .populate('provider', 'name phone city skills bio category')
-      .populate('match')
+      .populate('customerId', 'name phone city preferredLanguage')
+      .populate('providerId', 'name phone city skills bio category')
+      .populate('matchId')
       .sort({ lastMessageAt: -1 })
       .lean();
 
@@ -144,7 +144,7 @@ const getConversationMessages = async (req, res) => {
     const messages = await Message.find({
       $or: [{ conversationId: conversationId }, { conversation: conversationId }]
     })
-      .populate('sender', 'name role')
+      .populate('senderId', 'name role')
       .sort({ createdAt: 1 });
 
     res.status(200).json(messages);
@@ -167,15 +167,16 @@ const sendMessage = async (req, res) => {
       return res.status(400).json({ message: 'Message text is required' });
     }
 
-    const conversation = await Conversation.findById(conversationId).populate('match');
+    const conversation = await Conversation.findById(conversationId).populate('matchId');
 
     if (!conversation) {
       return res.status(404).json({ message: 'Conversation not found' });
     }
 
+    const matchObj = conversation.matchId || conversation.match;
     // Rule: Match status must still be ACCEPTED or CONTACTED
-    if (conversation.match && !['ACCEPTED', 'CONTACTED'].includes(conversation.match.status)) {
-      return res.status(403).json({ message: `Cannot send message: Match status is ${conversation.match.status}` });
+    if (matchObj && !['ACCEPTED', 'CONTACTED'].includes(matchObj.status)) {
+      return res.status(403).json({ message: `Cannot send message: Match status is ${matchObj.status}` });
     }
 
     const senderIdStr = senderId.toString();
@@ -201,7 +202,7 @@ const sendMessage = async (req, res) => {
     conversation.lastMessageAt = new Date();
     await conversation.save();
 
-    const populatedMessage = await Message.findById(newMessage._id).populate('sender', 'name role');
+    const populatedMessage = await Message.findById(newMessage._id).populate('senderId', 'name role');
 
     console.log(`[CHAT MESSAGE PERSISTED] Conv ${conversationId}: User ${senderId} sent message`);
 

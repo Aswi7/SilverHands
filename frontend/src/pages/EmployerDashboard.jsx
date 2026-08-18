@@ -24,7 +24,9 @@ import {
   X,
   Star,
   Users,
-  BookmarkCheck
+  BookmarkCheck,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import api from '../services/api';
@@ -69,6 +71,98 @@ const EmployerDashboard = ({ onNavigate }) => {
 
   // Selected Posting for Candidates view
   const [selectedPosting, setSelectedPosting] = useState(null);
+
+  // Active Chat Match ID state
+  const [activeChatMatchId, setActiveChatMatchId] = useState(null);
+
+  const handleContactProviderFromMatch = async (match) => {
+    try {
+      const matchId = (typeof match === 'object' && match !== null) ? match._id : match;
+      if (matchId) {
+        await api.put(`/matches/${matchId}/status`, { status: 'CONTACTED' });
+        try {
+          await api.post('/chat/conversations', { matchId });
+        } catch (convErr) {
+          console.warn('Conversation creation notice:', convErr.message);
+        }
+        setActiveChatMatchId(matchId);
+      }
+      await fetchCustomerMatches();
+      setActiveTab('messages');
+    } catch (err) {
+      console.error('Failed to update status to CONTACTED:', err);
+      setActiveTab('messages');
+    }
+  };
+
+  // Edit Posting Modal State
+  const [editingPost, setEditingPost] = useState(null);
+  const [editForm, setEditForm] = useState({
+    title: '',
+    category: 'cooking',
+    desc: '',
+    pay: '',
+    mode: 'offline',
+    timing: '',
+    city: ''
+  });
+
+  const handleOpenEditPost = (post) => {
+    setEditingPost(post);
+    setEditForm({
+      title: post.title || '',
+      category: post.category || 'cooking',
+      desc: post.desc || '',
+      pay: post.pay || '',
+      mode: post.mode || 'offline',
+      timing: post.timing || '',
+      city: post.city || user?.city || 'Delhi'
+    });
+  };
+
+  const handleSaveEditPost = async (e) => {
+    e.preventDefault();
+    if (!editingPost) return;
+
+    try {
+      const payload = {
+        title: editForm.title,
+        category: editForm.category,
+        description: editForm.desc,
+        rate: editForm.pay,
+        mode: editForm.mode,
+        timing: editForm.timing,
+        city: editForm.city
+      };
+
+      await api.put(`/requests/${editingPost.id}`, payload);
+
+      alert(`Successfully updated opportunity "${editForm.title}"! Matches recalculating...`);
+      setEditingPost(null);
+      await fetchPostings();
+      await fetchCustomerMatches();
+    } catch (err) {
+      console.error('Failed to update opportunity:', err);
+      alert(err.response?.data?.message || 'Failed to update opportunity.');
+    }
+  };
+
+  const handleDeletePost = async (postId, postTitle) => {
+    if (!window.confirm(`Are you sure you want to delete "${postTitle}"? Associated matches will also be removed.`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/requests/${postId}`);
+      alert(`Deleted opportunity "${postTitle}".`);
+      setPostings(prev => prev.filter(p => p.id !== postId));
+      await fetchPostings();
+      await fetchCustomerMatches();
+    } catch (err) {
+      console.error('Failed to delete opportunity:', err);
+      alert(err.response?.data?.message || 'Failed to delete opportunity.');
+    }
+  };
 
   // Candidate Profile Modal
   const [selectedCandidate, setSelectedCandidate] = useState(null);
@@ -120,7 +214,7 @@ const EmployerDashboard = ({ onNavigate }) => {
   const fetchPostings = async () => {
     try {
       const { data } = await api.get('/requests/my');
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         // Map the backend structure to the format required by postings state
         const mappedPostings = data.map(post => ({
           id: post._id,
@@ -154,19 +248,6 @@ const EmployerDashboard = ({ onNavigate }) => {
       console.error('Failed to fetch customer matches:', err);
     } finally {
       setIsLoadingCustomerMatches(false);
-    }
-  };
-
-  const handleContactProviderFromMatch = async (matchId) => {
-    try {
-      if (matchId) {
-        await api.put(`/matches/${matchId}/status`, { status: 'CONTACTED' });
-      }
-      await fetchCustomerMatches();
-      setActiveTab('messages');
-    } catch (err) {
-      console.error('Failed to update status to CONTACTED:', err);
-      setActiveTab('messages');
     }
   };
 
@@ -329,25 +410,15 @@ const EmployerDashboard = ({ onNavigate }) => {
 
       const { data } = await api.post('/requests', payload);
 
-      // Append returned data format to mock postings for immediate UI response
-      const newPosting = {
-        id: data._id,
-        title: data.title,
-        category: data.category,
-        desc: data.description,
-        pay: data.rate,
-        mode: data.mode,
-        timing: data.timing,
-        status: data.status,
-        applicantsCount: data.applicantsCount !== undefined ? data.applicantsCount : (Array.isArray(data.matches) ? data.matches.length : 0)
-      };
+      // Immediately fetch latest postings and matches computed by matchmaking engine
+      await fetchPostings();
+      await fetchCustomerMatches();
 
-      setPostings([newPosting, ...postings]);
       setRawText('');
       setShowPreview(false);
-      setActiveTab('postings');
-      // Replace alert with a less obtrusive approach or keep it for MVP
-      alert(`Successfully published "${previewTitle}" opportunity list!`);
+
+      // Switch to 'matches-tracker' tab so the customer sees real-time matches immediately
+      setActiveTab('matches-tracker');
     } catch (err) {
       console.error('Failed to publish opportunity:', err);
       alert(err.response?.data?.message || 'Failed to publish opportunity. Please try again.');
@@ -851,30 +922,50 @@ const EmployerDashboard = ({ onNavigate }) => {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2 border-t pt-4 border-cream-dark/30">
-                      {post.id !== "mock1" && post.id !== 2 && post.id !== 3 ? (
-                        <button
-                          onClick={async () => {
-                            setSelectedPosting(post);
-                            setActiveTab('candidates');
-                            setIsLoadingMatches(true);
-                            setMatchedCandidates([]);
-                            try {
-                              const { data } = await api.get(`/requests/${post.id}/matches`);
-                              setMatchedCandidates(data || []);
-                            } catch (err) {
-                              console.error('Failed to fetch matches', err);
-                            } finally {
-                              setIsLoadingMatches(false);
-                            }
-                          }}
-                          className={`grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${secondaryBtnTheme}`}
-                        >
-                          <Users className="h-4 w-4" />
-                          {t('dashboard.employer.postings.view_matches', { count: post.applicantsCount || 0 })}
-                        </button>
-                      ) : (
-                        <p className="text-xs text-gray-400 italic py-2 grow text-center">{t('dashboard.employer.postings.ai_searching')}</p>
-                      )}
+                      <button
+                        onClick={async () => {
+                          setSelectedPosting(post);
+                          setIsLoadingCustomerMatches(true);
+                          try {
+                            await fetchCustomerMatches();
+                          } catch (err) {
+                            console.error('Failed to fetch customer matches:', err);
+                          } finally {
+                            setIsLoadingCustomerMatches(false);
+                            setActiveTab('matches-tracker');
+                          }
+                        }}
+                        className={`grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${secondaryBtnTheme}`}
+                      >
+                        <Users className="h-4 w-4" />
+                        {t('dashboard.employer.postings.view_matches', { count: post.applicantsCount || 0 })}
+                      </button>
+
+                      {/* Edit Posting Button */}
+                      <button
+                        onClick={() => handleOpenEditPost(post)}
+                        className={`p-3 rounded-xl border font-bold text-xs flex items-center justify-center transition-all ${
+                          highContrast
+                            ? 'border-white text-white hover:bg-white hover:text-black'
+                            : 'border-cream-dark hover:bg-cream-dark/30 text-charcoal bg-cream/20'
+                        }`}
+                        title="Edit Opportunity Listing"
+                      >
+                        <Pencil className="h-4 w-4 text-terracotta" />
+                      </button>
+
+                      {/* Delete Posting Button */}
+                      <button
+                        onClick={() => handleDeletePost(post.id, post.title)}
+                        className={`p-3 rounded-xl border font-bold text-xs flex items-center justify-center transition-all ${
+                          highContrast
+                            ? 'border-red-500 text-red-500 hover:bg-red-500 hover:text-white'
+                            : 'border-red-200 bg-red-50/60 text-red-600 hover:bg-red-100'
+                        }`}
+                        title="Delete Opportunity Listing"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
 
                   </div>
@@ -958,7 +1049,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                   </div>
                 )}
                 {!isLoadingMatches && matchedCandidates.map((match) => {
-                  const cand = match.provider;
+                  const cand = match.providerId || match.provider;
                   if (!cand) return null;
                   return (
                   <div 
@@ -1015,10 +1106,12 @@ const EmployerDashboard = ({ onNavigate }) => {
                         )}
                       </div>
 
-                      {/* Info details */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-500">
-                        <span>💪 <strong>{t('dashboard.employer.candidates.skills')}</strong> {cand.skills && cand.skills.length > 0 ? cand.skills.slice(0, 3).map(s => typeof s === 'object' ? s.skillName : s).join(', ') : 'Not specified'}</span>
-                        <span>📅 <strong>{t('dashboard.employer.candidates.availability')}</strong> {cand.availability ? 'Available' : 'Unavailable'}</span>
+                      {/* Info details: Service / Skills, Phone Number & City */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-600 border-t pt-2 border-cream-dark/20">
+                        <span>💪 <strong>Service/Skills:</strong> {cand.skills && cand.skills.length > 0 ? cand.skills.map(s => typeof s === 'object' ? s.skillName : s).join(', ') : 'Science Tutoring'}</span>
+                        <span>📞 <strong>Phone:</strong> {cand.phone || 'Available upon contact'}</span>
+                        <span>📍 <strong>Location:</strong> {cand.city || 'Delhi'}</span>
+                        <span>📅 <strong>Availability:</strong> {cand.availability ? 'Available' : 'Flexible'}</span>
                       </div>
 
                       {/* Actions */}
@@ -1030,38 +1123,20 @@ const EmployerDashboard = ({ onNavigate }) => {
                           {t('dashboard.employer.candidates.view_profile')}
                         </button>
 
-                        {match.status === 'ACCEPTED' || match.status === 'CONTACTED' ? (
+                        {match.status !== 'REJECTED' ? (
                           <button
-                            onClick={async () => {
-                              try {
-                                if (match._id) {
-                                  await api.put(`/matches/${match._id}/status`, { status: 'CONTACTED' });
-                                }
-                                setActiveTab('messages');
-                              } catch (err) {
-                                console.error(err);
-                                setActiveTab('messages');
-                              }
-                            }}
-                            className="px-6 py-2.5 text-sm font-bold flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl shadow-sm transition-all"
+                            onClick={() => handleContactProviderFromMatch(match)}
+                            className="px-6 py-2.5 text-sm font-bold flex items-center gap-1.5 bg-forest hover:bg-forest-hover text-white rounded-2xl shadow-sm transition-all"
                           >
                             <MessageSquare className="h-4 w-4" />
                             <span>Contact / Chat</span>
                           </button>
-                        ) : match.status === 'REJECTED' ? (
+                        ) : (
                           <button
                             disabled
                             className="px-6 py-2.5 text-sm font-bold bg-gray-100 text-gray-400 cursor-not-allowed rounded-2xl"
                           >
                             Declined
-                          </button>
-                        ) : (
-                          <button
-                            disabled
-                            className="px-6 py-2.5 text-sm font-bold bg-amber-50 text-amber-800 border border-amber-200 cursor-not-allowed rounded-2xl flex items-center gap-1.5"
-                          >
-                            <Clock className="h-4 w-4" />
-                            <span>Awaiting Acceptance</span>
                           </button>
                         )}
                       </div>
@@ -1233,7 +1308,7 @@ const EmployerDashboard = ({ onNavigate }) => {
               </div>
 
               <ErrorBoundary>
-                <ChatInterface user={user} highContrast={highContrast} onNavigate={onNavigate} />
+                <ChatInterface user={user} highContrast={highContrast} initialMatchId={activeChatMatchId} onNavigate={onNavigate} />
               </ErrorBoundary>
             </div>
           )}
@@ -1475,6 +1550,131 @@ const EmployerDashboard = ({ onNavigate }) => {
 
           </div>
 
+        </div>
+      )}
+
+      {/* 5. EDIT OPPORTUNITY MODAL OVERLAY */}
+      {editingPost && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className={`w-full max-w-xl p-6 rounded-3xl shadow-2xl flex flex-col gap-4 max-h-[90vh] overflow-y-auto ${cardTheme}`}>
+            <div className="flex justify-between items-center border-b pb-3 border-cream-dark/30">
+              <h3 className="font-serif text-xl font-bold flex items-center gap-2">
+                <Pencil className="h-5 w-5 text-terracotta" />
+                <span>Edit Opportunity Listing</span>
+              </h3>
+              <button onClick={() => setEditingPost(null)} className="p-1 rounded-lg hover:bg-cream-dark/30 text-gray-400">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditPost} className="flex flex-col gap-4 text-left">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-gray-500 uppercase">Opportunity Title</label>
+                <input
+                  type="text"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                  required
+                  className={`px-4 py-2.5 rounded-xl text-sm ${inputTheme}`}
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-gray-500 uppercase">Skill Category</label>
+                <select
+                  value={editForm.category}
+                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                  className={`px-4 py-2.5 rounded-xl text-sm ${inputTheme}`}
+                >
+                  <option value="tutoring">Tutoring & Teaching</option>
+                  <option value="cooking">Cooking & Meal Prep</option>
+                  <option value="tailoring">Tailoring & Sewing</option>
+                  <option value="caregiving">Caregiving</option>
+                  <option value="gardening">Gardening</option>
+                  <option value="tech-support">Smartphones & Tech Support</option>
+                  <option value="errands">Errands & Shopping</option>
+                  <option value="home-services">Home Services</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-gray-500 uppercase">Description</label>
+                <textarea
+                  rows="3"
+                  value={editForm.desc}
+                  onChange={(e) => setEditForm({ ...editForm, desc: e.target.value })}
+                  required
+                  className={`px-4 py-2.5 rounded-xl text-sm ${inputTheme}`}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase">Pay Rate</label>
+                  <input
+                    type="text"
+                    value={editForm.pay}
+                    onChange={(e) => setEditForm({ ...editForm, pay: e.target.value })}
+                    placeholder="e.g. ₹400/hr or Negotiable"
+                    className={`px-4 py-2.5 rounded-xl text-sm ${inputTheme}`}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase">City / Location</label>
+                  <input
+                    type="text"
+                    value={editForm.city}
+                    onChange={(e) => setEditForm({ ...editForm, city: e.target.value })}
+                    placeholder="e.g. Delhi, Mumbai"
+                    className={`px-4 py-2.5 rounded-xl text-sm ${inputTheme}`}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase">Mode</label>
+                  <select
+                    value={editForm.mode}
+                    onChange={(e) => setEditForm({ ...editForm, mode: e.target.value })}
+                    className={`px-4 py-2.5 rounded-xl text-sm ${inputTheme}`}
+                  >
+                    <option value="offline">In Person (Offline)</option>
+                    <option value="online">Online / Virtual</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-bold text-gray-500 uppercase">Timing</label>
+                  <input
+                    type="text"
+                    value={editForm.timing}
+                    onChange={(e) => setEditForm({ ...editForm, timing: e.target.value })}
+                    placeholder="e.g. Weekdays 4 PM"
+                    className={`px-4 py-2.5 rounded-xl text-sm ${inputTheme}`}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t pt-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingPost(null)}
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold border border-cream-dark text-gray-600 hover:bg-cream-dark/20"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-xl text-sm font-bold bg-terracotta hover:bg-terracotta-hover text-white shadow-md"
+                >
+                  Save & Recalculate Matches
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

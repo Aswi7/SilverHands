@@ -75,11 +75,12 @@ const ServiceRequestSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Alias: customer ↔ customerId for backward compatibility
-ServiceRequestSchema.virtual('customer').get(function() {
-  return this.customerId;
-}).set(function(v) {
-  this.customerId = v;
+// Alias & Populate Virtuals
+ServiceRequestSchema.virtual('customerUser', {
+  ref: 'User',
+  localField: 'customerId',
+  foreignField: '_id',
+  justOne: true
 });
 
 // Indexes

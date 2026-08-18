@@ -1,5 +1,6 @@
 const Match = require('../models/Match');
 const Conversation = require('../models/Conversation');
+const ServiceRequest = require('../models/ServiceRequest');
 
 // Valid state transitions dictionary
 const VALID_TRANSITIONS = {
@@ -23,7 +24,10 @@ const updateMatchStatus = async (req, res) => {
       return res.status(400).json({ message: 'Status field is required' });
     }
 
-    const match = await Match.findById(matchId).populate('opportunity provider customer');
+    const match = await Match.findById(matchId)
+      .populate('requestId')
+      .populate('providerId')
+      .populate('customerId');
 
     if (!match) {
       return res.status(404).json({ message: 'Match request not found' });
@@ -31,9 +35,9 @@ const updateMatchStatus = async (req, res) => {
 
     const currentStatus = match.status || 'PENDING';
 
-    // Prevent duplicate accept/reject operations
+    // Prevent duplicate accept/reject operations (idempotent success if already in target state)
     if (['ACCEPTED', 'REJECTED'].includes(status) && currentStatus === status) {
-      return res.status(400).json({ message: `Match request has already been ${status.toLowerCase()}` });
+      return res.status(200).json(match);
     }
 
     if (['ACCEPTED', 'REJECTED'].includes(status) && currentStatus !== 'PENDING') {
@@ -42,7 +46,7 @@ const updateMatchStatus = async (req, res) => {
 
     // State machine transition validation
     const allowedNext = VALID_TRANSITIONS[currentStatus] || [];
-    if (!allowedNext.includes(status)) {
+    if (!allowedNext.includes(status) && currentStatus !== status) {
       return res.status(400).json({
         message: `Invalid state transition from '${currentStatus}' to '${status}'. Allowed transitions: ${allowedNext.join(', ') || 'None (Terminal state)'}`
       });
@@ -121,9 +125,9 @@ const getProviderMatchRequests = async (req, res) => {
     const matches = await Match.find({
       $or: [{ providerId: req.user._id }, { provider: req.user._id }]
     })
-      .populate('opportunity', 'title category rate timing mode city description createdAt')
-      .populate('customer', 'name phone preferredLanguage city')
-      .sort({ createdAt: -1 });
+      .populate('requestId', 'title category rate timing mode city description createdAt')
+      .populate('customerId', 'name phone preferredLanguage city')
+      .sort({ score: -1, createdAt: -1 });
 
     res.status(200).json(matches);
   } catch (error) {
@@ -138,9 +142,9 @@ const getProviderMatchRequests = async (req, res) => {
 const getMatchDetails = async (req, res) => {
   try {
     const match = await Match.findById(req.params.id)
-      .populate('opportunity')
-      .populate('provider', 'name phone location skills bio availability age category preferredLanguage')
-      .populate('customer', 'name phone preferredLanguage city');
+      .populate('requestId')
+      .populate('providerId', 'name phone location skills bio availability age category preferredLanguage')
+      .populate('customerId', 'name phone preferredLanguage city');
 
     if (!match) {
       return res.status(404).json({ message: 'Match not found' });
@@ -165,9 +169,9 @@ const getCustomerMatchRequests = async (req, res) => {
     const matches = await Match.find({
       $or: [{ customerId: req.user._id }, { customer: req.user._id }]
     })
-      .populate('opportunity', 'title category rate timing mode city description createdAt')
-      .populate('provider', 'name phone skills bio city location availability age category preferredLanguage')
-      .sort({ updatedAt: -1, createdAt: -1 });
+      .populate('requestId', 'title category rate timing mode city description createdAt')
+      .populate('providerId', 'name phone skills bio city location availability age category preferredLanguage')
+      .sort({ score: -1, updatedAt: -1 });
 
     res.status(200).json(matches);
   } catch (error) {

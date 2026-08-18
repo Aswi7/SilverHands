@@ -54,6 +54,7 @@ const UserDashboard = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState(() => {
     return sessionStorage.getItem('providerDashboardTab') || 'matches';
   });
+  const [activeChatMatchId, setActiveChatMatchId] = useState(null);
 
   const [applications, setApplications] = useState([]);
   
@@ -261,25 +262,34 @@ const UserDashboard = ({ onNavigate }) => {
 
   const handleAcceptMatch = async (opp) => {
     try {
-      if (opp.matchId) {
-        await api.put(`/matches/${opp.matchId}/status`, { status: 'ACCEPTED' });
+      const matchId = opp.matchId || opp.id;
+      if (matchId) {
+        await api.put(`/matches/${matchId}/status`, { status: 'ACCEPTED' });
+        try {
+          await api.post('/chat/conversations', { matchId });
+        } catch (cErr) {
+          console.warn('Conv notice:', cErr.message);
+        }
       }
       setOpportunities(prev => prev.map(item => item.id === opp.id ? { ...item, matchStatus: 'ACCEPTED' } : item));
-      alert(`Connection request accepted for "${opp.title}"! Contact/Chat is now available.`);
+      await fetchProviderMatchRequests();
     } catch (err) {
       console.error('Failed to accept match request:', err);
+      alert(err.response?.data?.message || 'Failed to accept match request.');
     }
   };
 
   const handleRejectMatch = async (opp) => {
     try {
-      if (opp.matchId) {
-        await api.put(`/matches/${opp.matchId}/status`, { status: 'REJECTED' });
+      const matchId = opp.matchId || opp.id;
+      if (matchId) {
+        await api.put(`/matches/${matchId}/status`, { status: 'REJECTED' });
       }
       setOpportunities(prev => prev.map(item => item.id === opp.id ? { ...item, matchStatus: 'REJECTED' } : item));
-      alert(`Declined connection request for "${opp.title}".`);
+      await fetchProviderMatchRequests();
     } catch (err) {
       console.error('Failed to decline match request:', err);
+      alert(err.response?.data?.message || 'Failed to decline match request.');
     }
   };
 
@@ -303,12 +313,37 @@ const UserDashboard = ({ onNavigate }) => {
   const handleAcceptProviderMatch = async (match) => {
     try {
       const { data } = await api.put(`/matches/${match._id}/status`, { status: 'ACCEPTED' });
+      try {
+        await api.post('/chat/conversations', { matchId: match._id });
+      } catch (convErr) {
+        console.warn('Conversation creation notice:', convErr.message);
+      }
       setProviderMatchRequests(prev => prev.map(m => m._id === match._id ? data : m));
       setOpportunities(prev => prev.map(opp => opp.matchId === match._id ? { ...opp, matchStatus: 'ACCEPTED' } : opp));
-      alert(`Accepted match request for "${match.opportunity?.title || 'Service Request'}"! Contact is now active.`);
+      await fetchProviderMatchRequests();
     } catch (err) {
       console.error('Accept match error:', err);
       alert(err.response?.data?.message || 'Failed to accept match request.');
+    }
+  };
+
+  const handleContactProviderFromMatch = async (match) => {
+    try {
+      const matchId = (typeof match === 'object' && match !== null) ? (match._id || match.matchId || match.id) : match;
+      if (matchId) {
+        await api.put(`/matches/${matchId}/status`, { status: 'CONTACTED' });
+        try {
+          await api.post('/chat/conversations', { matchId });
+        } catch (cErr) {
+          console.warn('Conv notice:', cErr.message);
+        }
+        setActiveChatMatchId(matchId);
+      }
+      await fetchProviderMatchRequests();
+      setActiveTab('messages');
+    } catch (err) {
+      console.error('Failed to update status to CONTACTED:', err);
+      setActiveTab('messages');
     }
   };
 
@@ -913,7 +948,7 @@ const UserDashboard = ({ onNavigate }) => {
                         <div className="flex items-center gap-2 mt-6 border-t pt-4 border-cream-dark/30">
                           {opp.matchStatus === 'ACCEPTED' || opp.matchStatus === 'CONTACTED' ? (
                             <button
-                              onClick={() => setActiveTab('messages')}
+                              onClick={() => handleContactProviderFromMatch(opp.matchId || opp.id || opp)}
                               className="grow font-bold rounded-xl text-sm py-2.5 bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center gap-1.5 shadow-sm"
                             >
                               <MessageSquare className="h-4 w-4" />
@@ -1079,7 +1114,8 @@ const UserDashboard = ({ onNavigate }) => {
                         highContrast={highContrast}
                         onAccept={handleAcceptProviderMatch}
                         onReject={handleRejectProviderMatch}
-                        onOpenChat={() => setActiveTab('messages')}
+                        onContact={handleContactProviderFromMatch}
+                        onOpenChat={handleContactProviderFromMatch}
                       />
                     ))}
                   </div>
@@ -1337,6 +1373,7 @@ const UserDashboard = ({ onNavigate }) => {
                 <ChatInterface 
                   user={user} 
                   highContrast={highContrast} 
+                  initialMatchId={activeChatMatchId}
                   onNavigate={onNavigate} 
                   onPrepareListing={() => handlePrepareListing(topForecast)} 
                 />
