@@ -3,6 +3,7 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const User = require('./models/User');
 const ServiceRequest = require('./models/ServiceRequest');
+const { generateEmbedding } = require('./config/gemini');
 
 dotenv.config();
 
@@ -42,6 +43,11 @@ const seed = async () => {
     });
     console.log('Created customer:', customer.name);
 
+    // Generate Suresh embedding
+    console.log('Generating embedding for Suresh Patel...');
+    const sureshText = "Skills: Smartphones, Errands. Bio: Retired teacher, happy to help with technology support and daily tasks.";
+    const sureshEmbedding = await generateEmbedding(sureshText).catch(() => null);
+
     // Create Provider 1 (Suresh - 500m away from Ramesh)
     const providerNearby = await User.create({
       name: 'Suresh Patel',
@@ -60,9 +66,15 @@ const seed = async () => {
       ],
       bio: 'Retired teacher, happy to help with technology support and daily tasks.',
       availability: true,
-      isOnboarded: true
+      isOnboarded: true,
+      embedding: sureshEmbedding
     });
     console.log('Created nearby provider:', providerNearby.name);
+
+    // Generate Amit embedding
+    console.log('Generating embedding for Amit Sharma...');
+    const amitText = "Skills: Gardening. Bio: Homemaker who loves gardening and can help you maintain your plants.";
+    const amitEmbedding = await generateEmbedding(amitText).catch(() => null);
 
     // Create Provider 2 (Amit - 10km away from Ramesh)
     const providerFar = await User.create({
@@ -81,9 +93,15 @@ const seed = async () => {
       ],
       bio: 'Homemaker who loves gardening and can help you maintain your plants.',
       availability: true,
-      isOnboarded: true
+      isOnboarded: true,
+      embedding: amitEmbedding
     });
     console.log('Created far provider:', providerFar.name);
+
+    // Generate embeddings for requests
+    console.log('Generating embedding for Request 1...');
+    const req1Text = "Category: tech. Description: Need someone to explain WhatsApp and digital payments step by step.";
+    const req1Embedding = await generateEmbedding(req1Text).catch(() => null);
 
     // Create Service Requests by Ramesh
     const req1 = await ServiceRequest.create({
@@ -96,8 +114,13 @@ const seed = async () => {
         type: 'Point',
         coordinates: [77.2197, 28.6304]
       },
-      status: 'pending'
+      status: 'pending',
+      embedding: req1Embedding
     });
+
+    console.log('Generating embedding for Request 2...');
+    const req2Text = "Category: errands. Description: Looking for assistance to carry heavy groceries from the local market.";
+    const req2Embedding = await generateEmbedding(req2Text).catch(() => null);
 
     const req2 = await ServiceRequest.create({
       customer: customer._id,
@@ -109,7 +132,8 @@ const seed = async () => {
         type: 'Point',
         coordinates: [77.2197, 28.6304]
       },
-      status: 'pending'
+      status: 'pending',
+      embedding: req2Embedding
     });
     console.log('Created service requests:', [req1.title, req2.title]);
 

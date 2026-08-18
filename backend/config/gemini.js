@@ -87,8 +87,13 @@ const callGemini = async (systemPrompt, userInput, responseSchema) => {
 const generateEmbedding = async (text) => {
   try {
     const ai = initGemini();
-    const model = ai.getGenerativeModel({ model: "text-embedding-004" });
-    const result = await model.embedContent(text);
+    const model = ai.getGenerativeModel({ model: "gemini-embedding-001" });
+    const result = await model.embedContent({
+      content: {
+        parts: [{ text }]
+      },
+      outputDimensionality: 768
+    });
     return result.embedding.values;
   } catch (err) {
     console.error('Failed to generate embedding:', err.message);
