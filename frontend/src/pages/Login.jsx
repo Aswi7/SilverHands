@@ -165,7 +165,7 @@ const Login = ({ onNavigate }) => {
                   onClick={() => setRole('provider')}
                   className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center ${
                     role === 'provider'
-                      ? (highContrast ? 'border-yellow-400 bg-white/10' : 'border-terracotta bg-orange-50/50 text-terracotta')
+                      ? (highContrast ? 'border-yellow-400 bg-white/10 text-yellow-400 font-bold' : 'border-terracotta bg-orange-50/50 text-terracotta')
                       : (highContrast ? 'border-white bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/20')
                   }`}
                 >
@@ -176,7 +176,7 @@ const Login = ({ onNavigate }) => {
                   onClick={() => setRole('customer')}
                   className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center ${
                     role === 'customer'
-                      ? (highContrast ? 'border-yellow-400 bg-white/10' : 'border-forest bg-teal-50/50 text-forest')
+                      ? (highContrast ? 'border-yellow-400 bg-white/10 text-yellow-400 font-bold' : 'border-forest bg-teal-50/50 text-forest')
                       : (highContrast ? 'border-white bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/20')
                   }`}
                 >

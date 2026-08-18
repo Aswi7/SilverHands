@@ -194,7 +194,7 @@
     },
     "employer": {
       "greeting": "Welcome back, {{name}}",
-      "speaking_greeting": "Good morning, Colonel Raghavan. Welcome back to your SilverHands Employer Dashboard.",
+      "speaking_greeting": "Good morning, {{name}}. Welcome back to your SilverHands Employer Dashboard.",
       "tabs": {
         "post": "Post Request",
         "postings": "My Postings",
