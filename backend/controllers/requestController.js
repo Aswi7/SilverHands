@@ -1,5 +1,7 @@
 const ServiceRequest = require('../models/ServiceRequest');
 const { generateEmbedding } = require('../config/gemini');
+const { findMatches } = require('../services/matchingEngine');
+const Match = require('../models/Match');
 
 // @desc    Create a new service request
 // @route   POST /api/requests
@@ -77,6 +79,15 @@ const getNearbyRequests = async (req, res) => {
       city: { $in: allowedCities }
     }).populate('customer', 'name phone').lean(); // Use .lean() to add fields easily
 
+    // Compute matches for all retrieved opportunities to ensure they exist in DB
+    for (const reqObj of requests) {
+      try {
+        await findMatches(reqObj._id);
+      } catch (matchErr) {
+        console.error(`Failed to compute matches for request ${reqObj._id}:`, matchErr.message);
+      }
+    }
+
     // Fetch matches for this provider against these opportunities
     const requestIds = requests.map(r => r._id);
     const matches = await Match.find({
@@ -108,8 +119,7 @@ const getNearbyRequests = async (req, res) => {
   }
 };
 
-const { findMatches } = require('../services/matchingEngine');
-const Match = require('../models/Match');
+
 
 // @desc    Get matches for a specific opportunity
 // @route   GET /api/requests/:id/matches

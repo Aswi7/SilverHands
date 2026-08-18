@@ -104,6 +104,51 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
     }
   }, [user]);
 
+  // Active Chat Message Polling Hook
+  useEffect(() => {
+    if (!activeConvId || activeConvId === '3') return;
+    
+    const activeConv = conversations.find(c => c.id === activeConvId);
+    if (!activeConv || !activeConv.applicationId) return;
+
+    const pollMessages = async () => {
+      try {
+        const { data } = await api.get(`/applications/${activeConv.applicationId}/messages`);
+        if (Array.isArray(data)) {
+          const mappedMessages = data.map(msg => {
+            const isMe = msg.senderId === user._id || (msg.senderId && (msg.senderId._id === user._id || msg.senderId === user._id));
+            return {
+              id: msg._id || Math.random(),
+              sender: isMe ? 'sender' : 'receiver',
+              text: msg.text,
+              time: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+          });
+          
+          setConversations(prev => prev.map(c => {
+            if (c.id === activeConvId) {
+              const messagesChanged = JSON.stringify(c.messages) !== JSON.stringify(mappedMessages);
+              if (messagesChanged) {
+                return {
+                  ...c,
+                  messages: mappedMessages,
+                  lastMessage: mappedMessages.length > 0 ? mappedMessages[mappedMessages.length - 1].text : c.lastMessage
+                };
+              }
+            }
+            return c;
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to poll messages:", err);
+      }
+    };
+
+    pollMessages();
+    const interval = setInterval(pollMessages, 4000);
+    return () => clearInterval(interval);
+  }, [activeConvId, conversations.length, user]);
+
   const [activeConvId, setActiveConvId] = useState('1');
   const [inputValue, setInputValue] = useState('');
   const [isSakhiTyping, setIsSakhiTyping] = useState(false);
