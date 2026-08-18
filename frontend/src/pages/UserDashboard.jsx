@@ -35,6 +35,7 @@ import api from '../services/api';
 import { SafetyTipsCard } from '../components/TrustSafety';
 import { MatchExplanation } from '../components/MatchExplanation';
 import { ChatInterface } from '../components/ChatInterface';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
 import { forecastData } from '../data/forecastData';
 
@@ -1036,12 +1037,14 @@ const UserDashboard = ({ onNavigate }) => {
                 </p>
               </div>
 
-              <ChatInterface 
-                user={user} 
-                highContrast={highContrast} 
-                onNavigate={onNavigate} 
-                onPrepareListing={() => handlePrepareListing(topForecast)} 
-              />
+              <ErrorBoundary>
+                <ChatInterface 
+                  user={user} 
+                  highContrast={highContrast} 
+                  onNavigate={onNavigate} 
+                  onPrepareListing={() => handlePrepareListing(topForecast)} 
+                />
+              </ErrorBoundary>
             </div>
           )}
 

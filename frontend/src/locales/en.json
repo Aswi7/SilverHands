@@ -75,6 +75,9 @@
     "go_employer": "Go to Employer Signup"
   },
   "auth": {
+    "select_role": "Select Role",
+    "role_earn": "Earn / Provide Help",
+    "role_hire": "Hire / Request Help",
     "login_title": "Login to SilverHands",
     "signup_title": "Create an Account",
     "phone": "Phone Number",

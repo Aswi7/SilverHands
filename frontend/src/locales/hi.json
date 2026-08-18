@@ -75,6 +75,9 @@
     "go_employer": "नियोक्ता साइन अप पर जाएं"
   },
   "auth": {
+    "select_role": "भूमिका चुनें",
+    "role_earn": "कमाएं / सहायता दें",
+    "role_hire": "काम दें / सहायता लें",
     "login_title": "SilverHands में लॉगिन करें",
     "signup_title": "नया खाता बनाएं",
     "phone": "फ़ोन नंबर",

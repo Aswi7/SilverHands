@@ -38,6 +38,7 @@ import {
 } from '../components/TrustSafety';
 import { MatchExplanation } from '../components/MatchExplanation';
 import { ChatInterface } from '../components/ChatInterface';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
 
 const EmployerDashboard = ({ onNavigate }) => {
@@ -866,8 +867,44 @@ const EmployerDashboard = ({ onNavigate }) => {
                   </div>
                 )}
                 {!isLoadingMatches && matchedCandidates.length === 0 && (
-                  <div className="p-8 text-center text-gray-500 italic">
-                    No candidates found yet. Try expanding your criteria.
+                  <div className="flex flex-col gap-6 p-8 rounded-3xl border border-cream-dark/50 bg-cream/10 text-left">
+                    <div className="flex items-center gap-2 text-terracotta">
+                      <Sparkles className="h-5 w-5 animate-pulse" />
+                      <h4 className="font-bold text-base">No AI Matches Found Yet</h4>
+                    </div>
+                    <p className={`text-sm ${textSecondaryTheme}`}>
+                      We couldn't find any direct matches in your city for this skill category right now. Here are some actionable suggestions on how we can connect you with local providers:
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2 mt-2">
+                      <div className={`p-5 rounded-2xl ${cardTheme} flex flex-col gap-1.5`}>
+                        <h5 className="font-bold text-sm text-forest flex items-center gap-1.5">
+                          <span>📞</span>
+                          <span>Call Our Local Coordinator</span>
+                        </h5>
+                        <p className="text-xs text-gray-500 leading-relaxed">Reach out directly to our community helpdesk at <strong>+91 99999-77777</strong>. We maintain offline registries of senior citizens who may not have smartphones but are active and ready to take tutoring/craft requests.</p>
+                      </div>
+                      <div className={`p-5 rounded-2xl ${cardTheme} flex flex-col gap-1.5`}>
+                        <h5 className="font-bold text-sm text-forest flex items-center gap-1.5">
+                          <span>💡</span>
+                          <span>Simplify Opportunity Title</span>
+                        </h5>
+                        <p className="text-xs text-gray-500 leading-relaxed">Try updating your request with simpler keywords. Using general categories (e.g. "Cooking" or "Tutoring") rather than narrow specialized descriptions helps matching algorithms discover more profiles.</p>
+                      </div>
+                      <div className={`p-5 rounded-2xl ${cardTheme} flex flex-col gap-1.5`}>
+                        <h5 className="font-bold text-sm text-forest flex items-center gap-1.5">
+                          <span>🌐</span>
+                          <span>Broaden Location Range</span>
+                        </h5>
+                        <p className="text-xs text-gray-500 leading-relaxed">If your request is online or can be done in nearby cities, consider expanding the scope to neighboring cities (like Noida, Gurugram, or Delhi) under your posting details to double matching range.</p>
+                      </div>
+                      <div className={`p-5 rounded-2xl ${cardTheme} flex flex-col gap-1.5`}>
+                        <h5 className="font-bold text-sm text-forest flex items-center gap-1.5">
+                          <span>⭐</span>
+                          <span>Offer Flexible Timing</span>
+                        </h5>
+                        <p className="text-xs text-gray-500 leading-relaxed">Senior citizens prefer gigs that can work around their morning walks or household schedules. Adding "Flexible Timing" or offering a slightly higher rate attracts up to 3x more local helpers.</p>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {!isLoadingMatches && matchedCandidates.map((match) => {
@@ -982,7 +1019,9 @@ const EmployerDashboard = ({ onNavigate }) => {
                 </p>
               </div>
 
-              <ChatInterface user={user} highContrast={highContrast} onNavigate={onNavigate} />
+              <ErrorBoundary>
+                <ChatInterface user={user} highContrast={highContrast} onNavigate={onNavigate} />
+              </ErrorBoundary>
             </div>
           )}
 

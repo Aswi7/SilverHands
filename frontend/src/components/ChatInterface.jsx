@@ -106,10 +106,8 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
 
   // Active Chat Message Polling Hook
   useEffect(() => {
-    if (!activeConvId || activeConvId === '3') return;
-    
-    const activeConv = conversations.find(c => c.id === activeConvId);
-    if (!activeConv || !activeConv.applicationId) return;
+    const activeConv = conversations.find(c => c.id === activeConvId) || conversations[0];
+    if (!activeConv || activeConv.id === '3' || !activeConv.applicationId) return;
 
     const pollMessages = async () => {
       try {
@@ -196,7 +194,7 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
     };
   }, [isRecording]);
 
-  const activeConv = conversations.find(c => c.id === activeConvId);
+  const activeConv = conversations.find(c => c.id === activeConvId) || conversations[0];
 
   // Select conversation helper
   const handleSelectConversation = (id) => {

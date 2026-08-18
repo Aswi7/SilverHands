@@ -158,7 +158,7 @@ const Login = ({ onNavigate }) => {
             
             {/* Role Selection (Tappable Cards) */}
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold">Select Role / भूमिका चुनें</label>
+              <label className="text-sm font-bold">{t('auth.select_role', 'Select Role')}</label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -169,7 +169,7 @@ const Login = ({ onNavigate }) => {
                       : (highContrast ? 'border-white bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/20')
                   }`}
                 >
-                  <span className="font-bold text-sm">Earn / कमाएं</span>
+                  <span className="font-bold text-sm">{t('auth.role_earn', 'Earn / Provide Help')}</span>
                 </button>
                 <button
                   type="button"
@@ -180,7 +180,7 @@ const Login = ({ onNavigate }) => {
                       : (highContrast ? 'border-white bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/20')
                   }`}
                 >
-                  <span className="font-bold text-sm">Hire / काम दें</span>
+                  <span className="font-bold text-sm">{t('auth.role_hire', 'Hire / Request Help')}</span>
                 </button>
               </div>
             </div>
