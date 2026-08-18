@@ -30,6 +30,15 @@ const updateMatchStatus = async (req, res) => {
 
     const currentStatus = match.status || 'PENDING';
 
+    // Prevent duplicate accept/reject operations
+    if (['ACCEPTED', 'REJECTED'].includes(status) && currentStatus === status) {
+      return res.status(400).json({ message: `Match request has already been ${status.toLowerCase()}` });
+    }
+
+    if (['ACCEPTED', 'REJECTED'].includes(status) && currentStatus !== 'PENDING') {
+      return res.status(400).json({ message: `Cannot change status from '${currentStatus}' to '${status}'` });
+    }
+
     // State machine transition validation
     const allowedNext = VALID_TRANSITIONS[currentStatus] || [];
     if (!allowedNext.includes(status)) {
@@ -38,20 +47,20 @@ const updateMatchStatus = async (req, res) => {
       });
     }
 
-    // Role-based permission check
+    // Role-based permission & ownership check
     const userIdStr = req.user._id.toString();
     const providerIdStr = match.provider?._id?.toString() || match.provider?.toString();
     const customerIdStr = match.customer?._id?.toString() || match.customer?.toString();
 
     if (['ACCEPTED', 'REJECTED'].includes(status)) {
       if (req.user.role !== 'provider' || userIdStr !== providerIdStr) {
-        return res.status(403).json({ message: 'Only the assigned Provider can Accept or Reject this match request' });
+        return res.status(403).json({ message: 'Unauthorized: Only the assigned Provider can Accept or Reject this match request' });
       }
     }
 
     if (['CONTACTED', 'CANCELLED'].includes(status)) {
       if (userIdStr !== customerIdStr && userIdStr !== providerIdStr) {
-        return res.status(403).json({ message: 'Not authorized to update this match request' });
+        return res.status(403).json({ message: 'Unauthorized: Not permitted to update this match request' });
       }
     }
 
@@ -71,7 +80,7 @@ const updateMatchStatus = async (req, res) => {
 
     await match.save();
 
-    console.log(`[MATCH STATUS UPDATE] Match ${match._id} updated from '${currentStatus}' to '${status}' by User ${req.user._id}`);
+    console.log(`[MATCH STATUS UPDATE] Match ${match._id} updated from '${currentStatus}' to '${status}' by Provider/User ${req.user._id}`);
 
     res.status(200).json(match);
   } catch (error) {
@@ -90,7 +99,7 @@ const getProviderMatchRequests = async (req, res) => {
     }
 
     const matches = await Match.find({ provider: req.user._id })
-      .populate('opportunity')
+      .populate('opportunity', 'title category rate timing mode city description createdAt')
       .populate('customer', 'name phone preferredLanguage city')
       .sort({ createdAt: -1 });
 
