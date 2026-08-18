@@ -14,7 +14,7 @@ const PointSchema = new mongoose.Schema({
 });
 
 const ServiceRequestSchema = new mongoose.Schema({
-  customer: {
+  customerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
@@ -68,9 +68,23 @@ const ServiceRequestSchema = new mongoose.Schema({
     type: [Number],
     default: null
   }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  collection: 'customerRequests',
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
 
-// Index location for geo searches
+// Alias: customer ↔ customerId for backward compatibility
+ServiceRequestSchema.virtual('customer').get(function() {
+  return this.customerId;
+}).set(function(v) {
+  this.customerId = v;
+});
+
+// Indexes
 ServiceRequestSchema.index({ location: '2dsphere' });
+ServiceRequestSchema.index({ customerId: 1 });
+ServiceRequestSchema.index({ status: 1 });
 
 module.exports = mongoose.model('ServiceRequest', ServiceRequestSchema);

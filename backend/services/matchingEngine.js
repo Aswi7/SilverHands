@@ -189,10 +189,17 @@ const findMatches = async (opportunityId) => {
 
       // Upsert the Match document (preserve status if document already exists)
       const matchDoc = await Match.findOneAndUpdate(
-        { opportunity: opportunity._id, provider: provider._id },
+        {
+          $or: [
+            { customerId: opportunity.customerId || opportunity.customer, providerId: provider._id, requestId: opportunity._id },
+            { opportunity: opportunity._id, provider: provider._id }
+          ]
+        },
         {
           $set: {
-            customer: opportunity.customer,
+            customerId: opportunity.customerId || opportunity.customer,
+            providerId: provider._id,
+            requestId: opportunity._id,
             score: Math.round(finalScore),
             scoreBreakdown
           },

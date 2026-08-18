@@ -1,19 +1,20 @@
 const mongoose = require('mongoose');
 
 const MatchSchema = new mongoose.Schema({
-  opportunity: {
+  requestId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'ServiceRequest',
     required: true
   },
-  provider: {
+  providerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  customer: {
+  customerId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
+    required: true
   },
   score: {
     type: Number,
@@ -36,12 +37,40 @@ const MatchSchema = new mongoose.Schema({
   acceptedAt: { type: Date },
   rejectedAt: { type: Date },
   contactedAt: { type: Date }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  collection: 'matches',
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
 
-// Ensure we don't duplicate matches for the same provider + opportunity
-MatchSchema.index({ opportunity: 1, provider: 1 }, { unique: true });
+// Compound Unique Index: Prevent duplicate matches for customerId + providerId + requestId
+MatchSchema.index({ customerId: 1, providerId: 1, requestId: 1 }, { unique: true });
 
-// Index for querying matches by opportunity sorted by score
-MatchSchema.index({ opportunity: 1, score: -1 });
+// Single Field Indexes
+MatchSchema.index({ customerId: 1 });
+MatchSchema.index({ providerId: 1 });
+MatchSchema.index({ requestId: 1 });
+MatchSchema.index({ status: 1 });
+MatchSchema.index({ requestId: 1, score: -1 });
+
+// Backward compatibility virtuals/getters/setters
+MatchSchema.virtual('opportunity').get(function() {
+  return this.requestId;
+}).set(function(v) {
+  this.requestId = v;
+});
+
+MatchSchema.virtual('provider').get(function() {
+  return this.providerId;
+}).set(function(v) {
+  this.providerId = v;
+});
+
+MatchSchema.virtual('customer').get(function() {
+  return this.customerId;
+}).set(function(v) {
+  this.customerId = v;
+});
 
 module.exports = mongoose.model('Match', MatchSchema);

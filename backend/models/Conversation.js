@@ -1,19 +1,19 @@
 const mongoose = require('mongoose');
 
 const ConversationSchema = new mongoose.Schema({
-  customer: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  provider: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  match: {
+  matchId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Match',
+    required: true
+  },
+  customerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  providerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
     required: true
   },
   lastMessage: {
@@ -25,10 +25,35 @@ const ConversationSchema = new mongoose.Schema({
     default: Date.now
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  collection: 'conversations',
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Ensure a single conversation per match between customer and provider
-ConversationSchema.index({ match: 1, customer: 1, provider: 1 }, { unique: true });
+// Indexes
+ConversationSchema.index({ matchId: 1 }, { unique: true });
+ConversationSchema.index({ customerId: 1 });
+ConversationSchema.index({ providerId: 1 });
+ConversationSchema.index({ customerId: 1, providerId: 1 });
+
+// Backward compatibility virtuals/getters/setters
+ConversationSchema.virtual('match').get(function() {
+  return this.matchId;
+}).set(function(v) {
+  this.matchId = v;
+});
+
+ConversationSchema.virtual('customer').get(function() {
+  return this.customerId;
+}).set(function(v) {
+  this.customerId = v;
+});
+
+ConversationSchema.virtual('provider').get(function() {
+  return this.providerId;
+}).set(function(v) {
+  this.providerId = v;
+});
 
 module.exports = mongoose.model('Conversation', ConversationSchema);

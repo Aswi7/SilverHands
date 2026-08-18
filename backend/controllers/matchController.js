@@ -50,8 +50,8 @@ const updateMatchStatus = async (req, res) => {
 
     // Role-based permission & ownership check
     const userIdStr = req.user._id.toString();
-    const providerIdStr = match.provider?._id?.toString() || match.provider?.toString();
-    const customerIdStr = match.customer?._id?.toString() || match.customer?.toString();
+    const providerIdStr = (match.providerId || match.provider)?._id?.toString() || (match.providerId || match.provider)?.toString();
+    const customerIdStr = (match.customerId || match.customer)?._id?.toString() || (match.customerId || match.customer)?.toString();
 
     if (['ACCEPTED', 'REJECTED'].includes(status)) {
       if (req.user.role !== 'provider' || userIdStr !== providerIdStr) {
@@ -75,12 +75,14 @@ const updateMatchStatus = async (req, res) => {
 
       // Automatically create Conversation document for both users upon acceptance
       try {
-        const existingConv = await Conversation.findOne({ match: match._id });
+        const existingConv = await Conversation.findOne({
+          $or: [{ matchId: match._id }, { match: match._id }]
+        });
         if (!existingConv) {
           await Conversation.create({
-            customer: match.customer._id || match.customer,
-            provider: match.provider._id || match.provider,
-            match: match._id,
+            customerId: match.customerId || match.customer._id || match.customer,
+            providerId: match.providerId || match.provider._id || match.provider,
+            matchId: match._id,
             lastMessage: 'Connection accepted! Start chatting below.',
             lastMessageAt: now
           });
@@ -116,7 +118,9 @@ const getProviderMatchRequests = async (req, res) => {
       return res.status(403).json({ message: 'Only providers can view match requests' });
     }
 
-    const matches = await Match.find({ provider: req.user._id })
+    const matches = await Match.find({
+      $or: [{ providerId: req.user._id }, { provider: req.user._id }]
+    })
       .populate('opportunity', 'title category rate timing mode city description createdAt')
       .populate('customer', 'name phone preferredLanguage city')
       .sort({ createdAt: -1 });
@@ -158,7 +162,9 @@ const getCustomerMatchRequests = async (req, res) => {
       return res.status(403).json({ message: 'Only customers can view customer match requests' });
     }
 
-    const matches = await Match.find({ customer: req.user._id })
+    const matches = await Match.find({
+      $or: [{ customerId: req.user._id }, { customer: req.user._id }]
+    })
       .populate('opportunity', 'title category rate timing mode city description createdAt')
       .populate('provider', 'name phone skills bio city location availability age category preferredLanguage')
       .sort({ createdAt: -1 });

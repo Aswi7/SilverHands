@@ -39,11 +39,11 @@ const UserSchema = new mongoose.Schema({
   },
   password: { 
     type: String, 
-    required: false // Optional now because we use OTP
-  }, // hashed password (legacy)
+    required: false
+  },
   role: { 
     type: String, 
-    enum: ['provider', 'customer', 'employer'], // Support both legacy customer and new employer role aliases
+    enum: ['provider', 'customer', 'employer'],
     required: true 
   },
   age: {
@@ -70,7 +70,7 @@ const UserSchema = new mongoose.Schema({
     type: PointSchema,
     required: true
   },
-  // Provider-specific fields (optional, active only if role is 'provider')
+  // Legacy / Embedded provider fields for backward compatibility
   skills: {
     type: [{
       category: { type: String, trim: true },
@@ -82,7 +82,8 @@ const UserSchema = new mongoose.Schema({
   },
   bio: {
     type: String,
-    trim: true
+    trim: true,
+    default: ''
   },
   availability: {
     type: Boolean,
@@ -96,9 +97,23 @@ const UserSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  collection: 'users',
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
 
-// Index location for geospatial queries
+// Virtual populate reference to ProviderProfile
+UserSchema.virtual('providerProfile', {
+  ref: 'ProviderProfile',
+  localField: '_id',
+  foreignField: 'userId',
+  justOne: true
+});
+
+// Indexes
 UserSchema.index({ location: '2dsphere' });
+UserSchema.index({ role: 1 });
 
 module.exports = mongoose.model('User', UserSchema);

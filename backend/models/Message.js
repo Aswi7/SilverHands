@@ -1,18 +1,17 @@
 const mongoose = require('mongoose');
 
 const MessageSchema = new mongoose.Schema({
-  conversation: {
+  conversationId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Conversation',
-    required: true,
-    index: true
+    required: true
   },
-  sender: {
+  senderId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  receiver: {
+  receiverId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
@@ -32,7 +31,32 @@ const MessageSchema = new mongoose.Schema({
     default: 'sent'
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  collection: 'messages',
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Indexes
+MessageSchema.index({ conversationId: 1 });
+
+// Backward compatibility virtuals/getters/setters
+MessageSchema.virtual('conversation').get(function() {
+  return this.conversationId;
+}).set(function(v) {
+  this.conversationId = v;
+});
+
+MessageSchema.virtual('sender').get(function() {
+  return this.senderId;
+}).set(function(v) {
+  this.senderId = v;
+});
+
+MessageSchema.virtual('receiver').get(function() {
+  return this.receiverId;
+}).set(function(v) {
+  this.receiverId = v;
 });
 
 module.exports = mongoose.model('Message', MessageSchema);

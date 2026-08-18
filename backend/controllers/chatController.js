@@ -27,23 +27,25 @@ const createOrGetConversation = async (req, res) => {
     }
 
     const userIdStr = req.user._id.toString();
-    const customerIdStr = match.customer?._id?.toString() || match.customer?.toString();
-    const providerIdStr = match.provider?._id?.toString() || match.provider?.toString();
+    const customerIdStr = (match.customerId || match.customer)?._id?.toString() || (match.customerId || match.customer)?.toString();
+    const providerIdStr = (match.providerId || match.provider)?._id?.toString() || (match.providerId || match.provider)?.toString();
 
     if (userIdStr !== customerIdStr && userIdStr !== providerIdStr) {
       return res.status(403).json({ message: 'Not authorized to open chat for this match' });
     }
 
-    let conversation = await Conversation.findOne({ match: match._id })
+    let conversation = await Conversation.findOne({
+      $or: [{ matchId: match._id }, { match: match._id }]
+    })
       .populate('customer', 'name phone city preferredLanguage')
       .populate('provider', 'name phone city skills bio category')
       .populate('match');
 
     if (!conversation) {
       conversation = await Conversation.create({
-        customer: match.customer._id || match.customer,
-        provider: match.provider._id || match.provider,
-        match: match._id,
+        customerId: match.customerId || match.customer._id || match.customer,
+        providerId: match.providerId || match.provider._id || match.provider,
+        matchId: match._id,
         lastMessage: 'Conversation started',
         lastMessageAt: new Date()
       });
@@ -69,7 +71,10 @@ const getUserConversations = async (req, res) => {
     const userId = req.user._id;
 
     const conversations = await Conversation.find({
-      $or: [{ customer: userId }, { provider: userId }]
+      $or: [
+        { customerId: userId }, { customer: userId },
+        { providerId: userId }, { provider: userId }
+      ]
     })
       .populate('customer', 'name phone city preferredLanguage')
       .populate('provider', 'name phone city skills bio category')
@@ -81,8 +86,8 @@ const getUserConversations = async (req, res) => {
     const enrichedConversations = await Promise.all(
       conversations.map(async (conv) => {
         const unreadCount = await Message.countDocuments({
-          conversation: conv._id,
-          receiver: userId,
+          $or: [{ conversationId: conv._id }, { conversation: conv._id }],
+          $or: [{ receiverId: userId }, { receiver: userId }],
           readAt: null
         });
         return {
@@ -114,8 +119,8 @@ const getConversationMessages = async (req, res) => {
     }
 
     const userIdStr = userId.toString();
-    const customerIdStr = conversation.customer.toString();
-    const providerIdStr = conversation.provider.toString();
+    const customerIdStr = (conversation.customerId || conversation.customer).toString();
+    const providerIdStr = (conversation.providerId || conversation.provider).toString();
 
     if (userIdStr !== customerIdStr && userIdStr !== providerIdStr) {
       return res.status(403).json({ message: 'Not authorized to view messages in this conversation' });
@@ -124,8 +129,8 @@ const getConversationMessages = async (req, res) => {
     // Mark unread messages to logged-in user as read
     await Message.updateMany(
       {
-        conversation: conversationId,
-        receiver: userId,
+        $or: [{ conversationId: conversationId }, { conversation: conversationId }],
+        $or: [{ receiverId: userId }, { receiver: userId }],
         readAt: null
       },
       {
@@ -136,7 +141,9 @@ const getConversationMessages = async (req, res) => {
       }
     );
 
-    const messages = await Message.find({ conversation: conversationId })
+    const messages = await Message.find({
+      $or: [{ conversationId: conversationId }, { conversation: conversationId }]
+    })
       .populate('sender', 'name role')
       .sort({ createdAt: 1 });
 
@@ -172,19 +179,19 @@ const sendMessage = async (req, res) => {
     }
 
     const senderIdStr = senderId.toString();
-    const customerIdStr = conversation.customer.toString();
-    const providerIdStr = conversation.provider.toString();
+    const customerIdStr = (conversation.customerId || conversation.customer).toString();
+    const providerIdStr = (conversation.providerId || conversation.provider).toString();
 
     if (senderIdStr !== customerIdStr && senderIdStr !== providerIdStr) {
       return res.status(403).json({ message: 'Not authorized to send messages in this conversation' });
     }
 
-    const receiverId = senderIdStr === customerIdStr ? conversation.provider : conversation.customer;
+    const receiverId = senderIdStr === customerIdStr ? (conversation.providerId || conversation.provider) : (conversation.customerId || conversation.customer);
 
     const newMessage = await Message.create({
-      conversation: conversationId,
-      sender: senderId,
-      receiver: receiverId,
+      conversationId: conversationId,
+      senderId: senderId,
+      receiverId: receiverId,
       message: message.trim(),
       status: 'sent'
     });
