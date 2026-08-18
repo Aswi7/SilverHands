@@ -6,7 +6,7 @@ const { generateEmbedding } = require('../config/gemini');
 // @access  Private (Customer only)
 const createServiceRequest = async (req, res) => {
   try {
-    const { title, description, category, location, rate, timing, mode } = req.body;
+    const { title, description, category, location, rate, timing, mode, city } = req.body;
 
     if (req.user.role !== 'customer') {
       return res.status(403).json({ message: 'Only customers can create service requests' });
@@ -24,6 +24,7 @@ const createServiceRequest = async (req, res) => {
       title,
       description,
       category,
+      city: city || req.user.city || 'Delhi',
       rate,
       timing,
       mode,
@@ -50,29 +51,30 @@ const getNearbyRequests = async (req, res) => {
       return res.status(403).json({ message: 'Only providers can view nearby requests' });
     }
 
-    // Default coordinates: fall back to provider's saved location coordinates
-    let longitude = req.query.longitude || (req.user.location && req.user.location.coordinates[0]);
-    let latitude = req.query.latitude || (req.user.location && req.user.location.coordinates[1]);
-    
-    // Default search radius: 5000 meters (5km)
-    let maxDistance = req.query.maxDistance || 5000;
+    const NEARBY_CITIES_MAP = {
+      'delhi': ['delhi', 'noida', 'gurugram'],
+      'noida': ['noida', 'delhi', 'gurugram'],
+      'gurugram': ['gurugram', 'delhi', 'noida'],
+      'mumbai': ['mumbai', 'pune'],
+      'pune': ['pune', 'mumbai'],
+      'bengaluru': ['bengaluru'],
+      'chennai': ['chennai'],
+      'hyderabad': ['hyderabad'],
+      'kolkata': ['kolkata']
+    };
 
-    if (longitude === undefined || latitude === undefined) {
-      return res.status(400).json({ message: 'Provider coordinates are not available. Please specify longitude/latitude query parameters or update your profile location.' });
-    }
+    const getNearbyCities = (city) => {
+      const normalized = (city || '').trim().toLowerCase();
+      return NEARBY_CITIES_MAP[normalized] || [normalized];
+    };
 
-    // Find pending requests sorted by distance from the coordinate point using $near
+    const userCity = req.user.city || 'delhi';
+    const allowedCities = getNearbyCities(userCity);
+
+    // Find pending requests that match the provider's nearby cities list
     const requests = await ServiceRequest.find({
       status: 'pending',
-      location: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [parseFloat(longitude), parseFloat(latitude)]
-          },
-          $maxDistance: parseInt(maxDistance)
-        }
-      }
+      city: { $in: allowedCities }
     }).populate('customer', 'name phone').lean(); // Use .lean() to add fields easily
 
     // Fetch matches for this provider against these opportunities

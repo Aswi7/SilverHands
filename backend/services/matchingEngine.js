@@ -10,15 +10,29 @@ const WEIGHTS = {
   w4_experience: 0.10
 };
 
-// Earth radius in km
-const EARTH_RADIUS_KM = 6378.1;
-const DEFAULT_RADIUS_KM = 10;
+// Nearby cities lookup map for matching
+const NEARBY_CITIES_MAP = {
+  'delhi': ['delhi', 'noida', 'gurugram'],
+  'noida': ['noida', 'delhi', 'gurugram'],
+  'gurugram': ['gurugram', 'delhi', 'noida'],
+  'mumbai': ['mumbai', 'pune'],
+  'pune': ['pune', 'mumbai'],
+  'bengaluru': ['bengaluru'],
+  'chennai': ['chennai'],
+  'hyderabad': ['hyderabad'],
+  'kolkata': ['kolkata']
+};
+
+const getNearbyCities = (city) => {
+  const normalized = (city || '').trim().toLowerCase();
+  return NEARBY_CITIES_MAP[normalized] || [normalized];
+};
 
 /**
  * Core AI Matching Logic for SilverHands
  * 
  * 1. Executes Atlas $vectorSearch to find semantically matching providers.
- * 2. Applies $geoWithin hard filter for offline requests.
+ * 2. Applies city filter for offline requests.
  * 3. Calculates the combined score based on weights.
  * 4. Saves results to the Match collection.
  * 
@@ -39,7 +53,6 @@ const findMatches = async (opportunityId) => {
 
     // Pipeline Stage 1: Vector Search
     // We must run $vectorSearch first due to MongoDB Atlas constraints.
-    // We request up to 100 candidates to give us enough buffer to filter down later by distance.
     const vectorSearchStage = {
       $vectorSearch: {
         index: "vector_index",
@@ -53,20 +66,12 @@ const findMatches = async (opportunityId) => {
       }
     };
 
-    // Pipeline Stage 2: Geo Filter (Hard Filter)
-    // If the mode is 'offline', we only want providers within the 10km radius.
+    // Pipeline Stage 2: City Filter (Hard Filter)
+    // If the mode is 'offline', we only want providers within same or nearby cities.
     const matchStage = {};
-    if (opportunity.mode === 'offline' && opportunity.location) {
-      const [lon, lat] = opportunity.location.coordinates;
-      // MongoDB $centerSphere uses radians. 
-      // 10km radius / 6378.1 km earth radius
-      const radiusInRadians = DEFAULT_RADIUS_KM / EARTH_RADIUS_KM;
-      
-      matchStage.location = {
-        $geoWithin: {
-          $centerSphere: [[lon, lat], radiusInRadians]
-        }
-      };
+    if (opportunity.mode === 'offline' && opportunity.city) {
+      const allowedCities = getNearbyCities(opportunity.city);
+      matchStage.city = { $in: allowedCities };
     }
 
     // Pipeline Stage 3: Projection to extract the vector search score
@@ -79,7 +84,7 @@ const findMatches = async (opportunityId) => {
     // Build the aggregation pipeline
     const pipeline = [vectorSearchStage];
     
-    // Add geo filter if applicable (and not empty)
+    // Add city filter if applicable
     if (Object.keys(matchStage).length > 0) {
       pipeline.push({ $match: matchStage });
     }
@@ -90,38 +95,28 @@ const findMatches = async (opportunityId) => {
     const candidates = await User.aggregate(pipeline);
 
     const newMatches = [];
-    const oppLon = opportunity.location?.coordinates?.[0] || 0;
-    const oppLat = opportunity.location?.coordinates?.[1] || 0;
-
-    // Helper: Haversine distance in km
-    const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
-      const R = 6371; // Radius of the earth in km
-      const dLat = (lat2 - lat1) * (Math.PI / 180);  
-      const dLon = (lon2 - lon1) * (Math.PI / 180); 
-      const a = 
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
-        Math.sin(dLon / 2) * Math.sin(dLon / 2); 
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); 
-      return R * c; // Distance in km
-    };
 
     for (const provider of candidates) {
       // 1. Skill Similarity (0 to 100)
-      // Vector search cosine similarity ranges from -1 to 1, or 0 to 1 depending on model. 
-      // text-embedding-004 usually returns dot product which is between -1 and 1.
-      // Math.max(0, score) normalizes negative vectors to 0.
       const rawVectorScore = provider.searchScore || 0;
       const skillScore = Math.max(0, rawVectorScore) * 100;
 
-      // 2. Proximity Score (0 to 100)
+      // 2. Proximity Score (0 to 100) based on city matching
       let proximityScore = 100;
-      if (opportunity.mode === 'offline' && provider.location) {
-        const pLon = provider.location.coordinates[0];
-        const pLat = provider.location.coordinates[1];
-        const distanceKm = getDistanceFromLatLonInKm(oppLat, oppLon, pLat, pLon);
-        // Map 0km -> 100, 10km -> 0. Anything over 10km is 0 (though already filtered).
-        proximityScore = Math.max(0, 100 - (distanceKm * 10));
+      if (opportunity.mode === 'offline') {
+        const oppCity = (opportunity.city || '').trim().toLowerCase();
+        const provCity = (provider.city || '').trim().toLowerCase();
+        
+        if (oppCity === provCity) {
+          proximityScore = 100; // Same City
+        } else {
+          const allowed = NEARBY_CITIES_MAP[oppCity] || [];
+          if (allowed.includes(provCity)) {
+            proximityScore = 70; // Nearby City
+          } else {
+            proximityScore = 0; // Far City
+          }
+        }
       }
 
       // 3. Rating Score (0 to 100)

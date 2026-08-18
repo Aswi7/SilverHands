@@ -62,6 +62,7 @@ const EmployerDashboard = ({ onNavigate }) => {
   const [previewPay, setPreviewPay] = useState('');
   const [previewMode, setPreviewMode] = useState('offline');
   const [previewTiming, setPreviewTiming] = useState('');
+  const [previewCity, setPreviewCity] = useState('');
 
   // Selected Posting for Candidates view
   const [selectedPosting, setSelectedPosting] = useState(null);
@@ -139,6 +140,7 @@ const EmployerDashboard = ({ onNavigate }) => {
   useEffect(() => {
     if (user) {
       fetchPostings();
+      setPreviewCity(user.city || '');
     }
   }, [user]);
 
@@ -255,7 +257,22 @@ const EmployerDashboard = ({ onNavigate }) => {
   const handlePublishOpportunity = async (e) => {
     e.preventDefault();
     
+    const CITY_COORDINATES = {
+      'delhi': [77.2090, 28.6139],
+      'noida': [77.3910, 28.5355],
+      'gurugram': [77.0266, 28.4595],
+      'mumbai': [72.8777, 19.0760],
+      'pune': [73.8567, 18.5204],
+      'bengaluru': [77.5946, 12.9716],
+      'chennai': [80.2707, 13.0827],
+      'hyderabad': [78.4867, 17.3850],
+      'kolkata': [88.3639, 22.5726]
+    };
+    
     try {
+      const cityKey = (previewCity || '').trim().toLowerCase();
+      const coords = CITY_COORDINATES[cityKey] || [77.2090, 28.6139];
+
       const payload = {
         title: previewTitle,
         description: previewDesc,
@@ -263,9 +280,10 @@ const EmployerDashboard = ({ onNavigate }) => {
         rate: previewPay,
         timing: previewTiming,
         mode: previewMode,
+        city: previewCity || 'Delhi',
         location: {
-          longitude: user?.location?.coordinates?.[0] || 0,
-          latitude: user?.location?.coordinates?.[1] || 0
+          longitude: coords[0],
+          latitude: coords[1]
         }
       };
 
@@ -677,6 +695,19 @@ const EmployerDashboard = ({ onNavigate }) => {
                           </button>
                         ))}
                       </div>
+                    </div>
+
+                    {/* City Location */}
+                    <div className="flex flex-col gap-1">
+                      <label htmlFor="previewCity" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_city', 'City / Location')}</label>
+                      <input 
+                        type="text" 
+                        id="previewCity"
+                        value={previewCity} 
+                        onChange={(e) => setPreviewCity(e.target.value)}
+                        className={`px-3 py-2 rounded-xl text-sm ${inputTheme}`}
+                        placeholder="e.g. Delhi, Mumbai, Bengaluru"
+                      />
                     </div>
 
                     {/* Timing */}

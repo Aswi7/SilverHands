@@ -296,6 +296,7 @@ const OnboardingFlow = ({ onNavigate }) => {
         preferredLanguage: prefLang,
         skills: formattedSkills,
         bio: aiBio,
+        city: cityName,
         isOnboarded: true
       });
       

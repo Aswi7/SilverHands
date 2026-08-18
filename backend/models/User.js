@@ -60,6 +60,12 @@ const UserSchema = new mongoose.Schema({
     enum: ['en', 'hi', 'ta'], 
     default: 'en' 
   },
+  city: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    default: 'delhi'
+  },
   location: {
     type: PointSchema,
     required: true

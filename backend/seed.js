@@ -14,7 +14,7 @@ const seed = async () => {
     } catch (dbErr) {
       console.warn('MongoDB Primary Connection Error during seeding:', dbErr.message);
       console.log('Attempting to fallback to local MongoDB instance...');
-      await mongoose.connect('mongodb://127.0.0.1:27017/silverhands');
+      await mongoose.connect('mongodb://127.0.0.1:27017/silverhands_local');
       console.log('MongoDB Fallback Connected: 127.0.0.1');
     }
 
@@ -34,6 +34,7 @@ const seed = async () => {
       password: hashedPassword,
       role: 'customer',
       preferredLanguage: 'hi',
+      city: 'Delhi',
       location: {
         type: 'Point',
         coordinates: [77.2197, 28.6304] // [longitude, latitude]
@@ -48,6 +49,7 @@ const seed = async () => {
       password: hashedPassword,
       role: 'provider',
       preferredLanguage: 'en',
+      city: 'Delhi',
       location: {
         type: 'Point',
         coordinates: [77.2150, 28.6280] // [longitude, latitude]
@@ -57,7 +59,8 @@ const seed = async () => {
         { skillName: 'Errands', experienceLevel: 'Intermediate', confidence: 1.0 }
       ],
       bio: 'Retired teacher, happy to help with technology support and daily tasks.',
-      availability: true
+      availability: true,
+      isOnboarded: true
     });
     console.log('Created nearby provider:', providerNearby.name);
 
@@ -68,6 +71,7 @@ const seed = async () => {
       password: hashedPassword,
       role: 'provider',
       preferredLanguage: 'en',
+      city: 'Pune',
       location: {
         type: 'Point',
         coordinates: [77.3000, 28.6000] // [longitude, latitude]
@@ -76,7 +80,8 @@ const seed = async () => {
         { skillName: 'Gardening', experienceLevel: 'Expert', confidence: 1.0 }
       ],
       bio: 'Homemaker who loves gardening and can help you maintain your plants.',
-      availability: true
+      availability: true,
+      isOnboarded: true
     });
     console.log('Created far provider:', providerFar.name);
 
@@ -86,6 +91,7 @@ const seed = async () => {
       title: 'Need help setting up a smartphone',
       description: 'Need someone to explain WhatsApp and digital payments step by step.',
       category: 'tech',
+      city: 'Delhi',
       location: {
         type: 'Point',
         coordinates: [77.2197, 28.6304]
@@ -98,6 +104,7 @@ const seed = async () => {
       title: 'Need help buying groceries',
       description: 'Looking for assistance to carry heavy groceries from the local market.',
       category: 'errands',
+      city: 'Delhi',
       location: {
         type: 'Point',
         coordinates: [77.2197, 28.6304]

@@ -11,6 +11,7 @@ const updateUserProfile = async (req, res) => {
     if (user) {
       user.name = req.body.name || user.name;
       user.preferredLanguage = req.body.preferredLanguage || user.preferredLanguage;
+      user.city = req.body.city || user.city;
       
       // Update provider specific details
       if (user.role === 'provider') {
@@ -39,6 +40,7 @@ const updateUserProfile = async (req, res) => {
         phone: updatedUser.phone,
         role: updatedUser.role,
         preferredLanguage: updatedUser.preferredLanguage,
+        city: updatedUser.city,
         location: updatedUser.location,
         skills: updatedUser.skills,
         bio: updatedUser.bio,

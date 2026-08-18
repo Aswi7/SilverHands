@@ -282,7 +282,7 @@ const UserDashboard = ({ onNavigate }) => {
           score: req.score || 50,
           scoreBreakdown: req.scoreBreakdown || null,
           rate: req.rate || "Negotiable",
-          location: req.mode === 'online' ? 'Online' : (req.location?.coordinates ? `Coordinates: [${req.location.coordinates[0].toFixed(2)}, ${req.location.coordinates[1].toFixed(2)}]` : 'Unknown'),
+          location: req.mode === 'online' ? 'Online' : (req.city ? (req.city.charAt(0).toUpperCase() + req.city.slice(1)) : 'Delhi'),
           mode: req.mode || "offline",
           posted: new Date(req.createdAt).toLocaleDateString(),
           description: req.description,
