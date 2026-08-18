@@ -39,6 +39,7 @@ import {
 } from '../components/TrustSafety';
 import { MatchExplanation } from '../components/MatchExplanation';
 import ChatInterface from '../components/ChatInterface';
+import MatchCard from '../components/MatchCard';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
 
@@ -142,7 +143,7 @@ const EmployerDashboard = ({ onNavigate }) => {
   // Customer Matches & Connection Status State
   const [customerMatches, setCustomerMatches] = useState([]);
   const [isLoadingCustomerMatches, setIsLoadingCustomerMatches] = useState(false);
-  const [customerMatchSubTab, setCustomerMatchSubTab] = useState('active'); // 'active' | 'previous'
+  const [customerMatchSubTab, setCustomerMatchSubTab] = useState('new'); // 'new' | 'active' | 'previous'
 
   const fetchCustomerMatches = async () => {
     setIsLoadingCustomerMatches(true);
@@ -1076,9 +1077,15 @@ const EmployerDashboard = ({ onNavigate }) => {
 
           {/* ================= VIEW: MATCH STATUS TRACKER ================= */}
           {activeTab === 'matches-tracker' && (() => {
-            const activeCustomerMatches = customerMatches.filter(m => ['PENDING', 'ACCEPTED', 'CONTACTED'].includes(m.status || 'PENDING'));
-            const previousCustomerMatches = customerMatches.filter(m => ['REJECTED', 'COMPLETED', 'CANCELLED'].includes(m.status));
-            const displayedMatches = customerMatchSubTab === 'active' ? activeCustomerMatches : previousCustomerMatches;
+            const newMatches = customerMatches.filter(m => (m.status || 'PENDING') === 'PENDING');
+            const activeConnections = customerMatches.filter(m => ['ACCEPTED', 'CONTACTED'].includes(m.status));
+            const previousMatches = customerMatches.filter(m => ['REJECTED', 'COMPLETED', 'CANCELLED'].includes(m.status));
+
+            const displayedMatches = customerMatchSubTab === 'new' 
+              ? newMatches 
+              : customerMatchSubTab === 'active' 
+              ? activeConnections 
+              : previousMatches;
 
             return (
               <div className="flex flex-col gap-6 text-left">
@@ -1086,7 +1093,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                   <div>
                     <h2 className="font-serif text-2xl font-bold">Match Connection Statuses</h2>
                     <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                      Track live active connections and view historical provider matches.
+                      Track pending matches, active connections, and historical provider matches.
                     </p>
                   </div>
                   <button
@@ -1097,8 +1104,24 @@ const EmployerDashboard = ({ onNavigate }) => {
                   </button>
                 </div>
 
-                {/* Sub-tab Navigation Buttons */}
-                <div className="flex gap-3 border-b border-cream-dark/30 pb-3">
+                {/* Sub-tab Navigation Buttons: [New Matches] [Active Connections] [Previous Matches] */}
+                <div className="flex flex-wrap gap-2.5 border-b border-cream-dark/30 pb-3">
+                  <button
+                    onClick={() => setCustomerMatchSubTab('new')}
+                    className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 ${
+                      customerMatchSubTab === 'new'
+                        ? (highContrast ? 'bg-white text-black' : 'bg-terracotta text-white shadow-md')
+                        : 'bg-cream-dark/20 text-charcoal hover:bg-cream-dark/40'
+                    }`}
+                  >
+                    <span>⚡ New Matches</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                      customerMatchSubTab === 'new' ? 'bg-white/20 text-white' : 'bg-gray-200 text-charcoal'
+                    }`}>
+                      {newMatches.length}
+                    </span>
+                  </button>
+
                   <button
                     onClick={() => setCustomerMatchSubTab('active')}
                     className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 ${
@@ -1107,11 +1130,11 @@ const EmployerDashboard = ({ onNavigate }) => {
                         : 'bg-cream-dark/20 text-charcoal hover:bg-cream-dark/40'
                     }`}
                   >
-                    <span>⚡ NEW / ACTIVE MATCHES</span>
+                    <span>🤝 Active Connections</span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] ${
                       customerMatchSubTab === 'active' ? 'bg-white/20 text-white' : 'bg-gray-200 text-charcoal'
                     }`}>
-                      {activeCustomerMatches.length}
+                      {activeConnections.length}
                     </span>
                   </button>
 
@@ -1123,11 +1146,11 @@ const EmployerDashboard = ({ onNavigate }) => {
                         : 'bg-cream-dark/20 text-charcoal hover:bg-cream-dark/40'
                     }`}
                   >
-                    <span>📜 PREVIOUS MATCHES</span>
+                    <span>📜 Previous Matches</span>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] ${
                       customerMatchSubTab === 'previous' ? 'bg-white/20 text-white' : 'bg-gray-200 text-charcoal'
                     }`}>
-                      {previousCustomerMatches.length}
+                      {previousMatches.length}
                     </span>
                   </button>
                 </div>
@@ -1141,14 +1164,20 @@ const EmployerDashboard = ({ onNavigate }) => {
                   <div className={`p-12 text-center rounded-3xl flex flex-col items-center justify-center gap-3 ${cardTheme}`}>
                     <BookmarkCheck className="h-12 w-12 text-gray-400" />
                     <h3 className="font-serif text-xl font-bold">
-                      {customerMatchSubTab === 'active' ? 'No Active Matches' : 'No Previous Matches Found'}
+                      {customerMatchSubTab === 'new'
+                        ? 'No New Matches Awaiting Response'
+                        : customerMatchSubTab === 'active'
+                        ? 'No Active Connections'
+                        : 'No Previous Matches'}
                     </h3>
                     <p className={`text-sm ${textSecondaryTheme} max-w-md`}>
-                      {customerMatchSubTab === 'active'
-                        ? 'Post a new service request to automatically discover and connect with local providers.'
-                        : 'Historical matches that were declined or completed will appear here.'}
+                      {customerMatchSubTab === 'new'
+                        ? 'Newly created AI matches will appear here while awaiting provider response.'
+                        : customerMatchSubTab === 'active'
+                        ? 'Matches accepted by providers will appear here with active contact and chat options.'
+                        : 'Historical matches that were declined or completed will be archived here.'}
                     </p>
-                    {customerMatchSubTab === 'active' && (
+                    {customerMatchSubTab === 'new' && (
                       <button
                         onClick={() => setActiveTab('post')}
                         className={`mt-2 px-6 py-2.5 text-sm font-bold ${primaryBtnTheme}`}
@@ -1159,129 +1188,17 @@ const EmployerDashboard = ({ onNavigate }) => {
                   </div>
                 ) : (
                   <div className="grid gap-6 md:grid-cols-2">
-                    {displayedMatches.map((match) => {
-                      const provider = match.provider;
-                      const opp = match.opportunity;
-                      if (!provider) return null;
-
-                      return (
-                        <div key={match._id} className={`p-6 rounded-3xl border flex flex-col justify-between gap-4 ${cardTheme}`}>
-                          {/* Header: Opportunity Title & Category */}
-                          <div className="flex justify-between items-start border-b pb-3 border-cream-dark/30 gap-2">
-                            <div>
-                              <span className="text-[10px] font-extrabold text-forest uppercase tracking-wider bg-forest/10 px-2 py-0.5 rounded">
-                                {opp?.category || 'General'}
-                              </span>
-                              <h4 className="font-serif text-lg font-bold text-charcoal mt-1 leading-snug">
-                                {opp?.title || 'Service Opportunity'}
-                              </h4>
-                            </div>
-
-                            {/* Match Score */}
-                            <div className={`px-2.5 py-1 rounded-xl text-xs font-extrabold text-white shrink-0 ${
-                              highContrast ? 'bg-black border border-white' : 'bg-forest'
-                            }`}>
-                              {match.score || 85}% Match
-                            </div>
-                          </div>
-
-                          {/* Provider details */}
-                          <div className="flex items-start gap-3">
-                            <div className={`h-12 w-12 rounded-full shrink-0 flex items-center justify-center font-serif text-xl font-bold ${
-                              highContrast ? 'bg-black border border-white text-white' : 'bg-orange-100 text-terracotta border border-orange-200'
-                            }`}>
-                              {provider.name ? provider.name[0] : 'P'}
-                            </div>
-                            <div className="grow">
-                              <h5 className="font-bold text-base">{provider.name || 'Provider'}</h5>
-                              <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">
-                                Skills: {provider.skills && provider.skills.length > 0 ? provider.skills.map(s => typeof s === 'object' ? s.skillName : s).join(', ') : 'Not specified'}
-                              </p>
-                              <p className="text-xs text-gray-500 font-mono mt-0.5">
-                                City: {provider.city || 'Delhi'}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* Live Status Badge */}
-                          <div className="flex items-center gap-2 pt-1">
-                            {match.status === 'PENDING' && (
-                              <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
-                                <Clock className="h-3.5 w-3.5 text-amber-700" /> Waiting for Provider response
-                              </span>
-                            )}
-                            {(match.status === 'ACCEPTED' || match.status === 'CONTACTED') && (
-                              <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800 border border-teal-300 flex items-center gap-1">
-                                <CheckCircle className="h-3.5 w-3.5 text-teal-600" /> Connection Accepted
-                              </span>
-                            )}
-                            {match.status === 'REJECTED' && (
-                              <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300 flex items-center gap-1">
-                                <X className="h-3.5 w-3.5 text-red-600" /> Provider Declined
-                              </span>
-                            )}
-                            {match.status === 'COMPLETED' && (
-                              <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-800 border border-gray-300">
-                                ✓ Completed
-                              </span>
-                            )}
-                            {match.status === 'CANCELLED' && (
-                              <span className="px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-300">
-                                Cancelled
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Dates Footer */}
-                          <div className="text-[11px] text-gray-500 border-t pt-2 border-cream-dark/20 flex justify-between">
-                            <span>Request Date: {new Date(match.createdAt).toLocaleDateString()}</span>
-                            {match.acceptedAt && <span>Accepted: {new Date(match.acceptedAt).toLocaleDateString()}</span>}
-                            {match.rejectedAt && <span>Declined: {new Date(match.rejectedAt).toLocaleDateString()}</span>}
-                          </div>
-
-                          {/* Available Action Footer */}
-                          <div className="border-t pt-3 border-cream-dark/30">
-                            {match.status === 'PENDING' && (
-                              <button disabled className="w-full py-2.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 cursor-not-allowed text-center">
-                                Waiting for Provider response
-                              </button>
-                            )}
-                            {match.status === 'ACCEPTED' && (
-                              <button
-                                onClick={() => handleContactProviderFromMatch(match._id)}
-                                className="w-full py-2.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-md flex items-center justify-center gap-1.5 transition-all"
-                              >
-                                <MessageSquare className="h-4 w-4" />
-                                <span>Contact Provider / Start Chat</span>
-                              </button>
-                            )}
-                            {match.status === 'REJECTED' && (
-                              <button disabled className="w-full py-2.5 rounded-xl text-xs font-bold bg-gray-100 text-gray-400 cursor-not-allowed text-center">
-                                Provider Declined
-                              </button>
-                            )}
-                            {(match.status === 'CONTACTED' || match.status === 'COMPLETED') && (
-                              <div className="flex gap-2 w-full">
-                                <button
-                                  onClick={() => setActiveTab('messages')}
-                                  className="grow py-2.5 rounded-xl text-xs font-bold bg-forest hover:bg-forest-hover text-white flex items-center justify-center gap-1.5"
-                                >
-                                  <MessageSquare className="h-4 w-4" />
-                                  <span>Open Chat</span>
-                                </button>
-                                <button
-                                  onClick={() => setSelectedCandidate(provider)}
-                                  className="px-3 py-2.5 rounded-xl text-xs font-bold border border-cream-dark hover:bg-gray-100"
-                                >
-                                  View Provider
-                                </button>
-                              </div>
-                            )}
-                          </div>
-
-                        </div>
-                      );
-                    })}
+                    {displayedMatches.map((match) => (
+                      <MatchCard
+                        key={match._id}
+                        match={match}
+                        userRole="customer"
+                        highContrast={highContrast}
+                        onContact={handleContactProviderFromMatch}
+                        onOpenChat={() => setActiveTab('messages')}
+                        onViewProfile={setSelectedCandidate}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
