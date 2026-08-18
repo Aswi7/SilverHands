@@ -18,6 +18,16 @@ import { useAccessibility } from '../context/AccessibilityContext';
 export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepareListing }) => {
   // Pre-seed conversation database
   const [conversations, setConversations] = useState([]);
+  const [activeConvId, setActiveConvId] = useState('3'); // Default to Sakhi Bot '3' so there is no blank select state
+  const [inputValue, setInputValue] = useState('');
+  const [isSakhiTyping, setIsSakhiTyping] = useState(false);
+  const { speechLocale } = useAccessibility();
+  
+  // Voice Recording Mock States
+  const [isRecording, setIsRecording] = useState(false);
+  const [waveformBars, setWaveformBars] = useState(Array(15).fill(4));
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const recordInterval = useRef(null);
   
   useEffect(() => {
     if (user?._id) {
@@ -148,16 +158,7 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
     return () => clearInterval(interval);
   }, [activeConvId, conversations.length, user]);
 
-  const [activeConvId, setActiveConvId] = useState('1');
-  const [inputValue, setInputValue] = useState('');
-  const [isSakhiTyping, setIsSakhiTyping] = useState(false);
-  const { speechLocale } = useAccessibility();
-  
-  // Voice Recording Mock States
-  const [isRecording, setIsRecording] = useState(false);
-  const [waveformBars, setWaveformBars] = useState(Array(15).fill(4));
-  const [recordingSeconds, setRecordingSeconds] = useState(0);
-  const recordInterval = useRef(null);
+
 
   // Mobile navigation visibility
   const [showMobileThread, setShowMobileThread] = useState(false);
