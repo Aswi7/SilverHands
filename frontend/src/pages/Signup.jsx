@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { Type, Eye, MapPin, Globe } from 'lucide-react';
+import { Type, MapPin, Globe } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useAccessibility } from '../context/AccessibilityContext';
 
 const Signup = ({ onNavigate, initialRole = 'provider' }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { signup } = useAuth();
-  
-  // Accessibility States
-  const [fontSize, setFontSize] = useState('normal'); 
-  const [highContrast, setHighContrast] = useState(false);
+  const { highContrast, setPanelOpen } = useAccessibility();
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -21,7 +19,16 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
   useEffect(() => {
     setRole(initialRole);
   }, [initialRole]);
-  const [prefLang, setPrefLang] = useState('en');
+
+  // Maintain current selected i18n language instead of hardcoding 'en'
+  const [prefLang, setPrefLang] = useState(i18n.language || 'en');
+  
+  useEffect(() => {
+    if (prefLang && prefLang !== i18n.language) {
+      i18n.changeLanguage(prefLang);
+    }
+  }, [prefLang, i18n]);
+
   const [longitude, setLongitude] = useState('');
   const [latitude, setLatitude] = useState('');
   
@@ -29,31 +36,10 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Sync Root Font Size
-  useEffect(() => {
-    const root = document.documentElement;
-    if (fontSize === 'normal') {
-      root.style.fontSize = '16px';
-    } else if (fontSize === 'large') {
-      root.style.fontSize = '20px';
-    } else if (fontSize === 'xlarge') {
-      root.style.fontSize = '24px';
-    }
-    return () => {
-      root.style.fontSize = '16px';
-    };
-  }, [fontSize]);
-
-  const cycleFontSize = () => {
-    if (fontSize === 'normal') setFontSize('large');
-    else if (fontSize === 'large') setFontSize('xlarge');
-    else setFontSize('normal');
-  };
-
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
       setGeoState('error');
-      setError('Geolocation is not supported by your browser.');
+      setError(t('auth.geolocation_unsupported'));
       return;
     }
     setGeoState('detecting');
@@ -75,7 +61,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
     setError('');
     
     if (!longitude || !latitude) {
-      setError('Location coordinates are required.');
+      setError(t('auth.coordinates_required'));
       return;
     }
 
@@ -99,7 +85,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
         onNavigate('onboarding');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(err.response?.data?.message || t('auth.registration_failed'));
     } finally {
       setLoading(false);
     }
@@ -141,21 +127,12 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
           {/* Accessibility Controls */}
           <div className="flex items-center gap-3">
             <button 
-              onClick={cycleFontSize}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle Font Size"
+              onClick={() => setPanelOpen(true)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
+              aria-label={t('accessibility.options')}
             >
               <Type className="h-4 w-4" />
-              <span>Aa</span>
-            </button>
-
-            <button 
-              onClick={() => setHighContrast(!highContrast)}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white bg-white text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle High Contrast"
-            >
-              <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">Contrast</span>
+              <span>{t('accessibility.options')}</span>
             </button>
 
             <div className="flex items-center gap-1 text-sm">
@@ -184,7 +161,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                placeholder="e.g. Asha Devi"
+                placeholder={t('auth.name_placeholder')}
                 className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
               />
             </div>
@@ -198,7 +175,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
-                placeholder="e.g. 9876543210"
+                placeholder={t('auth.phone_placeholder')}
                 className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
               />
             </div>
@@ -206,7 +183,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
             {/* Email (Optional) */}
             <div className="flex flex-col gap-2">
               <label htmlFor="email" className="text-sm font-bold">
-                Email <span className={`font-normal ${textSecondaryTheme}`}>(Optional)</span>
+                {t('auth.email')} <span className={`font-normal ${textSecondaryTheme}`}>({t('common.optional')})</span>
               </label>
               <input
                 type="email"
@@ -239,26 +216,26 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
                 <button
                   type="button"
                   onClick={() => setRole('provider')}
-                  className={`p-3 rounded-xl border-2 text-sm font-bold transition-all text-center flex flex-col items-center gap-1 ${
+                  className={`p-3.5 rounded-xl border-2 text-xs font-bold transition-all text-center flex flex-col items-center gap-1.5 ${
                     role === 'provider'
                       ? (highContrast ? 'bg-white text-black border-white' : 'bg-orange-50 border-terracotta text-terracotta')
                       : (highContrast ? 'border-white text-white bg-black' : 'border-cream-dark text-charcoal hover:bg-cream-dark/20')
                   }`}
                 >
-                  <span className="text-base">👩‍🌾</span>
-                  {t('roles.provider').split(' ')[0]}
+                  <span className="text-lg">👩‍🌾</span>
+                  <span>{t('roles.provider')}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setRole('customer')}
-                  className={`p-3 rounded-xl border-2 text-sm font-bold transition-all text-center flex flex-col items-center gap-1 ${
+                  className={`p-3.5 rounded-xl border-2 text-xs font-bold transition-all text-center flex flex-col items-center gap-1.5 ${
                     role === 'customer'
                       ? (highContrast ? 'bg-white text-black border-white' : 'bg-teal-50 border-forest text-forest')
                       : (highContrast ? 'border-white text-white bg-black' : 'border-cream-dark text-charcoal hover:bg-cream-dark/20')
                   }`}
                 >
-                  <span className="text-base">🤝</span>
-                  {t('roles.customer').split(' ')[0]}
+                  <span className="text-lg">🤝</span>
+                  <span>{t('roles.customer')}</span>
                 </button>
               </div>
             </div>
@@ -280,7 +257,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
 
             {/* Geolocation Section */}
             <div className="flex flex-col gap-3 border-t pt-4 border-cream-dark/30">
-              <label className="text-sm font-bold">Location Coordinates</label>
+              <label className="text-sm font-bold">{t('auth.location_coordinates')}</label>
               
               <button
                 type="button"
@@ -292,7 +269,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
               </button>
               
               {geoState === 'detecting' && (
-                <p className="text-xs text-center text-forest animate-pulse">Detecting Coordinates...</p>
+                <p className="text-xs text-center text-forest animate-pulse">{t('auth.detecting_coordinates')}</p>
               )}
               {geoState === 'success' && (
                 <p className="text-xs text-center text-green-600 font-semibold">{t('auth.location_detected')}</p>

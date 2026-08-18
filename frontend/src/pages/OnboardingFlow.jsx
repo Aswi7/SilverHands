@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Type, 
-  Eye, 
   MapPin, 
-  Phone, 
   User, 
   Calendar, 
   Clock, 
@@ -18,13 +16,10 @@ import {
   Pencil, 
   Sparkles, 
   Bot, 
-  Smile, 
-  Award,
   Sun,
   Sunset,
   Moon,
   Laptop,
-  Briefcase,
   Globe
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
@@ -33,13 +28,9 @@ import { useAuth } from '../context/AuthContext';
 import { useAccessibility } from '../context/AccessibilityContext';
 
 const OnboardingFlow = ({ onNavigate }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { updateUserInState } = useAuth();
-  const { speechLocale } = useAccessibility();
-
-  // Accessibility States
-  const [fontSize, setFontSize] = useState('normal'); 
-  const [highContrast, setHighContrast] = useState(false);
+  const { highContrast, setPanelOpen, speechLocale } = useAccessibility();
 
   // Active Wizard Step (1: Basic Info, 2: Skills, 3: Availability, 4: Review)
   const [step, setStep] = useState(1);
@@ -48,7 +39,14 @@ const OnboardingFlow = ({ onNavigate }) => {
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [phone, setPhone] = useState('');
-  const [prefLang, setPrefLang] = useState('en');
+  const [prefLang, setPrefLang] = useState(i18n.language || 'en');
+
+  useEffect(() => {
+    if (prefLang && prefLang !== i18n.language) {
+      i18n.changeLanguage(prefLang);
+    }
+  }, [prefLang, i18n]);
+
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
   const [locationState, setLocationState] = useState(''); // 'detecting', 'success', 'error'
@@ -68,27 +66,6 @@ const OnboardingFlow = ({ onNavigate }) => {
   // --- Step 4: Review States ---
   const [aiBio, setAiBio] = useState('');
   const [isGeneratingBio, setIsGeneratingBio] = useState(false);
-
-  // Sync Root Font Size
-  useEffect(() => {
-    const root = document.documentElement;
-    if (fontSize === 'normal') {
-      root.style.fontSize = '16px';
-    } else if (fontSize === 'large') {
-      root.style.fontSize = '20px';
-    } else if (fontSize === 'xlarge') {
-      root.style.fontSize = '24px';
-    }
-    return () => {
-      root.style.fontSize = '16px';
-    };
-  }, [fontSize]);
-
-  const cycleFontSize = () => {
-    if (fontSize === 'normal') setFontSize('large');
-    else if (fontSize === 'large') setFontSize('xlarge');
-    else setFontSize('normal');
-  };
 
   // --- Handlers & Helpers ---
 
@@ -159,15 +136,10 @@ const OnboardingFlow = ({ onNavigate }) => {
     if (!text || text.trim().length === 0) return;
     setShowPopIn(true);
     try {
-      const { data } = await api.post('/ai/extract-skills', { bio: text });
+      const { data } = await api.post('/ai/extract-skills', { bio: text, language: i18n.language });
       if (data && data.skills) {
-        // Map the extracted structured objects to just the skill names, or keep the object.
-        // Currently the UI expects an array of strings or objects. 
-        // We'll map to skillName string for the onboarding UI to match the legacy format,
-        // but we'll add the full object so the UI can be updated later if needed.
         const extractedNames = data.skills.map(s => typeof s === 'object' ? s.skillName : s);
         setSkills((prev) => {
-          // Merge unique skills
           const newSkills = [...prev];
           extractedNames.forEach(skill => {
             if (!newSkills.some(s => (typeof s === 'object' ? s.skillName : s) === skill)) {
@@ -179,7 +151,6 @@ const OnboardingFlow = ({ onNavigate }) => {
       }
     } catch (error) {
       console.error('AI extraction failed:', error);
-      // Fallback: do nothing, let them type manually.
     } finally {
       setShowPopIn(false);
     }
@@ -225,27 +196,30 @@ const OnboardingFlow = ({ onNavigate }) => {
             name: name || 'User',
             age: age || '--',
             skills: skills,
-            availability: availabilityString
+            availability: availabilityString,
+            language: i18n.language
           });
           if (data && data.generatedBio) {
             setAiBio(data.generatedBio);
           }
         } catch (error) {
           console.error('Bio generation failed:', error);
-          // Fallback to manual string if API fails
-          setAiBio(`${name || 'User'}, aged ${age || '--'}, is a warm neighborhood member offering services nearby. Experienced in ${skills.join(', ')} and looking forward to assisting neighboring households.`);
+          setAiBio(`${name || 'User'}, aged ${age || '--'}, is a warm neighborhood member offering services nearby.`);
         } finally {
           setIsGeneratingBio(false);
         }
       };
       generateBio();
     }
+  }, [step, aiBio, isGeneratingBio, availableDays, timeSlots, skills, age, name, i18n.language]);
+
+  useEffect(() => {
+    if (step !== 4) setAiBio('');
   }, [step]);
 
   const handleConfirmProfile = async () => {
     try {
       const formattedSkills = skills.map(skill => {
-        // If it's already an object, use it; otherwise, structure it.
         if (typeof skill === 'object') return skill;
         return {
           category: 'other',
@@ -255,20 +229,29 @@ const OnboardingFlow = ({ onNavigate }) => {
         };
       });
 
-      const { data } = await api.put('/users/profile', {
+      const { data: updatedProfile } = await api.put('/users/profile', {
+        name: name.trim(),
+        preferredLanguage: prefLang,
         skills: formattedSkills,
-        bio: aiBio
+        bio: aiBio,
+        availability: availableDays.length > 0 && timeSlots.length > 0
+      });
+
+      const { data: locationResult } = await api.put('/users/location', {
+        latitude: Number(latitude),
+        longitude: Number(longitude)
       });
       
-      // Immediately update local AuthContext so the Dashboard has the data without a reload
-      if (updateUserInState && data) {
-        updateUserInState(data);
+      if (updateUserInState && updatedProfile) {
+        updateUserInState({
+          ...updatedProfile,
+          location: locationResult.location || updatedProfile.location
+        });
       }
       
       onNavigate('dashboard');
     } catch (err) {
       console.error('Failed to save profile details', err);
-      // Proceed to dashboard anyway
       onNavigate('dashboard');
     }
   };
@@ -285,15 +268,10 @@ const OnboardingFlow = ({ onNavigate }) => {
     ? 'border-2 border-white bg-black text-white hover:bg-white hover:text-black font-bold h-[48px]'
     : 'bg-terracotta hover:bg-terracotta-hover text-white shadow-md hover:shadow-lg font-bold h-[48px] rounded-2xl transition-all';
 
-  const secondaryBtnTheme = highContrast
-    ? 'border-2 border-white bg-black text-white hover:bg-white hover:text-black h-[48px]'
-    : 'bg-forest hover:bg-forest-hover text-white shadow-md hover:shadow-lg font-bold h-[48px] rounded-2xl transition-all';
-
   const outlineBtnTheme = highContrast
     ? 'border-2 border-white bg-black text-white hover:bg-white hover:text-black h-[48px]'
     : 'border border-cream-dark hover:bg-cream-dark/30 text-charcoal h-[48px] rounded-2xl transition-all';
 
-  // Days list
   const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   return (
@@ -316,21 +294,12 @@ const OnboardingFlow = ({ onNavigate }) => {
           {/* Accessibility Controls */}
           <div className="flex items-center gap-3">
             <button 
-              onClick={cycleFontSize}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle Font Size"
+              onClick={() => setPanelOpen(true)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
+              aria-label={t('accessibility.options')}
             >
               <Type className="h-4 w-4" />
-              <span>Aa</span>
-            </button>
-
-            <button 
-              onClick={() => setHighContrast(!highContrast)}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white bg-white text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle High Contrast"
-            >
-              <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">Contrast</span>
+              <span>{t('accessibility.options')}</span>
             </button>
 
             <div className="flex items-center gap-1 text-sm">
@@ -345,14 +314,14 @@ const OnboardingFlow = ({ onNavigate }) => {
       {/* WIZARD CONTAINER */}
       <main className="mx-auto max-w-3xl px-4 mt-8 md:px-8">
         
-        {/* PROGRESS INDICATOR */}
+        {/* RESPONSIVE PROGRESS INDICATOR */}
         <div className="mb-12">
           <div className="flex justify-between items-center relative">
             
             {/* Background line */}
             <div className={`absolute top-6 left-6 right-6 h-1 z-0 ${highContrast ? 'bg-white' : 'bg-cream-dark/50'}`} />
             
-            {/* Step 1: Basic Info */}
+            {/* Step 1 */}
             <button 
               onClick={() => setStep(1)} 
               className="flex flex-col items-center gap-2 z-10 focus:outline-none"
@@ -366,12 +335,12 @@ const OnboardingFlow = ({ onNavigate }) => {
               }`}>
                 {step > 1 ? <Check className="h-6 w-6" /> : "1"}
               </div>
-              <span className={`text-xs sm:text-sm font-bold ${step === 1 ? 'text-terracotta' : textSecondaryTheme}`}>
-                Basic Info
+              <span className={`text-[11px] sm:text-xs font-bold text-center max-w-[70px] sm:max-w-none ${step === 1 ? 'text-terracotta' : textSecondaryTheme}`}>
+                {t('onboarding.step1_nav')}
               </span>
             </button>
 
-            {/* Step 2: Tell Us What You Can Do */}
+            {/* Step 2 */}
             <button 
               onClick={() => name && age && phone && setStep(2)} 
               disabled={!name || !age || !phone}
@@ -386,12 +355,12 @@ const OnboardingFlow = ({ onNavigate }) => {
               }`}>
                 {step > 2 ? <Check className="h-6 w-6" /> : "2"}
               </div>
-              <span className={`text-xs sm:text-sm font-bold ${step === 2 ? 'text-terracotta' : textSecondaryTheme}`}>
-                Skills Chat
+              <span className={`text-[11px] sm:text-xs font-bold text-center max-w-[70px] sm:max-w-none ${step === 2 ? 'text-terracotta' : textSecondaryTheme}`}>
+                {t('onboarding.step2_nav')}
               </span>
             </button>
 
-            {/* Step 3: Availability */}
+            {/* Step 3 */}
             <button 
               onClick={() => skills.length > 0 && setStep(3)} 
               disabled={skills.length === 0}
@@ -406,12 +375,12 @@ const OnboardingFlow = ({ onNavigate }) => {
               }`}>
                 {step > 3 ? <Check className="h-6 w-6" /> : "3"}
               </div>
-              <span className={`text-xs sm:text-sm font-bold ${step === 3 ? 'text-terracotta' : textSecondaryTheme}`}>
-                Availability
+              <span className={`text-[11px] sm:text-xs font-bold text-center max-w-[70px] sm:max-w-none ${step === 3 ? 'text-terracotta' : textSecondaryTheme}`}>
+                {t('onboarding.step3_nav')}
               </span>
             </button>
 
-            {/* Step 4: Review */}
+            {/* Step 4 */}
             <button 
               onClick={() => availableDays.length > 0 && setStep(4)} 
               disabled={availableDays.length === 0}
@@ -422,10 +391,10 @@ const OnboardingFlow = ({ onNavigate }) => {
                   ? (highContrast ? 'bg-white text-black border-white' : 'bg-terracotta text-white border-terracotta') 
                   : (highContrast ? 'bg-black text-white border-white' : 'bg-white text-charcoal border-cream-dark')
               }`}>
-                "4"
+                4
               </div>
-              <span className={`text-xs sm:text-sm font-bold ${step === 4 ? 'text-terracotta' : textSecondaryTheme}`}>
-                Review
+              <span className={`text-[11px] sm:text-xs font-bold text-center max-w-[70px] sm:max-w-none ${step === 4 ? 'text-terracotta' : textSecondaryTheme}`}>
+                {t('onboarding.step4_nav')}
               </span>
             </button>
 
@@ -440,9 +409,9 @@ const OnboardingFlow = ({ onNavigate }) => {
             <div className="flex flex-col gap-6">
               
               <div className="text-left border-b pb-4 border-cream-dark/50">
-                <h2 className="font-serif text-2xl font-bold">Tell us about yourself</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('onboarding.tell_about_yourself')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Please fill in your basic details. This helps local neighbors find you.
+                  {t('onboarding.step1_desc')}
                 </p>
               </div>
 
@@ -450,13 +419,13 @@ const OnboardingFlow = ({ onNavigate }) => {
                 
                 {/* Full Name */}
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="name" className="text-sm font-bold">Full Name</label>
+                  <label htmlFor="name" className="text-sm font-bold">{t('auth.name')}</label>
                   <input 
                     type="text" 
                     id="name"
                     value={name} 
                     onChange={(e) => setName(e.target.value)} 
-                    placeholder="e.g. Asha Devi"
+                    placeholder={t('auth.name_placeholder')}
                     required
                     className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
                   />
@@ -464,13 +433,13 @@ const OnboardingFlow = ({ onNavigate }) => {
 
                 {/* Age */}
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="age" className="text-sm font-bold">Age (in years)</label>
+                  <label htmlFor="age" className="text-sm font-bold">{t('onboarding.age')}</label>
                   <input 
                     type="number" 
                     id="age"
                     value={age} 
                     onChange={(e) => setAge(e.target.value)} 
-                    placeholder="e.g. 62"
+                    placeholder={t('onboarding.age_placeholder')}
                     required
                     className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
                   />
@@ -478,13 +447,13 @@ const OnboardingFlow = ({ onNavigate }) => {
 
                 {/* Phone Number */}
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="phone" className="text-sm font-bold">Phone Number (for verification)</label>
+                  <label htmlFor="phone" className="text-sm font-bold">{t('auth.phone')}</label>
                   <input 
                     type="text" 
                     id="phone"
                     value={phone} 
                     onChange={(e) => setPhone(e.target.value)} 
-                    placeholder="e.g. 9876543210"
+                    placeholder={t('auth.phone_placeholder')}
                     required
                     className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
                   />
@@ -492,7 +461,7 @@ const OnboardingFlow = ({ onNavigate }) => {
 
                 {/* Preferred Language */}
                 <div className="flex flex-col gap-2">
-                  <label htmlFor="prefLang" className="text-sm font-bold">Preferred Language</label>
+                  <label htmlFor="prefLang" className="text-sm font-bold">{t('auth.preferred_language')}</label>
                   <select 
                     id="prefLang"
                     value={prefLang} 
@@ -509,7 +478,7 @@ const OnboardingFlow = ({ onNavigate }) => {
 
               {/* Location Coordinates */}
               <div className="flex flex-col gap-3 text-left border-t pt-6 border-cream-dark/50">
-                <label className="text-sm font-bold">My Location</label>
+                <label className="text-sm font-bold">{t('onboarding.my_location')}</label>
                 
                 <button
                   type="button"
@@ -517,22 +486,22 @@ const OnboardingFlow = ({ onNavigate }) => {
                   className={`w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-xl ${outlineBtnTheme}`}
                 >
                   <MapPin className="h-5 w-5 text-terracotta" />
-                  Use My Current Location
+                  {t('onboarding.use_current_location')}
                 </button>
 
                 {locationState === 'detecting' && (
-                  <p className="text-xs text-forest animate-pulse text-center">Detecting location coordinates...</p>
+                  <p className="text-xs text-forest animate-pulse text-center">{t('auth.detecting_coordinates')}</p>
                 )}
                 {locationState === 'success' && (
-                  <p className="text-xs text-green-600 text-center">Coordinates matching successfully: {latitude}, {longitude}</p>
+                  <p className="text-xs text-green-600 text-center">{t('auth.location_detected')}: {latitude}, {longitude}</p>
                 )}
                 {locationState === 'error' && (
-                  <p className="text-xs text-red-500 text-center">Failed to acquire location. Please enter manually below.</p>
+                  <p className="text-xs text-red-500 text-center">{t('auth.location_failed')}</p>
                 )}
 
                 <div className="grid grid-cols-2 gap-4 mt-2">
                   <div className="flex flex-col gap-1">
-                    <label htmlFor="lat" className="text-xs text-gray-500">Latitude</label>
+                    <label htmlFor="lat" className="text-xs text-gray-500">{t('auth.latitude')}</label>
                     <input 
                       type="number" 
                       step="any"
@@ -544,7 +513,7 @@ const OnboardingFlow = ({ onNavigate }) => {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label htmlFor="lng" className="text-xs text-gray-500">Longitude</label>
+                    <label htmlFor="lng" className="text-xs text-gray-500">{t('auth.longitude')}</label>
                     <input 
                       type="number" 
                       step="any"
@@ -566,7 +535,7 @@ const OnboardingFlow = ({ onNavigate }) => {
                   disabled={!name || !age || !phone || !latitude || !longitude}
                   className={`flex items-center justify-center gap-2 px-8 py-3 rounded-2xl text-base disabled:opacity-50 disabled:cursor-not-allowed ${primaryBtnTheme}`}
                 >
-                  Next: Tell Us What You Can Do
+                  {t('onboarding.next_skills')}
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </div>
@@ -579,9 +548,9 @@ const OnboardingFlow = ({ onNavigate }) => {
             <div className="flex flex-col gap-6">
               
               <div className="text-left border-b pb-4 border-cream-dark/50">
-                <h2 className="font-serif text-2xl font-bold">What are you good at?</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('onboarding.what_are_you_good_at')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Talk or type naturally. Our AI will build your matching skills list.
+                  {t('onboarding.step2_desc')}
                 </p>
               </div>
 
@@ -590,24 +559,24 @@ const OnboardingFlow = ({ onNavigate }) => {
                 
                 {/* AI Balloon */}
                 <div className="flex items-start gap-3">
-                  <div className={`h-10 w-10 rounded-full flex items-center justify-center ${highContrast ? 'border border-white text-white' : 'bg-forest text-white'}`}>
+                  <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${highContrast ? 'border border-white text-white' : 'bg-forest text-white'}`}>
                     <Bot className="h-6 w-6" />
                   </div>
-                  <div className={`p-4 rounded-2xl rounded-tl-none max-w-[80%] text-sm sm:text-base leading-relaxed ${highContrast ? 'border border-white bg-black' : 'bg-white border border-cream-dark shadow-sm'}`}>
-                    "Namaste! Tell me about the skills you want to offer. It can be anything — from home cooking, sewing, knitting, gardening, to babysitting or school homework tutoring."
+                  <div className={`p-4 rounded-2xl rounded-tl-none max-w-[85%] text-sm sm:text-base leading-relaxed ${highContrast ? 'border border-white bg-black' : 'bg-white border border-cream-dark shadow-sm'}`}>
+                    {t('onboarding.ai_bot_greeting')}
                   </div>
                 </div>
 
                 {/* User Input Frame */}
                 <div className="flex items-end gap-3 mt-4">
                   <div className="flex-grow flex flex-col gap-2">
-                    <label htmlFor="chatInput" className="text-xs text-gray-500 font-bold">Describe your skills here</label>
+                    <label htmlFor="chatInput" className="text-xs text-gray-500 font-bold">{t('provider.skills')}</label>
                     <textarea 
                       id="chatInput"
                       rows="3"
                       value={chatText} 
                       onChange={(e) => setChatText(e.target.value)} 
-                      placeholder="e.g. I am great at baking cookies and teaching traditional stitching..."
+                      placeholder={t('onboarding.describe_skills_placeholder')}
                       className={`w-full px-4 py-3 rounded-2xl text-base ${inputTheme}`}
                     />
                   </div>
@@ -634,7 +603,7 @@ const OnboardingFlow = ({ onNavigate }) => {
 
                 {isListening && (
                   <p className="text-xs text-red-500 font-bold text-center mt-1">
-                    🎤 Listening (Speaking simulation active)...
+                    {t('onboarding.listening_active')}
                   </p>
                 )}
 
@@ -644,17 +613,17 @@ const OnboardingFlow = ({ onNavigate }) => {
               <div className="text-left mt-4">
                 <h4 className="text-sm font-bold mb-3 flex items-center gap-1.5">
                   <Sparkles className="h-4 w-4 text-terracotta" />
-                  Your Skills Profile List
+                  {t('onboarding.your_skills_profile')}
                 </h4>
 
                 {/* Processing Indicator */}
                 {showPopIn && (
-                  <p className="text-xs text-teal-600 font-semibold mb-2 animate-pulse">✨ AI is parsing your matching skills tags...</p>
+                  <p className="text-xs text-teal-600 font-semibold mb-2 animate-pulse">{t('onboarding.ai_parsing_skills')}</p>
                 )}
 
                 <div className="flex flex-wrap gap-2.5 min-h-[48px] p-3 rounded-2xl border border-dashed border-cream-dark/50 bg-cream/10">
                   {skills.length === 0 ? (
-                    <span className="text-xs text-gray-500 italic p-1">No skills extracted yet. Type above or tap the microphone.</span>
+                    <span className="text-xs text-gray-500 italic p-1">{t('onboarding.no_skills_yet')}</span>
                   ) : (
                     skills.map((skill) => (
                       <div 
@@ -684,7 +653,7 @@ const OnboardingFlow = ({ onNavigate }) => {
                     type="text" 
                     value={manualSkill}
                     onChange={(e) => setManualSkill(e.target.value)}
-                    placeholder="Add skill manually (e.g. Baby Sitting)"
+                    placeholder={t('onboarding.manual_skill_placeholder')}
                     className={`flex-grow px-3 py-2 rounded-xl text-sm ${inputTheme}`}
                   />
                   <button 
@@ -692,7 +661,7 @@ const OnboardingFlow = ({ onNavigate }) => {
                     className={`px-4 rounded-xl flex items-center justify-center font-bold ${outlineBtnTheme}`}
                   >
                     <Plus className="h-5 w-5" />
-                    <span>Add</span>
+                    <span>{t('onboarding.add_btn')}</span>
                   </button>
                 </form>
 
@@ -705,14 +674,14 @@ const OnboardingFlow = ({ onNavigate }) => {
                   className={`flex items-center justify-center gap-2 px-6 ${outlineBtnTheme}`}
                 >
                   <ArrowLeft className="h-5 w-5" />
-                  Back
+                  {t('common.back')}
                 </button>
                 <button 
                   onClick={() => setStep(3)}
                   disabled={skills.length === 0}
                   className={`flex items-center justify-center gap-2 px-8 ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  Next: Availability
+                  {t('onboarding.next_availability')}
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </div>
@@ -725,9 +694,9 @@ const OnboardingFlow = ({ onNavigate }) => {
             <div className="flex flex-col gap-6">
               
               <div className="text-left border-b pb-4 border-cream-dark/50">
-                <h2 className="font-serif text-2xl font-bold">When are you free?</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('onboarding.when_are_you_free')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Choose your active service slots. You can modify these anytime.
+                  {t('onboarding.step3_desc')}
                 </p>
               </div>
 
@@ -735,7 +704,7 @@ const OnboardingFlow = ({ onNavigate }) => {
               <div className="text-left flex flex-col gap-3">
                 <label className="text-sm font-bold flex items-center gap-1.5">
                   <Calendar className="h-5 w-5 text-terracotta" />
-                  Available Days of the Week
+                  {t('onboarding.available_days')}
                 </label>
                 <div className="flex flex-wrap gap-2.5">
                   {daysOfWeek.map((day) => {
@@ -761,7 +730,7 @@ const OnboardingFlow = ({ onNavigate }) => {
               <div className="text-left flex flex-col gap-3 border-t pt-6 border-cream-dark/50">
                 <label className="text-sm font-bold flex items-center gap-1.5">
                   <Clock className="h-5 w-5 text-forest" />
-                  Preferred Time of Day
+                  {t('onboarding.preferred_time')}
                 </label>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   
@@ -777,8 +746,8 @@ const OnboardingFlow = ({ onNavigate }) => {
                   >
                     <Sun className="h-6 w-6 text-amber-500" />
                     <div>
-                      <h4 className="font-bold text-sm">Morning</h4>
-                      <p className={`text-xs ${textSecondaryTheme}`}>8:00 AM - 12:00 PM</p>
+                      <h4 className="font-bold text-sm">{t('onboarding.morning')}</h4>
+                      <p className={`text-xs ${textSecondaryTheme}`}>{t('onboarding.morning_time')}</p>
                     </div>
                   </button>
 
@@ -794,8 +763,8 @@ const OnboardingFlow = ({ onNavigate }) => {
                   >
                     <Sunset className="h-6 w-6 text-orange-500" />
                     <div>
-                      <h4 className="font-bold text-sm">Afternoon</h4>
-                      <p className={`text-xs ${textSecondaryTheme}`}>12:00 PM - 4:00 PM</p>
+                      <h4 className="font-bold text-sm">{t('onboarding.afternoon')}</h4>
+                      <p className={`text-xs ${textSecondaryTheme}`}>{t('onboarding.afternoon_time')}</p>
                     </div>
                   </button>
 
@@ -811,8 +780,8 @@ const OnboardingFlow = ({ onNavigate }) => {
                   >
                     <Moon className="h-6 w-6 text-indigo-500" />
                     <div>
-                      <h4 className="font-bold text-sm">Evening</h4>
-                      <p className={`text-xs ${textSecondaryTheme}`}>4:00 PM - 8:00 PM</p>
+                      <h4 className="font-bold text-sm">{t('onboarding.evening')}</h4>
+                      <p className={`text-xs ${textSecondaryTheme}`}>{t('onboarding.evening_time')}</p>
                     </div>
                   </button>
 
@@ -823,7 +792,7 @@ const OnboardingFlow = ({ onNavigate }) => {
               <div className="text-left flex flex-col gap-3 border-t pt-6 border-cream-dark/50">
                 <label className="text-sm font-bold flex items-center gap-1.5">
                   <Laptop className="h-5 w-5 text-teal-600" />
-                  Service Delivery Mode
+                  {t('onboarding.service_delivery_mode')}
                 </label>
                 <div className="grid grid-cols-3 gap-3">
                   {['offline', 'online', 'both'].map((mode) => {
@@ -838,7 +807,7 @@ const OnboardingFlow = ({ onNavigate }) => {
                             : (highContrast ? 'border-white bg-black text-white hover:bg-white hover:text-black' : 'bg-white border-cream-dark hover:bg-cream-dark/30')
                         }`}
                       >
-                        {mode === 'both' ? 'Both' : (mode === 'online' ? 'Online only' : 'Offline only')}
+                        {mode === 'both' ? t('onboarding.both') : (mode === 'online' ? t('onboarding.online_only') : t('onboarding.offline_only'))}
                       </button>
                     );
                   })}
@@ -852,14 +821,14 @@ const OnboardingFlow = ({ onNavigate }) => {
                   className={`flex items-center justify-center gap-2 px-6 ${outlineBtnTheme}`}
                 >
                   <ArrowLeft className="h-5 w-5" />
-                  Back
+                  {t('common.back')}
                 </button>
                 <button 
                   onClick={() => setStep(4)}
                   disabled={availableDays.length === 0 || timeSlots.length === 0}
                   className={`flex items-center justify-center gap-2 px-8 ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
-                  Next: Review Profile
+                  {t('onboarding.next_review')}
                   <ArrowRight className="h-5 w-5" />
                 </button>
               </div>
@@ -872,9 +841,9 @@ const OnboardingFlow = ({ onNavigate }) => {
             <div className="flex flex-col gap-6">
               
               <div className="text-left border-b pb-4 border-cream-dark/50">
-                <h2 className="font-serif text-2xl font-bold">Review your profile</h2>
+                <h2 className="font-serif text-2xl font-bold">{t('onboarding.review_profile_title')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  Ensure everything looks right before publishing your community card.
+                  {t('onboarding.step4_desc')}
                 </p>
               </div>
 
@@ -897,10 +866,10 @@ const OnboardingFlow = ({ onNavigate }) => {
                       </button>
                     </div>
                     <p className={`text-sm ${textSecondaryTheme} flex items-center justify-center sm:justify-start gap-1 mt-1`}>
-                      <User className="h-4 w-4" /> Age {age || '--'}
+                      <User className="h-4 w-4" /> {t('onboarding.age')}: {age || '--'}
                     </p>
                     <p className={`text-sm ${textSecondaryTheme} flex items-center justify-center sm:justify-start gap-1 mt-0.5`}>
-                      <MapPin className="h-4 w-4" /> Coordinates: {latitude}, {longitude}
+                      <MapPin className="h-4 w-4" /> {t('auth.location_coordinates')}: {latitude}, {longitude}
                     </p>
                   </div>
                 </div>
@@ -910,16 +879,16 @@ const OnboardingFlow = ({ onNavigate }) => {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-forest uppercase tracking-wider flex items-center gap-1.5">
                       <Bot className="h-4 w-4" />
-                      About Me
+                      {t('provider.bio')}
                     </span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-0.5 ${highContrast ? 'border border-white bg-black text-white' : 'bg-forest/10 text-forest'}`}>
-                      ✨ AI-written
+                      {t('ai.ai_written')}
                     </span>
                   </div>
                   {isGeneratingBio ? (
                     <div className="flex items-center gap-2 text-sm text-teal-600 bg-cream/10 p-4 rounded-xl border border-cream-dark/30 border-dashed animate-pulse">
                       <div className="h-4 w-4 rounded-full border-2 border-teal-600 border-t-transparent animate-spin"></div>
-                      Generating your professional bio...
+                      {t('ai.generating_bio')}
                     </div>
                   ) : (
                     <p className="text-base italic leading-relaxed text-charcoal bg-cream/10 p-4 rounded-xl border border-cream-dark/30 border-dashed">
@@ -931,7 +900,7 @@ const OnboardingFlow = ({ onNavigate }) => {
                 {/* Skills tags preview */}
                 <div className="flex flex-col gap-2 border-t pt-4 border-cream-dark/30">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-forest uppercase tracking-wider">My Skills</span>
+                    <span className="text-sm font-bold text-forest uppercase tracking-wider">{t('provider.skills')}</span>
                     <button onClick={() => setStep(2)} aria-label="Edit Skills" className="text-terracotta hover:opacity-80">
                       <Pencil className="h-4 w-4" />
                     </button>
@@ -953,22 +922,22 @@ const OnboardingFlow = ({ onNavigate }) => {
                 {/* Availability details preview */}
                 <div className="flex flex-col gap-2 border-t pt-4 border-cream-dark/30">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-forest uppercase tracking-wider">Availability</span>
+                    <span className="text-sm font-bold text-forest uppercase tracking-wider">{t('onboarding.step3_nav')}</span>
                     <button onClick={() => setStep(3)} aria-label="Edit Availability" className="text-terracotta hover:opacity-80">
                       <Pencil className="h-4 w-4" />
                     </button>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-4 text-sm mt-1">
                     <div>
-                      <span className="font-semibold block text-gray-500">Available Days:</span>
+                      <span className="font-semibold block text-gray-500">{t('onboarding.available_days')}:</span>
                       <span className="font-bold text-charcoal">{availableDays.join(', ')}</span>
                     </div>
                     <div>
-                      <span className="font-semibold block text-gray-500">Service Hours:</span>
+                      <span className="font-semibold block text-gray-500">{t('onboarding.preferred_time')}:</span>
                       <span className="font-bold text-charcoal capitalize">{timeSlots.join(', ')}</span>
                     </div>
                     <div>
-                      <span className="font-semibold block text-gray-500">Service Mode:</span>
+                      <span className="font-semibold block text-gray-500">{t('onboarding.service_delivery_mode')}:</span>
                       <span className="font-bold text-charcoal capitalize">{deliveryMode}</span>
                     </div>
                   </div>
@@ -983,13 +952,13 @@ const OnboardingFlow = ({ onNavigate }) => {
                   className={`flex items-center justify-center gap-2 px-6 ${outlineBtnTheme}`}
                 >
                   <ArrowLeft className="h-5 w-5" />
-                  Back
+                  {t('common.back')}
                 </button>
                 <button 
                   onClick={handleConfirmProfile}
                   className={`flex items-center justify-center gap-2 px-8 ${primaryBtnTheme}`}
                 >
-                  Confirm & Create Profile
+                  {t('onboarding.confirm_create_profile')}
                   <Check className="h-5 w-5" />
                 </button>
               </div>
@@ -1005,7 +974,7 @@ const OnboardingFlow = ({ onNavigate }) => {
             onClick={() => onNavigate('dashboard')}
             className={`text-sm font-semibold underline hover:no-underline transition-all ${textSecondaryTheme}`}
           >
-            Skip for now, do this later
+            {t('onboarding.skip_for_now')}
           </button>
         </div>
 

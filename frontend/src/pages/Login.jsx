@@ -1,43 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
-import { Type, Eye, Globe } from 'lucide-react';
+import { Type, Globe } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
+import { useAccessibility } from '../context/AccessibilityContext';
 
 const Login = ({ onNavigate }) => {
   const { t } = useTranslation();
   const { login, googleLogin } = useAuth();
-  
-  // Accessibility States
-  const [fontSize, setFontSize] = useState('normal'); 
-  const [highContrast, setHighContrast] = useState(false);
+  const { highContrast, setPanelOpen } = useAccessibility();
 
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // Sync Root Font Size
-  useEffect(() => {
-    const root = document.documentElement;
-    if (fontSize === 'normal') {
-      root.style.fontSize = '16px';
-    } else if (fontSize === 'large') {
-      root.style.fontSize = '20px';
-    } else if (fontSize === 'xlarge') {
-      root.style.fontSize = '24px';
-    }
-    return () => {
-      root.style.fontSize = '16px';
-    };
-  }, [fontSize]);
-
-  const cycleFontSize = () => {
-    if (fontSize === 'normal') setFontSize('large');
-    else if (fontSize === 'large') setFontSize('xlarge');
-    else setFontSize('normal');
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -47,7 +24,7 @@ const Login = ({ onNavigate }) => {
       await login(phone, password);
       onNavigate('dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Login failed. Please check details.');
+      setError(err.response?.data?.message || t('auth.login_failed'));
     } finally {
       setLoading(false);
     }
@@ -58,13 +35,13 @@ const Login = ({ onNavigate }) => {
     setLoading(true);
     try {
       if (!credentialResponse?.credential) {
-        setError('Google Sign-In failed. Please try again.');
+        setError(t('auth.google_login_failed'));
         return;
       }
       await googleLogin(credentialResponse.credential);
       onNavigate('dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Google Sign-In failed. Please try again.');
+      setError(err.response?.data?.message || t('auth.google_login_failed'));
     } finally {
       setLoading(false);
     }
@@ -102,21 +79,12 @@ const Login = ({ onNavigate }) => {
           {/* Accessibility Controls */}
           <div className="flex items-center gap-3">
             <button 
-              onClick={cycleFontSize}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle Font Size"
+              onClick={() => setPanelOpen(true)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
+              aria-label={t('accessibility.options')}
             >
               <Type className="h-4 w-4" />
-              <span>Aa</span>
-            </button>
-
-            <button 
-              onClick={() => setHighContrast(!highContrast)}
-              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white bg-white text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label="Toggle High Contrast"
-            >
-              <Eye className="h-4 w-4" />
-              <span className="hidden sm:inline">Contrast</span>
+              <span>{t('accessibility.options')}</span>
             </button>
 
             <div className="flex items-center gap-1 text-sm">
@@ -145,7 +113,7 @@ const Login = ({ onNavigate }) => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
-                placeholder="e.g. 9876543210"
+                placeholder={t('auth.phone_placeholder')}
                 className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
               />
             </div>
@@ -176,14 +144,14 @@ const Login = ({ onNavigate }) => {
 
           <div className="flex items-center gap-4 my-6">
             <div className={`flex-1 h-px ${highContrast ? 'bg-white' : 'bg-cream-dark'}`} />
-            <span className={`text-sm font-bold ${textSecondaryTheme}`}>OR</span>
+            <span className={`text-sm font-bold ${textSecondaryTheme}`}>{t('common.or')}</span>
             <div className={`flex-1 h-px ${highContrast ? 'bg-white' : 'bg-cream-dark'}`} />
           </div>
 
           <div className={`flex justify-center ${loading ? 'pointer-events-none opacity-50' : ''}`}>
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
-              onError={() => setError('Google Sign-In failed. Please try again.')}
+              onError={() => setError(t('auth.google_login_failed'))}
               useOneTap={false}
               theme={highContrast ? 'filled_black' : 'outline'}
               text="continue_with"

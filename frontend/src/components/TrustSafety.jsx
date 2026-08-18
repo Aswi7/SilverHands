@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { 
   ShieldCheck, 
   Phone, 
@@ -16,60 +17,61 @@ import {
    1. VERIFICATION BADGE COMPONENT
    ========================================================================== */
 export const VerificationBadge = ({ type, highContrast = false }) => {
+  const { t } = useTranslation();
   const [showTooltip, setShowTooltip] = useState(false);
 
   const badgeConfig = {
     phone: {
-      label: "Phone Verified",
-      tooltip: "The member's phone number has been verified via SMS one-time passcode.",
+      label: t('safety.badge.phone'),
+      tooltip: t('safety.badge.phone_tooltip'),
       icon: Phone,
       colorClass: highContrast 
         ? 'border border-white bg-black text-white' 
         : 'bg-teal-50 border border-teal-100 text-teal-800'
     },
     id: {
-      label: "ID Verified",
-      tooltip: "Government identification (Aadhaar/PAN/Voter ID) has been checked and verified.",
+      label: t('safety.badge.id'),
+      tooltip: t('safety.badge.id_tooltip'),
       icon: ShieldCheck,
       colorClass: highContrast 
         ? 'border border-white bg-black text-white' 
         : 'bg-orange-50 border border-orange-100 text-terracotta'
     },
     ID: {
-      label: "ID Verified",
-      tooltip: "Government identification (Aadhaar/PAN/Voter ID) has been checked and verified.",
+      label: t('safety.badge.id'),
+      tooltip: t('safety.badge.id_tooltip'),
       icon: ShieldCheck,
       colorClass: highContrast 
         ? 'border border-white bg-black text-white' 
         : 'bg-orange-50 border border-orange-100 text-terracotta'
     },
     community: {
-      label: "Community Endorsed",
-      tooltip: "Endorsed by at least 3 active apartment association members or local neighbors.",
+      label: t('safety.badge.community'),
+      tooltip: t('safety.badge.community_tooltip'),
       icon: Award,
       colorClass: highContrast 
         ? 'border border-white bg-black text-white' 
         : 'bg-amber-50 border border-amber-100 text-amber-900'
     },
     References: {
-      label: "References Checked",
-      tooltip: "Directly recommended and verified by past community employers and local neighbors.",
+      label: t('safety.badge.references'),
+      tooltip: t('safety.badge.references_tooltip'),
       icon: Award,
       colorClass: highContrast 
         ? 'border border-white bg-black text-white' 
         : 'bg-amber-50 border border-amber-100 text-amber-950'
     },
     Background: {
-      label: "Background Checked",
-      tooltip: "Verified clear criminal record check via independent background check providers.",
+      label: t('safety.badge.background'),
+      tooltip: t('safety.badge.background_tooltip'),
       icon: ShieldCheck,
       colorClass: highContrast 
         ? 'border border-white bg-black text-white' 
         : 'bg-teal-50 border border-teal-100 text-teal-800'
     },
     "Health Check": {
-      label: "Health Checked",
-      tooltip: "Active medical health clearance certificate verified for home care and kitchen hygiene.",
+      label: t('safety.badge.health'),
+      tooltip: t('safety.badge.health_tooltip'),
       icon: ShieldCheck,
       colorClass: highContrast 
         ? 'border border-white bg-black text-white' 
@@ -120,7 +122,7 @@ export const RatingDisplay = ({ rating, maxStars = 5 }) => {
       {starsArray.map((isFilled, idx) => (
         <Star 
           key={idx} 
-          className={`h-4.5 w-4.5 ${
+          className={`h-4 w-4 ${
             isFilled 
               ? 'fill-terracotta text-terracotta' 
               : 'text-cream-dark/50'
@@ -145,7 +147,7 @@ export const ReviewCard = ({ reviewerName, date, rating, text, highContrast = fa
           <div className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm ${
             highContrast ? 'bg-white text-black border border-black' : 'bg-forest/10 text-forest'
           }`}>
-            {reviewerName[0]}
+            {reviewerName ? reviewerName[0] : 'U'}
           </div>
           <div>
             <h4 className="font-bold text-sm text-left">{reviewerName}</h4>
@@ -161,6 +163,7 @@ export const ReviewCard = ({ reviewerName, date, rating, text, highContrast = fa
 
 // Submit Review Form
 export const SubmitReviewForm = ({ onSubmit, highContrast = false }) => {
+  const { t } = useTranslation();
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState('');
@@ -169,7 +172,7 @@ export const SubmitReviewForm = ({ onSubmit, highContrast = false }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (rating === 0) {
-      alert("Please select a star rating first.");
+      alert(t('safety.review.tap_to_rate'));
       return;
     }
     if (onSubmit) {
@@ -186,8 +189,8 @@ export const SubmitReviewForm = ({ onSubmit, highContrast = false }) => {
   if (submitted) {
     return (
       <div className="p-6 text-center rounded-2xl bg-teal-50 border border-teal-100 text-teal-900 animate-pulse">
-        <h4 className="font-serif text-lg font-bold">✨ Review Submitted!</h4>
-        <p className="text-xs mt-1">Thank you for sharing your feedback with our local community.</p>
+        <h4 className="font-serif text-lg font-bold">{t('safety.review.review_submitted')}</h4>
+        <p className="text-xs mt-1">{t('safety.review.review_thanks')}</p>
       </div>
     );
   }
@@ -196,11 +199,11 @@ export const SubmitReviewForm = ({ onSubmit, highContrast = false }) => {
     <form onSubmit={handleSubmit} className={`p-5 rounded-2xl border flex flex-col gap-4 text-left ${
       highContrast ? 'border-white bg-black text-white' : 'bg-cream/40 border-cream-dark/50 shadow-inner'
     }`}>
-      <h3 className="font-serif text-lg font-bold">Share Your Experience</h3>
+      <h3 className="font-serif text-lg font-bold">{t('safety.review.share_experience')}</h3>
       
       {/* Star Selector */}
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-bold text-charcoal-light">Tap to rate:</label>
+        <label className="text-xs font-bold text-charcoal-light">{t('safety.review.tap_to_rate')}</label>
         <div className="flex items-center gap-1.5">
           {[1, 2, 3, 4, 5].map((star) => (
             <button
@@ -221,17 +224,17 @@ export const SubmitReviewForm = ({ onSubmit, highContrast = false }) => {
               />
             </button>
           ))}
-          <span className="ml-2 text-sm font-bold">{rating ? `${rating} Stars` : 'Select stars'}</span>
+          <span className="ml-2 text-sm font-bold">{rating ? `${rating} Stars` : ''}</span>
         </div>
       </div>
 
       {/* Review Textarea */}
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="review-text" className="text-xs font-bold text-charcoal-light">Written comments:</label>
+        <label htmlFor="review-text" className="text-xs font-bold text-charcoal-light">{t('safety.review.written_comments')}</label>
         <textarea
           id="review-text"
           rows="3"
-          placeholder="Describe how the work went. Be helpful, specific, and polite."
+          placeholder={t('safety.review.comment_placeholder')}
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           className={`w-full p-3 rounded-xl border text-sm focus:outline-none transition-all ${
@@ -252,7 +255,7 @@ export const SubmitReviewForm = ({ onSubmit, highContrast = false }) => {
             : 'bg-forest hover:bg-forest-hover text-white'
         }`}
       >
-        Submit Community Review
+        {t('safety.review.submit_review')}
       </button>
     </form>
   );
@@ -263,6 +266,7 @@ export const SubmitReviewForm = ({ onSubmit, highContrast = false }) => {
    3. AI SCAM ALERT BANNER
    ========================================================================== */
 export const ScamAlertBanner = ({ message, onLearnMore, onReport, highContrast = false }) => {
+  const { t } = useTranslation();
   return (
     <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-left shadow-sm ${
       highContrast 
@@ -274,7 +278,7 @@ export const ScamAlertBanner = ({ message, onLearnMore, onReport, highContrast =
           <ShieldAlert className="h-5 w-5" />
         </div>
         <div>
-          <h4 className="text-sm font-bold">✨ AI Safety Guard Alert</h4>
+          <h4 className="text-sm font-bold">{t('safety.scam.alert_title')}</h4>
           <p className="text-xs text-charcoal-light leading-relaxed mt-0.5">{message}</p>
         </div>
       </div>
@@ -288,7 +292,7 @@ export const ScamAlertBanner = ({ message, onLearnMore, onReport, highContrast =
               : 'border border-cream-dark/50 hover:bg-cream-dark/20 text-charcoal-light'
           }`}
         >
-          Learn why
+          {t('safety.scam.learn_why')}
         </button>
         <button
           onClick={onReport}
@@ -298,7 +302,7 @@ export const ScamAlertBanner = ({ message, onLearnMore, onReport, highContrast =
               : 'bg-terracotta hover:bg-terracotta-hover text-white'
           }`}
         >
-          Report conversation
+          {t('safety.scam.report_conv')}
         </button>
       </div>
     </div>
@@ -310,17 +314,18 @@ export const ScamAlertBanner = ({ message, onLearnMore, onReport, highContrast =
    4. REPORT OR BLOCK MODAL
    ========================================================================== */
 export const ReportBlockModal = ({ isOpen, onClose, onSubmit, targetName = "this user", highContrast = false }) => {
+  const { t } = useTranslation();
   const [reason, setReason] = useState('spam');
   const [details, setDetails] = useState('');
 
   if (!isOpen) return null;
 
   const reasons = [
-    { value: 'spam', label: 'Spam or unsolicited advertising' },
-    { value: 'inappropriate', label: 'Harassment, hate speech, or inappropriate language' },
-    { value: 'suspicious', label: 'Suspicious payment/advance money requests' },
-    { value: 'impersonation', label: 'Impersonation or false profile details' },
-    { value: 'other', label: 'Other violation' }
+    { value: 'spam', label: t('safety.report.reason_spam') },
+    { value: 'inappropriate', label: t('safety.report.reason_harassment') },
+    { value: 'suspicious', label: t('safety.report.reason_suspicious') },
+    { value: 'impersonation', label: t('safety.report.reason_impersonation') },
+    { value: 'other', label: t('safety.report.reason_other') }
   ];
 
   const handleSubmit = (e) => {
@@ -340,12 +345,12 @@ export const ReportBlockModal = ({ isOpen, onClose, onSubmit, targetName = "this
         <div className="flex items-center justify-between border-b pb-3 mb-4">
           <h3 className="font-serif text-xl font-bold flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-terracotta" />
-            Report or Block Account
+            {t('safety.report.modal_title')}
           </h3>
           <button 
             onClick={onClose}
             className="p-1 rounded-full hover:bg-cream-dark/30 transition-colors"
-            aria-label="Close modal"
+            aria-label={t('common.close')}
           >
             <X className="h-5 w-5" />
           </button>
@@ -354,12 +359,12 @@ export const ReportBlockModal = ({ isOpen, onClose, onSubmit, targetName = "this
         {/* Content */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4 text-left">
           <p className="text-sm leading-relaxed text-charcoal-light">
-            You are filing a secure community report against <strong>{targetName}</strong>. If block is selected, this user will no longer be able to message you or view your postings.
+            {t('safety.report.modal_desc', { targetName })}
           </p>
 
           {/* Radio list */}
           <div className="flex flex-col gap-2.5">
-            <label className="text-xs font-bold text-charcoal-light">Select reason:</label>
+            <label className="text-xs font-bold text-charcoal-light">{t('safety.report.select_reason')}</label>
             {reasons.map((r) => (
               <label 
                 key={r.value} 
@@ -384,11 +389,11 @@ export const ReportBlockModal = ({ isOpen, onClose, onSubmit, targetName = "this
 
           {/* Details input */}
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="report-details" className="text-xs font-bold text-charcoal-light">Additional details (Optional):</label>
+            <label htmlFor="report-details" className="text-xs font-bold text-charcoal-light">{t('safety.report.additional_details')}</label>
             <textarea
               id="report-details"
               rows="2"
-              placeholder="Provide chat history details, screenshot context, or specifics of what happened..."
+              placeholder={t('safety.report.details_placeholder')}
               value={details}
               onChange={(e) => setDetails(e.target.value)}
               className={`w-full p-3 rounded-xl border text-sm focus:outline-none transition-all ${
@@ -408,7 +413,7 @@ export const ReportBlockModal = ({ isOpen, onClose, onSubmit, targetName = "this
                 highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'
               }`}
             >
-              Cancel
+              {t('safety.report.cancel')}
             </button>
             <button
               type="submit"
@@ -418,7 +423,7 @@ export const ReportBlockModal = ({ isOpen, onClose, onSubmit, targetName = "this
                   : 'bg-terracotta hover:bg-terracotta-hover text-white'
               }`}
             >
-              Submit Report & Block User
+              {t('safety.report.submit_block')}
             </button>
           </div>
         </form>
@@ -432,25 +437,26 @@ export const ReportBlockModal = ({ isOpen, onClose, onSubmit, targetName = "this
    5. SAFETY TIPS CARD
    ========================================================================== */
 export const SafetyTipsCard = ({ highContrast = false }) => {
+  const { t } = useTranslation();
   const [currentTip, setCurrentTip] = useState(0);
   const [dismissed, setDismissed] = useState(false);
 
   const safetyTips = [
     {
-      title: "Meet in Public First",
-      text: "When arranging the first job matching consultation, meet in a public location like a neighborhood cafe or apartment clubhouse."
+      title: t('safety.tips.tip1_title'),
+      text: t('safety.tips.tip1_text')
     },
     {
-      title: "No Advance Payments",
-      text: "Never send payments or advance cash deposits before any work starts. Always inspect completed tasks before releasing gig earnings."
+      title: t('safety.tips.tip2_title'),
+      text: t('safety.tips.tip2_text')
     },
     {
-      title: "Share Job Location",
-      text: "Always inform a family member, neighbor, or friend about the gig location and expected timings before starting home visits."
+      title: t('safety.tips.tip3_title'),
+      text: t('safety.tips.tip3_text')
     },
     {
-      title: "Keep Chats in App",
-      text: "Keep messages inside SilverHands. This allows our AI safety tools to protect you from payment scams and verify credentials."
+      title: t('safety.tips.tip4_title'),
+      text: t('safety.tips.tip4_text')
     }
   ];
 
@@ -482,9 +488,9 @@ export const SafetyTipsCard = ({ highContrast = false }) => {
       {/* Header */}
       <div className="flex items-center gap-2">
         <div className={`p-1.5 rounded-lg ${highContrast ? 'bg-white text-black' : 'bg-forest/10 text-forest'}`}>
-          <Info className="h-4.5 w-4.5" />
+          <Info className="h-4 w-4" />
         </div>
-        <span className="text-xs font-bold uppercase tracking-wider text-forest">Safety Center</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-forest">{t('safety.tips.center_title')}</span>
       </div>
 
       {/* Tip Content */}
@@ -498,7 +504,7 @@ export const SafetyTipsCard = ({ highContrast = false }) => {
       {/* Navigation Controls */}
       <div className="flex items-center justify-between border-t border-cream-dark/20 pt-3 mt-1">
         <span className="text-[10px] font-bold text-charcoal-light">
-          Tip {currentTip + 1} of {safetyTips.length}
+          {t('safety.tips.tip_progress', { current: currentTip + 1, total: safetyTips.length })}
         </span>
         
         <div className="flex gap-1.5">

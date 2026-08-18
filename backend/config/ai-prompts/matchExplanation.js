@@ -11,7 +11,11 @@ const schema = {
   required: ["explanation"]
 };
 
-const getPrompt = (inputData) => `
+const getPrompt = (inputData) => {
+  const langMap = { hi: 'Hindi', ta: 'Tamil', en: 'English' };
+  const targetLang = langMap[inputData.language] || 'English';
+
+  return `
 You are an expert matchmaking assistant for SilverHands.
 Explain to a user why they matched with a specific opportunity/provider using the following breakdown.
 
@@ -24,6 +28,8 @@ Rules:
 1. Write EXACTLY ONE short, friendly, human-readable sentence.
 2. Address the user directly (e.g., "This is a great match because...").
 3. Synthesize the metrics into natural language (don't just list the stats robotically).
+4. CRITICAL: Generate the explanation sentence in ${targetLang}.
 `;
+};
 
 module.exports = { schema, getPrompt };
