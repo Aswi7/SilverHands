@@ -25,7 +25,8 @@ import {
   Moon,
   Laptop,
   Briefcase,
-  Globe
+  Globe,
+  LogOut
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import api from '../services/api';
@@ -34,7 +35,7 @@ import { useAccessibility } from '../context/AccessibilityContext';
 
 const OnboardingFlow = ({ onNavigate }) => {
   const { t } = useTranslation();
-  const { user, updateUserInState } = useAuth();
+  const { user, logout, updateUserInState } = useAuth();
   const { speechLocale } = useAccessibility();
 
   // Accessibility States
@@ -415,6 +416,19 @@ const OnboardingFlow = ({ onNavigate }) => {
               <Globe className="h-4 w-4 text-terracotta" />
               <LanguageSwitcher />
             </div>
+
+            <button 
+              onClick={async () => {
+                if (logout) await logout();
+                onNavigate('landing');
+              }}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl border text-xs font-bold transition-all ${
+                highContrast ? 'border-white hover:bg-white hover:text-black bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/30 text-charcoal'
+              }`}
+            >
+              <LogOut className="h-3.5 w-3.5 text-red-500" />
+              <span>Exit / Logout</span>
+            </button>
           </div>
 
         </div>

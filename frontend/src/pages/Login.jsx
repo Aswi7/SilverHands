@@ -18,6 +18,10 @@ const Login = ({ onNavigate }) => {
   const [step, setStep] = useState('phone');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState(() => {
+    const providerState = window.history.state || {};
+    return providerState.role || 'provider';
+  });
 
   // Sync Root Font Size
   useEffect(() => {
@@ -55,8 +59,8 @@ const Login = ({ onNavigate }) => {
         await verifyOtp({ 
           phone, 
           otp,
-          role: providerState.role || 'provider',
-          name: providerState.name,
+          role: role,
+          name: providerState.name || 'User',
           age: providerState.age,
           category: providerState.category
         });
@@ -152,6 +156,35 @@ const Login = ({ onNavigate }) => {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5 text-left">
             
+            {/* Role Selection (Tappable Cards) */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-bold">Select Role / भूमिका चुनें</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole('provider')}
+                  className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center ${
+                    role === 'provider'
+                      ? (highContrast ? 'border-yellow-400 bg-white/10' : 'border-terracotta bg-orange-50/50 text-terracotta')
+                      : (highContrast ? 'border-white bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/20')
+                  }`}
+                >
+                  <span className="font-bold text-sm">Earn / कमाएं</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('customer')}
+                  className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center ${
+                    role === 'customer'
+                      ? (highContrast ? 'border-yellow-400 bg-white/10' : 'border-forest bg-teal-50/50 text-forest')
+                      : (highContrast ? 'border-white bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/20')
+                  }`}
+                >
+                  <span className="font-bold text-sm">Hire / काम दें</span>
+                </button>
+              </div>
+            </div>
+
             {/* Phone */}
             <div className="flex flex-col gap-2">
               <label htmlFor="phone" className="text-sm font-bold">{t('auth.phone')}</label>
