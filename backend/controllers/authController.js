@@ -10,7 +10,9 @@ const formatUserResponse = (user) => ({
   name: user.name,
   phone: user.phone,
   email: user.email,
-  role: user.role,
+  role: user.role === 'employer' ? 'customer' : user.role,
+  age: user.age,
+  category: user.category,
   preferredLanguage: user.preferredLanguage,
   location: user.location,
   skills: user.skills,
@@ -37,7 +39,7 @@ const generateToken = (res, userId) => {
 // @access  Public
 const registerUser = async (req, res) => {
   try {
-    const { name, phone, email, password, role, preferredLanguage, location } = req.body;
+    const { name, phone, email, password, role, age, category, preferredLanguage, location } = req.body;
 
     if (!phone || !password || !location || location.longitude === undefined || location.latitude === undefined) {
       return res.status(400).json({ message: 'Phone, password, and location are required for signup' });
@@ -57,6 +59,9 @@ const registerUser = async (req, res) => {
       }
     }
 
+    // Normalize role: map employer to customer
+    const normalizedRole = (role === 'employer' || role === 'customer') ? 'customer' : 'provider';
+
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -65,14 +70,16 @@ const registerUser = async (req, res) => {
       name,
       phone,
       password: hashedPassword,
-      role,
+      role: normalizedRole,
+      age: age ? parseInt(age, 10) : undefined,
+      category,
       preferredLanguage: preferredLanguage || 'en',
       location: {
         type: 'Point',
         coordinates: [location.longitude, location.latitude]
       },
       // Customers don't need onboarding, providers do
-      isOnboarded: role === 'customer' ? true : false
+      isOnboarded: normalizedRole === 'customer' ? true : false
     };
 
     if (normalizedEmail) {
@@ -82,7 +89,7 @@ const registerUser = async (req, res) => {
     // Create user
     const user = await User.create(userData);
 
-      if (user) {
+    if (user) {
       generateToken(res, user._id);
       res.status(201).json(formatUserResponse(user));
     } else {
@@ -193,18 +200,19 @@ const googleLogin = async (req, res) => {
       }
 
       // Create new account with selected role
+      const normalizedRole = (role === 'employer' || role === 'customer') ? 'customer' : 'provider';
       user = await User.create({
         googleId,
         email: normalizedEmail,
         name: name || 'User',
         phone: `GOOGLE_${googleId.substring(0, 10)}`, // Temporary phone for Google users
-        role: role || 'provider',
+        role: normalizedRole,
         preferredLanguage: 'en',
         location: {
           type: 'Point',
           coordinates: [77.2090, 28.6139] // Default to Delhi
         },
-        isOnboarded: false // New users need onboarding
+        isOnboarded: normalizedRole === 'customer' ? true : false
       });
     } else {
       // Existing user
@@ -256,18 +264,18 @@ const verifyOtp = async (req, res) => {
       // Returning user - don't need to update onboarding status
       generateToken(res, user._id);
     } else {
-      // New user - create with isOnboarded = false so they go through onboarding
+      const normalizedRole = (role === 'employer' || role === 'customer') ? 'customer' : 'provider';
       user = await User.create({
         phone,
-        role: role || 'provider',
+        role: normalizedRole,
         name: name || 'User',
-        age,
+        age: age ? parseInt(age, 10) : undefined,
         category,
         location: {
           type: 'Point',
           coordinates: [77.59, 12.97] // mock location
         },
-        isOnboarded: false // New users must complete onboarding
+        isOnboarded: normalizedRole === 'customer' ? true : false
       });
       generateToken(res, user._id);
     }
