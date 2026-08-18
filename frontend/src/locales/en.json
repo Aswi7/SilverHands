@@ -1,86 +1,101 @@
 {
-  "welcome": "Welcome back, {{name}}",
-  "safety": {
-    "title": "Safety Center",
-    "tip_counter": "Tip {{current}} of {{total}}",
-    "tip1_title": "Meet in Public First",
-    "tip1_text": "When arranging the first job matching consultation, meet in a public location like a neighborhood cafe or apartment clubhouse.",
-    "tip2_title": "No Advance Payments",
-    "tip2_text": "Never send payments or advance cash deposits before any work starts. Always inspect completed tasks before releasing gig earnings.",
-    "tip3_title": "Share Job Location",
-    "tip3_text": "Always inform a family member, neighbor, or friend about the gig location and expected timings before starting home visits.",
-    "tip4_title": "Keep Chats in App",
-    "tip4_text": "Keep messages inside SilverHands. This allows our AI safety tools to protect you from payment scams and verify credentials."
+  "common": {
+    "close": "Close",
+    "or": "OR",
+    "optional": "Optional",
+    "loading_session": "Loading SilverHands session...",
+    "back": "Back",
+    "next": "Next",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "submit": "Submit",
+    "confirm": "Confirm",
+    "retry": "Retry",
+    "view_all": "View All",
+    "details": "Details",
+    "active": "Active",
+    "open": "Open",
+    "in_progress": "In Progress",
+    "filled": "Filled",
+    "completed": "Completed",
+    "hours": "Hours",
+    "day": "Day",
+    "package": "Package",
+    "per_day": "/ Day",
+    "per_package": "/ Package"
   },
-  "forecast": {
-    "coming_up": "is coming up!",
-    "ai_badge": "AI Forecast",
-    "disclaimer": "*AI estimate based on historical seasonal patterns",
-    "prepare_btn": "Prepare My Listing",
-    "f1": {
-      "eventName": "🪔 Diwali",
-      "insight": "Sweets & Snacks demand is predicted to rise 40% in your area."
-    },
-    "f2": {
-      "eventName": "💍 Wedding Season",
-      "insight": "Custom alterations and traditional crafts usually see a 35% spike."
-    },
-    "f3": {
-      "eventName": "🎒 Back to School",
-      "insight": "Tutoring requests for Mathematics and Science jump by 50%."
-    },
-    "f4": {
-      "eventName": "☀️ Summer Holidays",
-      "insight": "Childcare and summer camp cooking activities rise by 25%."
-    },
-    "f5": {
-      "eventName": "🌧️ Monsoon Prep",
-      "insight": "Home repairs and errand running demand increases by 30% due to rain."
+  "languages": {
+    "en": "English",
+    "hi": "हिन्दी (Hindi)",
+    "ta": "தமிழ் (Tamil)"
+  },
+  "nav": {
+    "short": {
+      "matches": "Matches",
+      "forecast": "Forecast",
+      "applications": "Applications",
+      "earnings": "Earnings",
+      "messages": "Messages",
+      "profile": "Profile",
+      "post": "Post",
+      "postings": "Postings",
+      "safety": "Safety",
+      "settings": "Settings"
     }
   },
-  "onboarding": {
-    "title": "Tell us about yourself",
-    "subtitle": "Please fill in your basic details. This helps local neighbors find you.",
-    "full_name": "Full Name",
-    "age": "Age (in years)",
-    "phone": "Phone Number (for verification)",
-    "language": "Preferred Language",
-    "city_location": "City / Location",
-    "city_placeholder": "e.g. Delhi, Mumbai",
-    "city_desc": "Enter your city name. We will use this to show jobs and opportunities nearby.",
-    "next_skills": "Next: Tell Us What You Can Do",
-    "step2_title": "What are you good at?",
-    "step2_desc": "Talk or type naturally. Our AI will build your matching skills list.",
-    "ai_greeting": "Namaste! Tell me about the skills you want to offer. It can be anything — from home cooking, sewing, knitting, gardening, to babysitting or school homework tutoring.",
-    "describe_skills": "Describe your skills here",
-    "skills_placeholder": "e.g. I am great at baking cookies and teaching traditional stitching...",
-    "listening": "Listening (Speaking simulation active)...",
-    "skills_profile_list": "Your Skills Profile List",
-    "ai_parsing": "AI is parsing your matching skills tags...",
-    "no_skills_extracted": "No skills extracted yet. Type above or tap the microphone.",
-    "manual_skill_placeholder": "Add skill manually (e.g. Baby Sitting)",
-    "add_button": "Add",
-    "back": "Back",
-    "next_availability": "Next: Availability"
+  "accessibility": {
+    "easy_read_assist": "Easy Read Assist",
+    "drawer_description": "Adjust styling and features below to make SilverHands easier to read, hear, and navigate.",
+    "text_size": "Text Size",
+    "normal": "Normal",
+    "large": "Large",
+    "huge": "Huge",
+    "contrast": "Contrast",
+    "contrast_colors": "Contrast Colors",
+    "standard_colors": "Standard Colors",
+    "high_contrast": "High Contrast",
+    "voice_assist": "Voice Assist (Read Aloud)",
+    "voice_off": "Voice Off",
+    "voice_on": "Voice On",
+    "speaker_hint": "Speaker icons will appear next to headings. Click them to hear text read aloud.",
+    "language_selector": "Language",
+    "saved_hint": "Settings are saved locally and will apply automatically on your next visit.",
+    "stop_speaking": "Click to stop speaking",
+    "read_aloud": "Click to read aloud",
+    "stop_reading": "Stop reading",
+    "read_text_aloud": "Read text aloud",
+    "toggle_font_size": "Toggle font size",
+    "toggle_high_contrast": "Toggle high contrast",
+    "options": "Options"
   },
-  "providerEntry": {
-    "name": "What is your full name?",
-    "name_heading": "Almost there!",
-    "age": "How old are you?",
-    "household_question": "Do you manage your household — cooking, childcare, or similar?",
-    "yes": "Yes",
-    "no": "No",
-    "reject_msg": "This platform is designed for specific providers. Please consider applying as an Employer instead.",
-    "next": "Next",
-    "go_employer": "Go to Employer Signup"
+  "ai": {
+    "generating_match_explanation": "Generating match explanation...",
+    "ai_written": "✨ AI-written",
+    "ai_tag": "AI Forecast",
+    "generating_bio": "Generating your professional bio...",
+    "extracting_skills": "Extracting skills...",
+    "extract_skills_btn": "Extract Skills",
+    "extracted_review": "Extracted Skills Review",
+    "ai_analyzing": "Analyzing...",
+    "ai_searching": "AI is finding matches..."
   },
+  "welcome": "Welcome back, {{name}}",
   "auth": {
-    "select_role": "Select Role",
-    "role_earn": "Earn / Provide Help",
-    "role_hire": "Hire / Request Help",
     "login_title": "Login to SilverHands",
     "signup_title": "Create an Account",
     "phone": "Phone Number",
+    "email": "Email",
+    "phone_placeholder": "e.g. 9876543210",
+    "name_placeholder": "e.g. Asha Devi",
+    "login_failed": "Login failed. Please check your details.",
+    "google_login_failed": "Google Sign-In failed. Please try again.",
+    "geolocation_unsupported": "Geolocation is not supported by your browser.",
+    "coordinates_required": "Location coordinates are required.",
+    "registration_failed": "Registration failed. Please try again.",
+    "location_coordinates": "Location Coordinates",
+    "detecting_coordinates": "Detecting coordinates...",
     "password": "Password",
     "name": "Full Name",
     "role": "I want to offer/request help as a:",
@@ -94,7 +109,15 @@
     "signup_btn": "Sign Up",
     "logout_btn": "Log Out",
     "no_account": "Don't have an account? Sign Up",
-    "have_account": "Already have an account? Log In"
+    "have_account": "Already have an account? Log In",
+    "select_role": "Select Role",
+    "role_earn": "Earn / Provide Help",
+    "role_hire": "Hire / Request Help",
+    "city_location": "City / Location",
+    "otp_label": "OTP",
+    "otp_placeholder": "Enter OTP",
+    "verify_otp_btn": "Verify OTP & Login",
+    "get_otp_btn": "Get OTP"
   },
   "roles": {
     "provider": "Provider (Senior Citizen / Homemaker)",
@@ -113,7 +136,14 @@
       "companionship": "Companionship & Conversation",
       "cooking": "Cooking & Meal Preparation",
       "gardening": "Gardening & Plant Care",
-      "other": "Other Assistance"
+      "other": "Other Assistance",
+      "tailoring": "Tailoring & Alterations",
+      "traditional_crafts": "Traditional Crafts",
+      "caregiving": "Caregiving & Childcare",
+      "mentoring": "Mentoring & Guidance",
+      "consulting": "Consulting",
+      "home_services": "Home Repair & Maintenance",
+      "tech_support": "Tech Support & Setup"
     }
   },
   "provider": {
@@ -123,20 +153,120 @@
     "skills": "My Skills",
     "bio": "Bio / About Me",
     "km_away": "{{distance}} km away",
-    "meters_away": "{{distance}} meters away"
+    "meters_away": "{{distance}} meters away",
+    "logout": "Log Out"
   },
   "landing": {
     "hero_title": "Turn your skills and experience into local earnings.",
     "hero_desc": "SilverHands is a secure community platform that empowers senior citizens and homemakers to offer services like home cooking, gardening, child tutoring, and tech help to trusted neighbors nearby. Built with safety and dignity at its heart.",
     "earn_btn": "I want to earn",
     "hire_btn": "I want to hire",
+    "nav_get_started": "Get Started",
     "verified_members": "⭐ 500+ verified members earning in your neighborhood.",
-    "how_it_works_title": "Simple steps to start",
+    "how_it_works_title": "How it works",
+    "how_it_works_desc": "We have simplified every step of the process to ensure seniors can navigate the platform with ease.",
     "seniors_title": "Senior Citizens",
     "seniors_desc": "Supplement your pension, share a lifetime of practical wisdom, and stay active in your local neighborhood on your own flexible schedule.",
     "homemakers_title": "Homemakers",
     "homemakers_desc": "Earn independent income using your daily skills like custom culinary baking, hand-crafts sewing, child-minding, and home care.",
-    "learn_more": "Learn More"
+    "learn_more": "Learn More",
+    "community_support_title": "Community Support",
+    "community_support_desc": "Connecting decades of home wisdom and practical skills directly with nearby neighbors who need them.",
+    "step1_title": "Sign Up",
+    "step1_desc": "Register securely with just your phone number. No complex accounts needed.",
+    "step2_title": "AI Builds Profile",
+    "step2_desc": "Simply chat with our friendly AI assistant to list your skills and services automatically.",
+    "step3_title": "Get Matched",
+    "step3_desc": "Receive service requests from verified locals within walking distance.",
+    "step4_title": "Start Earning",
+    "step4_desc": "Deliver help locally, receive praise, and get secure digital payments.",
+    "designed_for_community": "For Everyone",
+    "id_verified_title": "ID Verified",
+    "id_verified_desc": "Government check validation",
+    "community_endorsed_title": "Community Endorsed",
+    "community_endorsed_desc": "Neighborhood verified reviews",
+    "secure_payments_title": "Secure Payments",
+    "secure_payments_desc": "Bank direct transactions",
+    "ai_scam_title": "AI Scam Detection",
+    "ai_scam_desc": "Active automated shielding",
+    "empowered_voices": "Empowered Voices",
+    "platform_links": "Platform Links",
+    "support_contact": "Support & Contact",
+    "our_community": "Our Community",
+    "copyright": "SilverHands Platform. All rights reserved. Made with love for seniors and homemakers.",
+    "provider_account_notice": "You are signed in with a customer account. Sign out first to create or use a provider account.",
+    "create_provider_account": "Sign out and create a provider account",
+    "customer_account_notice": "You are signed in with a provider account. Sign out first to create or use a customer account.",
+    "create_customer_account": "Sign out and create a customer account",
+    "nav_sign_in": "Sign In",
+    "nav_how_it_works": "How it works",
+    "nav_community": "For Everyone",
+    "nav_safety": "Safety"
+  },
+  "onboarding": {
+    "step1_title": "Basic Info",
+    "step1_desc": "Please fill in your basic details. This helps local neighbors find you.",
+    "step2_title": "Skills Chat",
+    "step2_desc": "Talk or type naturally. Our AI will build your matching skills list.",
+    "step3_title": "Availability",
+    "step3_desc": "Choose your active service slots. You can modify these anytime.",
+    "step4_title": "Review Profile",
+    "step4_desc": "Ensure everything looks right before publishing your community card.",
+    "step1_nav": "Basic Info",
+    "step2_nav": "Skills Chat",
+    "step3_nav": "Availability",
+    "step4_nav": "Review Profile",
+    "tell_about_yourself": "Tell us about yourself",
+    "age": "Age (in years)",
+    "age_placeholder": "e.g. 62",
+    "my_location": "My Location",
+    "use_current_location": "Use My Current Location",
+    "next_skills": "Next: Tell Us What You Can Do",
+    "what_are_you_good_at": "What are you good at?",
+    "ai_bot_greeting": "\"Namaste! Tell me about the skills you want to offer. It can be anything — from home cooking, sewing, knitting, gardening, to babysitting or school homework tutoring.\"",
+    "describe_skills_placeholder": "e.g. I am great at baking cookies and teaching traditional stitching...",
+    "listening_active": "🎤 Listening (Speaking simulation active)...",
+    "your_skills_profile": "Your Skills Profile List",
+    "ai_parsing_skills": "✨ AI is parsing your matching skills tags...",
+    "no_skills_yet": "No skills extracted yet. Type above or tap the microphone.",
+    "add_skill_manually": "Add skill manually",
+    "manual_skill_placeholder": "Add skill manually (e.g. Baby Sitting)",
+    "add_btn": "Add",
+    "next_availability": "Next: Availability",
+    "when_are_you_free": "When are you free?",
+    "available_days": "Available Days of the Week",
+    "preferred_time": "Preferred Time of Day",
+    "morning": "Morning",
+    "morning_time": "8:00 AM - 12:00 PM",
+    "afternoon": "Afternoon",
+    "afternoon_time": "12:00 PM - 4:00 PM",
+    "evening": "Evening",
+    "evening_time": "4:00 PM - 8:00 PM",
+    "service_delivery_mode": "Service Delivery Mode",
+    "both": "Both In Person & Online",
+    "online_only": "Online only",
+    "offline_only": "In Person only",
+    "next_review": "Next: Review Profile",
+    "review_profile_title": "Review your profile",
+    "confirm_create_profile": "Confirm & Create Profile",
+    "skip_for_now": "Skip for now, do this later",
+    "title": "Tell us about yourself",
+    "subtitle": "Please fill in your basic details. This helps local neighbors find you.",
+    "full_name": "Full Name",
+    "phone": "Phone Number (for verification)",
+    "language": "Preferred Language",
+    "city_location": "City / Location",
+    "city_placeholder": "e.g. Delhi, Mumbai",
+    "city_desc": "Enter your city name. We will use this to show jobs and opportunities nearby.",
+    "ai_greeting": "Namaste! Tell me about the skills you want to offer. It can be anything — from home cooking, sewing, knitting, gardening, to babysitting or school homework tutoring.",
+    "describe_skills": "Describe your skills here",
+    "skills_placeholder": "e.g. I am great at baking cookies and teaching traditional stitching...",
+    "listening": "Listening (Speaking simulation active)...",
+    "skills_profile_list": "Your Skills Profile List",
+    "ai_parsing": "AI is parsing your matching skills tags...",
+    "no_skills_extracted": "No skills extracted yet. Type above or tap the microphone.",
+    "add_button": "Add",
+    "back": "Back"
   },
   "dashboard": {
     "provider": {
@@ -145,6 +275,7 @@
       "logout": "Log Out",
       "tabs": {
         "matches": "Matches",
+        "forecast": "Forecasts",
         "applications": "Applications",
         "earnings": "Earnings",
         "messages": "Messages",
@@ -176,6 +307,7 @@
       "applications": {
         "title": "Applications",
         "desc": "Track the status of gigs you've applied for.",
+        "employer": "Employer",
         "applied": "Applied",
         "contacted": "Contacted",
         "confirmed": "Confirmed"
@@ -185,16 +317,47 @@
         "desc": "Track your payouts and completed jobs.",
         "this_month": "This Month",
         "total_hours": "Total Hours",
-        "services_provided": "Services Provided"
+        "services_provided": "Services Provided",
+        "monthly_chart": "Monthly Earnings Chart",
+        "direct_bank_complete": "✓ Direct bank deposits complete",
+        "hours_suffix": "Hours",
+        "households_suffix": "Local Households",
+        "deposits_complete": "Direct bank deposits complete",
+        "chart_title": "Monthly Earnings Chart"
       },
       "messages": {
         "title": "Messages",
         "desc": "Chat securely with potential employers."
+      },
+      "profile": {
+        "my_profile_title": "My Profile",
+        "my_profile_desc": "View your details and update your AI-extracted skills.",
+        "my_bio": "My Bio",
+        "published_services": "My Published Services",
+        "no_published_services": "No published service listings yet. Use the Forecast tab to prepare one!",
+        "active_badge": "Active",
+        "update_skills_ai": "Update Skills via AI",
+        "tell_experience_words": "Tell us about your experience in your own words, and our AI will automatically map your skills.",
+        "dictate_voice": "Dictate with voice",
+        "extract_skills": "Extract Skills",
+        "extracted_review": "Extracted Skills Review",
+        "confirm_low_confidence": "Not sure about this one — please confirm"
+      },
+      "settings": {
+        "title": "Account Settings",
+        "desc": "Manage preferences, privacy settings, and bank details.",
+        "preferences": "Preferences",
+        "email_notifs": "Email notifications",
+        "sms_alerts": "SMS Alert matches",
+        "need_help": "Need Help?",
+        "helpline": "Contact SilverHands dedicated support helpline at: +91 99999-88888"
+      },
+      "notifications": {
+        "title": "Notifications"
       }
     },
     "employer": {
       "greeting": "Welcome back, {{name}}",
-      "speaking_greeting": "Good morning, {{name}}. Welcome back to your SilverHands Employer Dashboard.",
       "tabs": {
         "post": "Post Request",
         "postings": "My Postings",
@@ -252,14 +415,208 @@
       "settings": {
         "title": "Account Settings",
         "desc": "Manage preferences, billing, and help support contacts.",
-        "helpline": "Helpline assistance",
+        "helpline": "For employer billing, corporate sponsorships, and verified listing checks, please call: +91 99999-77777",
         "helpline_desc": "For employer billing, corporate sponsorships, and verified listing checks, please call:"
       },
       "messages": {
         "title": "Candidate Messages",
         "desc": "Communicate securely with senior citizens and homemakers matching your gigs."
-      }
+      },
+      "safety": {
+        "title": "Trust & Safety Center",
+        "desc": "SilverHands leverages smart local validation and AI guard tools to keep our community safe. Review live alerts, report accounts, or write neighborhood endorsements below.",
+        "demo_title": "Demo: AI scam detection in action",
+        "demo_desc": "Below is a preview simulation of a secure message thread where our AI scanner flagged a suspicious message:",
+        "chat_sim_header": "💬 Secure chat with candidate: Ramesh S.",
+        "active_match_badge": "Active Match",
+        "endorsements_title": "Recent Neighborhood Endorsements",
+        "guarantee_title": "Our Safety Guarantee",
+        "guarantee_item1": "✓ All providers undergo digital identity verification before matching.",
+        "guarantee_item2": "✓ Dynamic location search prevents matching with distant unknown accounts.",
+        "guarantee_item3": "✓ Endorsements can only be submitted by verified residents inside the same block group."
+      },
+      "speaking_greeting": "Good morning, {{name}}. Welcome back to your SilverHands Employer Dashboard."
     }
+  },
+  "forecast": {
+    "title": "Opportunity Forecast",
+    "desc": "Plan ahead and prepare your services.",
+    "banner_title": "is coming up!",
+    "banner_badge": "AI Forecast",
+    "banner_estimate": "*AI estimate based on historical seasonal patterns",
+    "prepare_my_listing": "Prepare My Listing",
+    "relevant_to_you": "Relevant to you",
+    "demand": "Demand",
+    "events": {
+      "diwali": {
+        "name": "🪔 Diwali",
+        "date_range": "Oct 20 to Nov 5",
+        "insight": "Sweets & Snacks demand is predicted to rise 40% in your area.",
+        "suggestion_title": "Homemade Diwali Sweets & Snacks"
+      },
+      "wedding": {
+        "name": "💍 Wedding Season",
+        "date_range": "Nov 15 to Dec 15",
+        "insight": "Custom alterations and traditional crafts usually see a 35% spike.",
+        "suggestion_title": "Bridal & Wedding Guest Alterations"
+      },
+      "back_to_school": {
+        "name": "🎒 Back to School",
+        "date_range": "June 1 to June 30",
+        "insight": "Tutoring requests for Mathematics and Science jump by 50%.",
+        "suggestion_title": "Primary School Math & Science Tutoring"
+      },
+      "summer": {
+        "name": "☀️ Summer Holidays",
+        "date_range": "April 15 to May 31",
+        "insight": "Childcare and summer camp cooking activities rise by 25%.",
+        "suggestion_title": "Summer Vacation Childcare & Activities"
+      },
+      "monsoon": {
+        "name": "🌧️ Monsoon Prep",
+        "date_range": "July 1 to Aug 15",
+        "insight": "Home repairs and errand running demand increases by 30% due to rain.",
+        "suggestion_title": "Monsoon Errand & Delivery Support"
+      }
+    },
+    "create_listing_title": "Create Service Listing",
+    "create_listing_desc": "Publish your offering to meet the upcoming demand.",
+    "service_title": "Service Title",
+    "rate_structure": "Rate Structure",
+    "one_day_rate": "One-Day Rate",
+    "package_rate": "Package Rate",
+    "amount_per_day": "Amount (per day)",
+    "total_package_amount": "Total Package Amount",
+    "package_duration": "Package Duration",
+    "publishing": "Publishing...",
+    "publish_listing": "Publish Listing",
+    "coming_up": "is coming up!",
+    "ai_badge": "AI Forecast",
+    "disclaimer": "*AI estimate based on historical seasonal patterns",
+    "prepare_btn": "Prepare My Listing",
+    "f1": {
+      "eventName": "🪔 Diwali",
+      "insight": "Sweets & Snacks demand is predicted to rise 40% in your area."
+    },
+    "f2": {
+      "eventName": "💍 Wedding Season",
+      "insight": "Custom alterations and traditional crafts usually see a 35% spike."
+    },
+    "f3": {
+      "eventName": "🎒 Back to School",
+      "insight": "Tutoring requests for Mathematics and Science jump by 50%."
+    },
+    "f4": {
+      "eventName": "☀️ Summer Holidays",
+      "insight": "Childcare and summer camp cooking activities rise by 25%."
+    },
+    "f5": {
+      "eventName": "🌧️ Monsoon Prep",
+      "insight": "Home repairs and errand running demand increases by 30% due to rain."
+    },
+    "page_title": "Opportunity Forecast",
+    "page_subtitle": "Plan ahead and prepare your services.",
+    "relevant_badge": "Relevant to you",
+    "relevant_categories": "Relevant Categories",
+    "demand_label": "Demand",
+    "prefill_desc": "I am offering {{title}} services for the upcoming {{event}}."
+  },
+  "chat": {
+    "title": "Secure Messages",
+    "search_placeholder": "Search chats...",
+    "clear": "Clear",
+    "no_messages_title": "No Messages Yet",
+    "no_messages_desc": "You will receive secure match conversations once a neighbor accepts your gig.",
+    "simulate_new_match": "Simulate New Match",
+    "back_to_conversations": "Back to conversations",
+    "report": "Report",
+    "recording_voice": "Recording Voice",
+    "cancel": "Cancel",
+    "send_message": "Send Message",
+    "type_placeholder": "Type a message...",
+    "send": "Send message",
+    "select_conversation_title": "Select a Conversation",
+    "select_conversation_desc": "Select an ongoing thread from the sidebar or click matches to start a secure chat."
+  },
+  "safety": {
+    "badge": {
+      "phone": "Phone Verified",
+      "phone_tooltip": "The member's phone number has been verified via SMS one-time passcode.",
+      "id": "ID Verified",
+      "id_tooltip": "Government identification (Aadhaar/PAN/Voter ID) has been checked and verified.",
+      "community": "Community Endorsed",
+      "community_tooltip": "Endorsed by at least 3 active apartment association members or local neighbors.",
+      "references": "References Checked",
+      "references_tooltip": "Directly recommended and verified by past community employers and local neighbors.",
+      "background": "Background Checked",
+      "background_tooltip": "Verified clear criminal record check via independent background check providers.",
+      "health": "Health Checked",
+      "health_tooltip": "Active medical health clearance certificate verified for home care and kitchen hygiene."
+    },
+    "review": {
+      "share_experience": "Share Your Experience",
+      "tap_to_rate": "Tap to rate:",
+      "written_comments": "Written comments:",
+      "comment_placeholder": "Describe how the work went. Be helpful, specific, and polite.",
+      "submit_review": "Submit Community Review",
+      "review_submitted": "✨ Review Submitted!",
+      "review_thanks": "Thank you for sharing your feedback with our local community."
+    },
+    "scam": {
+      "alert_title": "✨ AI Safety Guard Alert",
+      "learn_why": "Learn why",
+      "report_conv": "Report conversation"
+    },
+    "report": {
+      "modal_title": "Report or Block Account",
+      "modal_desc": "You are filing a secure community report against {{targetName}}. If block is selected, this user will no longer be able to message you or view your postings.",
+      "reason_spam": "Spam or unsolicited advertising",
+      "reason_harassment": "Harassment, hate speech, or inappropriate language",
+      "reason_suspicious": "Suspicious payment/advance money requests",
+      "reason_impersonation": "Impersonation or false profile details",
+      "reason_other": "Other violation",
+      "select_reason": "Select reason:",
+      "additional_details": "Additional details (Optional):",
+      "details_placeholder": "Provide chat history details, screenshot context, or specifics of what happened...",
+      "cancel": "Cancel",
+      "submit_block": "Submit Report & Block User"
+    },
+    "tips": {
+      "center_title": "Safety Center",
+      "tip1_title": "Meet in Public First",
+      "tip1_text": "When arranging the first job matching consultation, meet in a public location like a neighborhood cafe or apartment clubhouse.",
+      "tip2_title": "No Advance Payments",
+      "tip2_text": "Never send payments or advance cash deposits before any work starts. Always inspect completed tasks before releasing gig earnings.",
+      "tip3_title": "Share Job Location",
+      "tip3_text": "Always inform a family member, neighbor, or friend about the gig location and expected timings before starting home visits.",
+      "tip4_title": "Keep Chats in App",
+      "tip4_text": "Keep messages inside SilverHands. This allows our AI safety tools to protect you from payment scams and verify credentials.",
+      "tip_progress": "Tip {{current}} of {{total}}"
+    },
+    "title": "Safety Center",
+    "tip_counter": "Tip {{current}} of {{total}}",
+    "tip1_title": "Meet in Public First",
+    "tip1_text": "When arranging the first job matching consultation, meet in a public location like a neighborhood cafe or apartment clubhouse.",
+    "tip2_title": "No Advance Payments",
+    "tip2_text": "Never send payments or advance cash deposits before any work starts. Always inspect completed tasks before releasing gig earnings.",
+    "tip3_title": "Share Job Location",
+    "tip3_text": "Always inform a family member, neighbor, or friend about the gig location and expected timings before starting home visits.",
+    "tip4_title": "Keep Chats in App",
+    "tip4_text": "Keep messages inside SilverHands. This allows our AI safety tools to protect you from payment scams and verify credentials."
+  },
+  "providerEntry": {
+    "name": "What is your full name?",
+    "name_heading": "Almost there!",
+    "age": "How old are you?",
+    "household_question": "Do you manage your household — cooking, childcare, or similar?",
+    "yes": "Yes",
+    "no": "No",
+    "reject_msg": "This platform is designed for specific providers. Please consider applying as an Employer instead.",
+    "next": "Next",
+    "go_employer": "Go to Employer Signup",
+    "age_placeholder": "Age",
+    "error_valid_age": "Please enter a valid age (18 or older)",
+    "error_name_required": "Please enter your full name"
   },
   "listing": {
     "modal_title": "Create Service Listing",

@@ -81,8 +81,36 @@ const Login = ({ onNavigate }) => {
         setError('Google Sign-In failed. Please try again.');
         return;
       }
-      await googleLogin(credentialResponse.credential);
-      onNavigate('dashboard');
+      
+      // First attempt without role - backend will tell us if it's a new user
+      const result = await googleLogin(credentialResponse.credential);
+      
+      // If it's a new user, result will have status: 'new_user'
+      if (result?.status === 'new_user') {
+        // User needs to select role for new Google account
+        // The role is already selected in the form, so use that
+        const resultWithRole = await googleLogin(credentialResponse.credential, role);
+        
+        // After creating the account, navigate based on role
+        if (role === 'customer') {
+          onNavigate('dashboard');
+        } else {
+          // Provider needs to go through onboarding
+          onNavigate('onboarding');
+        }
+      } else {
+        // Existing user - navigate to appropriate dashboard
+        if (result?.role === 'customer') {
+          onNavigate('dashboard');
+        } else {
+          // Provider - check if they've completed onboarding
+          if (result?.isOnboarded) {
+            onNavigate('dashboard');
+          } else {
+            onNavigate('onboarding');
+          }
+        }
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Google Sign-In failed. Please try again.');
     } finally {

@@ -3,6 +3,11 @@ const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 const { runAITask } = require('../services/aiService');
 
+// Helper to determine language from request body or user profile
+const getReqLanguage = (req) => {
+  return req.body.language || req.user?.preferredLanguage || 'en';
+};
+
 // POST /api/ai/extract-skills
 router.post('/extract-skills', protect, async (req, res) => {
   try {
@@ -10,7 +15,8 @@ router.post('/extract-skills', protect, async (req, res) => {
     if (!bio || typeof bio !== 'string' || bio.trim().length === 0) {
       return res.status(400).json({ message: 'Please provide bio text' });
     }
-    const result = await runAITask('skillExtraction', { bio });
+    const language = getReqLanguage(req);
+    const result = await runAITask('skillExtraction', { bio, language });
     res.status(200).json(result);
   } catch (error) {
     if (error.type === 'RATE_LIMIT_ERROR' || error.type === 'SERVICE_UNAVAILABLE_ERROR') {
@@ -27,7 +33,8 @@ router.post('/generate-bio', protect, async (req, res) => {
     if (!name || !skills) {
       return res.status(400).json({ message: 'Missing required profile data' });
     }
-    const result = await runAITask('bioGeneration', { name, age, skills, availability });
+    const language = getReqLanguage(req);
+    const result = await runAITask('bioGeneration', { name, age, skills, availability, language });
     res.status(200).json(result);
   } catch (error) {
     if (error.type === 'RATE_LIMIT_ERROR' || error.type === 'SERVICE_UNAVAILABLE_ERROR') {
@@ -44,7 +51,8 @@ router.post('/structure-listing', protect, async (req, res) => {
     if (!requestText || requestText.trim().length === 0) {
       return res.status(400).json({ message: 'Please provide request text' });
     }
-    const result = await runAITask('listingStructuring', { requestText });
+    const language = getReqLanguage(req);
+    const result = await runAITask('listingStructuring', { requestText, language });
     res.status(200).json(result);
   } catch (error) {
     if (error.type === 'RATE_LIMIT_ERROR' || error.type === 'SERVICE_UNAVAILABLE_ERROR') {
@@ -61,7 +69,8 @@ router.post('/explain-match', protect, async (req, res) => {
     if (skillOverlap === undefined) {
       return res.status(400).json({ message: 'Missing match metrics' });
     }
-    const result = await runAITask('matchExplanation', { skillOverlap, distance, availabilityOverlap });
+    const language = getReqLanguage(req);
+    const result = await runAITask('matchExplanation', { skillOverlap, distance, availabilityOverlap, language });
     res.status(200).json(result);
   } catch (error) {
     if (error.type === 'RATE_LIMIT_ERROR' || error.type === 'SERVICE_UNAVAILABLE_ERROR') {
@@ -78,11 +87,13 @@ router.post('/chat', protect, async (req, res) => {
     if (!message) {
       return res.status(400).json({ message: 'Missing message' });
     }
+    const language = getReqLanguage(req);
     
-    // Pass user context and the message to Gemini
+    // Pass user context, language and message to Gemini
     const result = await runAITask('sakhiChat', { 
       userName: req.user.name, 
       userRole: req.user.role,
+      language,
       userInput: message 
     });
     

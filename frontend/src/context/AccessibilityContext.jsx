@@ -1,72 +1,75 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import { useTranslation } from 'react-i18next';
-import { X, Type, Eye, Volume2, Globe, VolumeX, Sparkles } from 'lucide-react';
+import { Type, Eye, Volume2, Globe, X, Sparkles } from 'lucide-react';
 
-const AccessibilityContext = createContext();
+const AccessibilityContext = createContext(null);
 
 export const AccessibilityProvider = ({ children }) => {
   const { i18n } = useTranslation();
-  
-  // 1. Accessibility Core States
+
+  // 1. Font Size State ('normal', 'large', 'xlarge')
   const [fontSize, setFontSizeState] = useState(() => {
     return localStorage.getItem('sh_font_size') || 'normal';
   });
-  
+
+  // 2. High Contrast State (boolean)
   const [highContrast, setHighContrastState] = useState(() => {
     return localStorage.getItem('sh_high_contrast') === 'true';
   });
 
+  // 3. Text-To-Speech State (boolean)
   const [ttsEnabled, setTtsEnabledState] = useState(() => {
     return localStorage.getItem('sh_tts_enabled') === 'true';
   });
 
+  // 4. Preferred Language State ('en', 'hi', 'ta')
   const [language, setLanguageState] = useState(() => {
-    return localStorage.getItem('sh_language') || 'en';
+    return localStorage.getItem('sh_language') || i18n.language || 'en';
   });
 
-  // Drawer visibility state
+  // Slide-in Drawer Panel Open State
   const [panelOpen, setPanelOpen] = useState(false);
 
-  // Active speaking element track (for TTS animation)
+  // Active Text-To-Speech ID
   const [speakingId, setSpeakingId] = useState(null);
 
-  // Sync state changes to local storage & DOM attributes
+  // --- Effects for Syncing DOM and Storage ---
+
+  // Font Size DOM class/root font-size sync
   useEffect(() => {
-    localStorage.setItem('sh_font_size', fontSize);
     const root = document.documentElement;
     if (fontSize === 'normal') {
       root.style.fontSize = '16px';
     } else if (fontSize === 'large') {
-      root.style.fontSize = '20px';
+      root.style.fontSize = '18px';
     } else if (fontSize === 'xlarge') {
-      root.style.fontSize = '24px';
+      root.style.fontSize = '20px';
     }
+    localStorage.setItem('sh_font_size', fontSize);
   }, [fontSize]);
 
+  // High Contrast DOM class sync
   useEffect(() => {
-    localStorage.setItem('sh_high_contrast', highContrast);
-    const body = document.body;
+    const root = document.documentElement;
     if (highContrast) {
-      body.classList.add('high-contrast');
-      document.documentElement.classList.add('dark'); // standard dark utility
+      root.classList.add('high-contrast');
     } else {
-      body.classList.remove('high-contrast');
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('high-contrast');
     }
+    localStorage.setItem('sh_high_contrast', highContrast.toString());
   }, [highContrast]);
 
+  // TTS Storage sync
   useEffect(() => {
-    localStorage.setItem('sh_tts_enabled', ttsEnabled);
-    if (!ttsEnabled) {
-      // Stop any speech immediately if toggled off
-      window.speechSynthesis?.cancel();
-      setSpeakingId(null);
-    }
+    localStorage.setItem('sh_tts_enabled', ttsEnabled.toString());
   }, [ttsEnabled]);
 
+  // Language i18next sync
   useEffect(() => {
+    if (language && i18n.language !== language) {
+      i18n.changeLanguage(language);
+    }
     localStorage.setItem('sh_language', language);
-    i18n.changeLanguage(language);
   }, [language, i18n]);
 
   // Cleanup speech on unmount
@@ -86,20 +89,17 @@ export const AccessibilityProvider = ({ children }) => {
   const speakText = (text, elementId) => {
     if (!ttsEnabled || !window.speechSynthesis) return;
 
-    // If currently speaking this block, cancel it (toggle behavior)
     if (speakingId === elementId) {
       window.speechSynthesis.cancel();
       setSpeakingId(null);
       return;
     }
 
-    // Stop ongoing speech
     window.speechSynthesis.cancel();
     setSpeakingId(elementId);
 
     const utterance = new SpeechSynthesisUtterance(text);
     
-    // Attempt to set voice match for localized language
     const voices = window.speechSynthesis.getVoices();
     if (language === 'hi') {
       const hiVoice = voices.find(v => v.lang.includes('HI') || v.lang.includes('hi'));
@@ -120,7 +120,6 @@ export const AccessibilityProvider = ({ children }) => {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Map language to speech locale
   const getSpeechLocale = () => {
     const activeLang = i18n.language || language;
     switch (activeLang) {
@@ -162,11 +161,11 @@ export const useAccessibility = () => {
   return context;
 };
 
-
 /* ==========================================================================
    SPEAKER BUTTON COMPONENT (TTS Assist)
    ========================================================================== */
 export const SpeakerButton = ({ text, id }) => {
+  const { t } = useTranslation();
   const { ttsEnabled, speakText, speakingId, highContrast } = useAccessibility();
 
   if (!ttsEnabled) return null;
@@ -184,12 +183,11 @@ export const SpeakerButton = ({ text, id }) => {
           ? (highContrast ? 'bg-white text-black border-white animate-pulse' : 'bg-orange-100 border-terracotta text-terracotta animate-pulse scale-105')
           : (highContrast ? 'border-white text-white bg-black hover:bg-white hover:text-black' : 'border-cream-dark bg-white hover:bg-cream-dark/20 text-charcoal-light')
       }`}
-      title={isSpeaking ? "Click to Stop Speaking" : "Click to Read Aloud"}
-      aria-label={isSpeaking ? "Stop reading" : "Read text aloud"}
+      title={isSpeaking ? t('accessibility.stop_speaking') : t('accessibility.read_aloud')}
+      aria-label={isSpeaking ? t('accessibility.stop_reading') : t('accessibility.read_text_aloud')}
     >
       <Volume2 className={`h-4 w-4 ${isSpeaking ? 'animate-bounce' : ''}`} />
       
-      {/* Speaking mock wave bars */}
       {isSpeaking && (
         <span className="flex items-center gap-0.5 ml-1.5 h-3">
           <span className="w-0.5 h-2 rounded bg-current animate-[speakingWave_0.6s_infinite_alternate]"></span>
@@ -201,11 +199,11 @@ export const SpeakerButton = ({ text, id }) => {
   );
 };
 
-
 /* ==========================================================================
    SLIDE-IN ACCESSIBILITY DRAWER
    ========================================================================== */
 const AccessibilityDrawer = () => {
+  const { t } = useTranslation();
   const {
     fontSize,
     setFontSize,
@@ -221,9 +219,7 @@ const AccessibilityDrawer = () => {
 
   if (!panelOpen) return null;
 
-  // Theming
   const bgTheme = highContrast ? 'bg-black text-white border-l-2 border-white' : 'bg-cream text-charcoal';
-  const cardTheme = highContrast ? 'border-2 border-white bg-black' : 'bg-white border border-cream-dark shadow-sm';
   const buttonActiveTheme = highContrast 
     ? 'bg-white text-black font-bold border-2 border-white shadow-sm' 
     : 'bg-terracotta text-white font-bold shadow-md';
@@ -233,37 +229,34 @@ const AccessibilityDrawer = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs animate-[fadeIn_0.2s_ease-out]">
-      {/* Click outside backdrop to close */}
       <div className="absolute inset-0" onClick={() => setPanelOpen(false)}></div>
       
-      {/* Sliding Panel */}
       <aside className={`relative w-80 h-full p-6 flex flex-col gap-6 shadow-2xl justify-between animate-[slideInRight_0.25s_ease-out] ${bgTheme}`}>
         
         <div className="flex flex-col gap-5 text-left">
-          {/* Header */}
           <div className="flex items-center justify-between border-b pb-4 border-cream-dark/20">
             <h2 className="font-serif text-xl font-bold flex items-center gap-2">
               <Type className="h-5 w-5 text-terracotta" />
-              Easy Read Assist
+              {t('accessibility.easy_read_assist')}
             </h2>
             <button 
               onClick={() => setPanelOpen(false)}
               className="p-1 rounded-full hover:bg-cream-dark/30 transition-colors"
-              aria-label="Close panel"
+              aria-label={t('common.close')}
             >
               <X className="h-6 w-6" />
             </button>
           </div>
 
           <p className="text-xs leading-relaxed text-charcoal-light">
-            Adjust styling and features below to make SilverHands easier to read, hear, and navigate.
+            {t('accessibility.drawer_description')}
           </p>
 
           {/* Section 1: Font Size */}
           <div className="flex flex-col gap-2.5">
             <label className="text-sm font-bold flex items-center gap-1.5">
               <Type className="h-4.5 w-4.5 text-forest" />
-              Text Size (Aa)
+              {t('accessibility.text_size')} (Aa)
             </label>
             <div className="grid grid-cols-3 gap-2">
               <button
@@ -272,7 +265,7 @@ const AccessibilityDrawer = () => {
                   fontSize === 'normal' ? buttonActiveTheme : buttonInactiveTheme
                 }`}
               >
-                Normal
+                {t('accessibility.normal')}
               </button>
               <button
                 onClick={() => setFontSize('large')}
@@ -280,7 +273,7 @@ const AccessibilityDrawer = () => {
                   fontSize === 'large' ? buttonActiveTheme : buttonInactiveTheme
                 }`}
               >
-                Large
+                {t('accessibility.large')}
               </button>
               <button
                 onClick={() => setFontSize('xlarge')}
@@ -288,7 +281,7 @@ const AccessibilityDrawer = () => {
                   fontSize === 'xlarge' ? buttonActiveTheme : buttonInactiveTheme
                 }`}
               >
-                Huge
+                {t('accessibility.huge')}
               </button>
             </div>
           </div>
@@ -297,7 +290,7 @@ const AccessibilityDrawer = () => {
           <div className="flex flex-col gap-2.5">
             <label className="text-sm font-bold flex items-center gap-1.5">
               <Eye className="h-4.5 w-4.5 text-forest" />
-              Contrast Colors
+              {t('accessibility.contrast_colors')}
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -306,7 +299,7 @@ const AccessibilityDrawer = () => {
                   !highContrast ? buttonActiveTheme : buttonInactiveTheme
                 }`}
               >
-                Standard Colors
+                {t('accessibility.standard_colors')}
               </button>
               <button
                 onClick={() => setHighContrast(true)}
@@ -314,7 +307,7 @@ const AccessibilityDrawer = () => {
                   highContrast ? buttonActiveTheme : buttonInactiveTheme
                 }`}
               >
-                High Contrast
+                {t('accessibility.high_contrast')}
               </button>
             </div>
           </div>
@@ -323,7 +316,7 @@ const AccessibilityDrawer = () => {
           <div className="flex flex-col gap-2.5">
             <label className="text-sm font-bold flex items-center gap-1.5">
               <Volume2 className="h-4.5 w-4.5 text-forest" />
-              Voice Assist (Read Aloud)
+              {t('accessibility.voice_assist')}
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -332,7 +325,7 @@ const AccessibilityDrawer = () => {
                   !ttsEnabled ? buttonActiveTheme : buttonInactiveTheme
                 }`}
               >
-                Voice Off
+                {t('accessibility.voice_off')}
               </button>
               <button
                 onClick={() => setTtsEnabled(true)}
@@ -340,12 +333,12 @@ const AccessibilityDrawer = () => {
                   ttsEnabled ? buttonActiveTheme : buttonInactiveTheme
                 }`}
               >
-                Voice On
+                {t('accessibility.voice_on')}
               </button>
             </div>
             {ttsEnabled && (
               <p className="text-[10px] text-teal-800 bg-teal-50/50 p-2 rounded-lg leading-normal">
-                ✓ Speaker icons will appear next to headings. Click them to hear text read aloud.
+                ✓ {t('accessibility.speaker_hint')}
               </p>
             )}
           </div>
@@ -354,7 +347,7 @@ const AccessibilityDrawer = () => {
           <div className="flex flex-col gap-2.5">
             <label className="text-sm font-bold flex items-center gap-1.5">
               <Globe className="h-4.5 w-4.5 text-forest" />
-              Language Selector
+              {t('accessibility.language_selector')}
             </label>
             <select
               value={language}
@@ -378,7 +371,7 @@ const AccessibilityDrawer = () => {
           highContrast ? 'border-white/40 bg-white/10' : 'border-cream-dark/50 bg-white'
         }`}>
           <Sparkles className="h-5 w-5 text-terracotta shrink-0" />
-          <span className="text-left font-semibold">Settings are saved locally and will apply automatically on your next visit.</span>
+          <span className="text-left font-semibold">{t('accessibility.saved_hint')}</span>
         </div>
 
       </aside>

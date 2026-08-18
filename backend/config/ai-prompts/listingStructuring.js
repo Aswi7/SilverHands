@@ -13,7 +13,11 @@ const schema = {
   required: ["title", "category", "cleanedDescription", "suggestedPayRange", "suggestedTiming"]
 };
 
-const getPrompt = (inputData) => `
+const getPrompt = (inputData) => {
+  const langMap = { hi: 'Hindi', ta: 'Tamil', en: 'English' };
+  const targetLang = langMap[inputData.language] || 'English';
+
+  return `
 You are an expert listing structurer for SilverHands. 
 Analyze the following freeform job request from an employer and structure it for our database.
 
@@ -26,11 +30,13 @@ Rules:
 3. Clean up the description to be professional but keep the core details ('cleanedDescription').
 4. Extract or suggest a 'suggestedPayRange' (e.g., "₹500/hour", "Negotiable").
 5. Extract or summarize the 'suggestedTiming' (e.g., "Weekends", "Daily 11am", "One-time").
+6. CRITICAL: Generate title, cleanedDescription, suggestedPayRange, and suggestedTiming in ${targetLang}.
 
 Employer's Request:
 """
 ${inputData.requestText}
 """
 `;
+};
 
 module.exports = { schema, getPrompt };

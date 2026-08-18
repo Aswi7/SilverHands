@@ -70,7 +70,9 @@ const registerUser = async (req, res) => {
       location: {
         type: 'Point',
         coordinates: [location.longitude, location.latitude]
-      }
+      },
+      // Customers don't need onboarding, providers do
+      isOnboarded: role === 'customer' ? true : false
     };
 
     if (normalizedEmail) {
@@ -133,7 +135,7 @@ const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
     if (user) {
-      res.status(200).json(user);
+      res.status(200).json(formatUserResponse(user));
     } else {
       res.status(404).json({ message: 'User not found' });
     }
@@ -147,7 +149,7 @@ const getMe = async (req, res) => {
 // @access  Public
 const googleLogin = async (req, res) => {
   try {
-    const { credential } = req.body;
+    const { credential, role } = req.body;
 
     if (!credential) {
       return res.status(400).json({ message: 'Google credential is required' });
@@ -170,28 +172,50 @@ const googleLogin = async (req, res) => {
       return res.status(401).json({ message: 'Invalid Google credential' });
     }
 
-    const { sub: googleId, email } = payload;
+    const { sub: googleId, email, name } = payload;
 
     if (!email) {
       return res.status(400).json({ message: 'Google account does not have an email address' });
     }
 
     const normalizedEmail = email.toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
+    let user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
-      return res.status(404).json({
-        message: 'No SilverHands account found with this email. Please sign up first.',
+      // New Google user - ask frontend to collect role before account creation
+      if (!role) {
+        return res.status(200).json({
+          status: 'new_user',
+          email: normalizedEmail,
+          name: name || '',
+          message: 'Please select your role (provider or customer)'
+        });
+      }
+
+      // Create new account with selected role
+      user = await User.create({
+        googleId,
+        email: normalizedEmail,
+        name: name || 'User',
+        phone: `GOOGLE_${googleId.substring(0, 10)}`, // Temporary phone for Google users
+        role: role || 'provider',
+        preferredLanguage: 'en',
+        location: {
+          type: 'Point',
+          coordinates: [77.2090, 28.6139] // Default to Delhi
+        },
+        isOnboarded: false // New users need onboarding
       });
-    }
+    } else {
+      // Existing user
+      if (user.googleId && user.googleId !== googleId) {
+        return res.status(409).json({ message: 'This email is linked to a different Google account' });
+      }
 
-    if (user.googleId && user.googleId !== googleId) {
-      return res.status(409).json({ message: 'This email is linked to a different Google account' });
-    }
-
-    if (!user.googleId) {
-      user.googleId = googleId;
-      await user.save();
+      if (!user.googleId) {
+        user.googleId = googleId;
+        await user.save();
+      }
     }
 
     generateToken(res, user._id);
@@ -229,10 +253,10 @@ const verifyOtp = async (req, res) => {
     let user = await User.findOne({ phone });
 
     if (user) {
-      // Returning user
+      // Returning user - don't need to update onboarding status
       generateToken(res, user._id);
     } else {
-      // New user
+      // New user - create with isOnboarded = false so they go through onboarding
       user = await User.create({
         phone,
         role: role || 'provider',
@@ -242,23 +266,13 @@ const verifyOtp = async (req, res) => {
         location: {
           type: 'Point',
           coordinates: [77.59, 12.97] // mock location
-        }
+        },
+        isOnboarded: false // New users must complete onboarding
       });
       generateToken(res, user._id);
     }
 
-    res.status(200).json({
-      _id: user._id,
-      name: user.name,
-      phone: user.phone,
-      role: user.role,
-      preferredLanguage: user.preferredLanguage,
-      location: user.location,
-      skills: user.skills,
-      bio: user.bio,
-      availability: user.availability,
-      isOnboarded: user.isOnboarded
-    });
+    res.status(200).json(formatUserResponse(user));
   } catch (error) {
     console.error('Verify OTP error:', error.message);
     res.status(500).json({ message: error.message });

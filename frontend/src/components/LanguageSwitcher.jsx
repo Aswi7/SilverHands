@@ -1,15 +1,17 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
+import { useAccessibility } from '../context/AccessibilityContext';
 import api from '../services/api';
 import './LanguageSwitcher.css';
 
 const LanguageSwitcher = () => {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const { user, updateUserInState } = useAuth() || {};
+  const { setLanguage } = useAccessibility();
 
   const handleLanguageChange = async (newLang) => {
-    i18n.changeLanguage(newLang);
+    setLanguage(newLang);
     if (user) {
       try {
         const { data } = await api.put('/users/profile', { preferredLanguage: newLang });
@@ -24,7 +26,7 @@ const LanguageSwitcher = () => {
 
   return (
     <div className="lang-switcher">
-      <label htmlFor="lang-select">Language / भाषा / மொழி: </label>
+      <label htmlFor="lang-select">{t('accessibility.language_selector')}: </label>
       <select 
         id="lang-select"
         value={i18n.language} 
