@@ -13,6 +13,31 @@ function AppContent() {
   const { user, loading } = useAuth();
   const [view, setView] = useState('landing');
   const [signupRole, setSignupRole] = useState('provider');
+  const [globalError, setGlobalError] = useState(null);
+
+  useEffect(() => {
+    const handleError = (event) => {
+      setGlobalError({
+        message: event.message,
+        stack: event.error?.stack || 'No stack trace available'
+      });
+    };
+    
+    const handleRejection = (event) => {
+      setGlobalError({
+        message: event.reason?.message || String(event.reason),
+        stack: event.reason?.stack || 'No stack trace available'
+      });
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, []);
 
   // Unified navigation helper supporting push and replace history entries
   const navigate = (newView, role = 'provider', replace = false) => {
@@ -114,6 +139,17 @@ function AppContent() {
       }
     }
   }, [user, loading, view]);
+
+  if (globalError) {
+    return (
+      <div style={{ padding: '20px', color: 'red', backgroundColor: '#fff5f5', border: '2px solid red', borderRadius: '8px', margin: '20px', textAlign: 'left', fontFamily: 'monospace' }}>
+        <h3 style={{ margin: '0 0 10px 0' }}>⚠️ Global React Runtime Error</h3>
+        <p><strong>Message:</strong> {globalError.message}</p>
+        <pre style={{ backgroundColor: '#eee', padding: '10px', overflowX: 'auto', fontSize: '12px', whiteSpace: 'pre-wrap' }}>{globalError.stack}</pre>
+        <button onClick={() => { setGlobalError(null); sessionStorage.clear(); window.location.hash = '#/landing'; window.location.reload(); }} style={{ padding: '8px 16px', marginTop: '10px', cursor: 'pointer', backgroundColor: '#e53e3e', color: 'white', border: 'none', borderRadius: '4px', fontWeight: 'bold' }}>Clear Session & Reload</button>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

@@ -26,7 +26,7 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
         // Group applications by the other user to create a single chat thread per pair
         const userThreads = {};
         apps.forEach(app => {
-          const isEmployer = user.role === 'employer' || user.userType === 'employer';
+          const isEmployer = user.role === 'employer' || user.userType === 'employer' || user.role === 'customer';
           const otherUser = isEmployer ? app.providerId : app.employerId;
           
           if (!otherUser || !otherUser._id) return;
@@ -135,6 +135,7 @@ export const ChatInterface = ({ user, highContrast = false, onNavigate, onPrepar
                   lastMessage: mappedMessages.length > 0 ? mappedMessages[mappedMessages.length - 1].text : c.lastMessage
                 };
               }
+              return c; // Keep existing conversation object
             }
             return c;
           }));
