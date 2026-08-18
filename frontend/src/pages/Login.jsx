@@ -1,30 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
-import { Type, Globe } from 'lucide-react';
+import { Type, Eye, Globe } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
-import { useAccessibility } from '../context/AccessibilityContext';
 
 const Login = ({ onNavigate }) => {
   const { t } = useTranslation();
-  const { login, googleLogin } = useAuth();
-  const { highContrast, setPanelOpen } = useAccessibility();
+  const { login, googleLogin, sendOtp, verifyOtp } = useAuth();
+  
+  // Accessibility States
+  const [fontSize, setFontSize] = useState('normal'); 
+  const [highContrast, setHighContrast] = useState(false);
 
   const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
+  const [otp, setOtp] = useState('');
+  const [step, setStep] = useState('phone');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState(() => {
+    const providerState = window.history.state || {};
+    return providerState.role || 'provider';
+  });
+
+  // Sync Root Font Size
+  useEffect(() => {
+    const root = document.documentElement;
+    if (fontSize === 'normal') {
+      root.style.fontSize = '16px';
+    } else if (fontSize === 'large') {
+      root.style.fontSize = '20px';
+    } else if (fontSize === 'xlarge') {
+      root.style.fontSize = '24px';
+    }
+    return () => {
+      root.style.fontSize = '16px';
+    };
+  }, [fontSize]);
+
+  const cycleFontSize = () => {
+    if (fontSize === 'normal') setFontSize('large');
+    else if (fontSize === 'large') setFontSize('xlarge');
+    else setFontSize('normal');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      await login(phone, password);
-      onNavigate('dashboard');
+      if (step === 'phone') {
+        await sendOtp(phone);
+        setStep('otp');
+      } else {
+        // Find state in history if passed from provider entry
+        const providerState = window.history.state || {};
+        
+        await verifyOtp({ 
+          phone, 
+          otp,
+          role: role,
+          name: providerState.name || 'User',
+          age: providerState.age,
+          category: providerState.category
+        });
+        onNavigate('dashboard');
+      }
     } catch (err) {
-      setError(err.response?.data?.message || t('auth.login_failed'));
+      setError(err.response?.data?.message || 'Action failed. Please check details.');
     } finally {
       setLoading(false);
     }
@@ -35,13 +78,13 @@ const Login = ({ onNavigate }) => {
     setLoading(true);
     try {
       if (!credentialResponse?.credential) {
-        setError(t('auth.google_login_failed'));
+        setError('Google Sign-In failed. Please try again.');
         return;
       }
       await googleLogin(credentialResponse.credential);
       onNavigate('dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || t('auth.google_login_failed'));
+      setError(err.response?.data?.message || 'Google Sign-In failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -79,12 +122,21 @@ const Login = ({ onNavigate }) => {
           {/* Accessibility Controls */}
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => setPanelOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label={t('accessibility.options')}
+              onClick={cycleFontSize}
+              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
+              aria-label="Toggle Font Size"
             >
               <Type className="h-4 w-4" />
-              <span>{t('accessibility.options')}</span>
+              <span>Aa</span>
+            </button>
+
+            <button 
+              onClick={() => setHighContrast(!highContrast)}
+              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white bg-white text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
+              aria-label="Toggle High Contrast"
+            >
+              <Eye className="h-4 w-4" />
+              <span className="hidden sm:inline">Contrast</span>
             </button>
 
             <div className="flex items-center gap-1 text-sm">
@@ -104,6 +156,35 @@ const Login = ({ onNavigate }) => {
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-5 text-left">
             
+            {/* Role Selection (Tappable Cards) */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-bold">{t('auth.select_role', 'Select Role')}</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole('provider')}
+                  className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center ${
+                    role === 'provider'
+                      ? (highContrast ? 'border-yellow-400 bg-white/10' : 'border-terracotta bg-orange-50/50 text-terracotta')
+                      : (highContrast ? 'border-white bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/20')
+                  }`}
+                >
+                  <span className="font-bold text-sm">{t('auth.role_earn', 'Earn / Provide Help')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('customer')}
+                  className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center ${
+                    role === 'customer'
+                      ? (highContrast ? 'border-yellow-400 bg-white/10' : 'border-forest bg-teal-50/50 text-forest')
+                      : (highContrast ? 'border-white bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/20')
+                  }`}
+                >
+                  <span className="font-bold text-sm">{t('auth.role_hire', 'Hire / Request Help')}</span>
+                </button>
+              </div>
+            </div>
+
             {/* Phone */}
             <div className="flex flex-col gap-2">
               <label htmlFor="phone" className="text-sm font-bold">{t('auth.phone')}</label>
@@ -113,45 +194,57 @@ const Login = ({ onNavigate }) => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
-                placeholder={t('auth.phone_placeholder')}
+                placeholder="e.g. 9876543210"
                 className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
               />
             </div>
 
-            {/* Password */}
-            <div className="flex flex-col gap-2">
-              <label htmlFor="password" className="text-sm font-bold">{t('auth.password')}</label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
-              />
-            </div>
+            {/* Password / OTP */}
+            {step === 'phone' ? (
+              <button
+                type="submit"
+                disabled={loading || !phone}
+                className={`w-full font-bold flex items-center justify-center ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed mt-2`}
+              >
+                {loading ? '...' : t('auth.login_btn', 'Get OTP')}
+              </button>
+            ) : (
+              <>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="otp" className="text-sm font-bold">OTP</label>
+                  <input
+                    type="text"
+                    id="otp"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    required
+                    placeholder="Enter OTP"
+                    className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || !otp}
+                  className={`w-full font-bold flex items-center justify-center ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed mt-2`}
+                >
+                  {loading ? '...' : 'Verify OTP & Login'}
+                </button>
+              </>
+            )}
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className={`w-full font-bold flex items-center justify-center ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed mt-2`}
-            >
-              {loading ? '...' : t('auth.login_btn')}
-            </button>
+
           </form>
 
           <div className="flex items-center gap-4 my-6">
             <div className={`flex-1 h-px ${highContrast ? 'bg-white' : 'bg-cream-dark'}`} />
-            <span className={`text-sm font-bold ${textSecondaryTheme}`}>{t('common.or')}</span>
+            <span className={`text-sm font-bold ${textSecondaryTheme}`}>OR</span>
             <div className={`flex-1 h-px ${highContrast ? 'bg-white' : 'bg-cream-dark'}`} />
           </div>
 
           <div className={`flex justify-center ${loading ? 'pointer-events-none opacity-50' : ''}`}>
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
-              onError={() => setError(t('auth.google_login_failed'))}
+              onError={() => setError('Google Sign-In failed. Please try again.')}
               useOneTap={false}
               theme={highContrast ? 'filled_black' : 'outline'}
               text="continue_with"

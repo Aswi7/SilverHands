@@ -66,8 +66,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const sendOtp = async (phone) => {
+    return await api.post('/auth/send-otp', { phone });
+  };
+
+  const verifyOtp = async (data) => {
+    const res = await api.post('/auth/verify-otp', data);
+    setUser(res.data);
+    if (res.data.preferredLanguage) {
+      i18n.changeLanguage(res.data.preferredLanguage);
+    }
+    return res.data;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, googleLogin, logout, updateUserInState }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, googleLogin, logout, updateUserInState, sendOtp, verifyOtp }}>
       {children}
     </AuthContext.Provider>
   );

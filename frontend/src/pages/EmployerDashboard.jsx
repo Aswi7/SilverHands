@@ -1,22 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
 import { 
   Type, 
+  Eye, 
   Globe, 
   LogOut, 
   Sparkles, 
   Briefcase, 
   Settings, 
   Plus, 
+  Bell, 
   MapPin, 
   IndianRupee, 
   Clock, 
-  CheckCircle, 
-  Shield, 
-  MessageSquare, 
-  X, 
-  Star, 
+  Info,
+  CheckCircle,
+  HelpCircle,
+  AlertCircle,
+  User,
+  Shield,
+  MessageSquare,
+  X,
+  Star,
   Users
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
@@ -32,14 +38,15 @@ import {
 } from '../components/TrustSafety';
 import { MatchExplanation } from '../components/MatchExplanation';
 import { ChatInterface } from '../components/ChatInterface';
+import ErrorBoundary from '../components/ErrorBoundary';
 import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
 
 const EmployerDashboard = ({ onNavigate }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
 
   // Accessibility Global Settings
-  const { setPanelOpen, highContrast } = useAccessibility();
+  const { setPanelOpen, highContrast, fontSize } = useAccessibility();
 
   // Tab Navigation State
   const [activeTab, setActiveTab] = useState('postings');
@@ -49,13 +56,14 @@ const EmployerDashboard = ({ onNavigate }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
-  // Structured Preview Fields
+  // Structured Preview Fields (Editable inline)
   const [previewTitle, setPreviewTitle] = useState('');
   const [previewCategory, setPreviewCategory] = useState('tech');
   const [previewDesc, setPreviewDesc] = useState('');
   const [previewPay, setPreviewPay] = useState('');
   const [previewMode, setPreviewMode] = useState('offline');
   const [previewTiming, setPreviewTiming] = useState('');
+  const [previewCity, setPreviewCity] = useState('');
 
   // Selected Posting for Candidates view
   const [selectedPosting, setSelectedPosting] = useState(null);
@@ -80,11 +88,11 @@ const EmployerDashboard = ({ onNavigate }) => {
       pay: "₹400/hr",
       mode: "offline",
       timing: "Weekends (Afternoons)",
-      status: "open",
+      status: "open", // 'open', 'in-progress', 'filled'
       applicantsCount: 3
     },
     {
-      id: "mock2",
+      id: 2,
       title: "Gujarati Home Chef for Elderly Father",
       category: "cooking",
       desc: "Prepare healthy, low-sugar Gujarati home-cooked meals every weekday morning for an elderly diabetic parent.",
@@ -95,7 +103,7 @@ const EmployerDashboard = ({ onNavigate }) => {
       applicantsCount: 2
     },
     {
-      id: "mock3",
+      id: 3,
       title: "Terrace Garden Maintenance helper",
       category: "gardening",
       desc: "Suggest winter flowers and help weeding a terrace garden twice a month.",
@@ -107,39 +115,99 @@ const EmployerDashboard = ({ onNavigate }) => {
     }
   ]);
 
-  // Candidate Profiles
-  const candidateProfiles = [
-    {
-      id: "c1",
-      name: "Ramesh Kumar",
-      age: 64,
-      role: "Senior Tech Guide & Educator",
-      matchScore: 94,
-      distance: "1.2 km away",
-      rating: 4.9,
-      reviewsCount: 18,
-      skills: ["Smartphone Tutor", "TV Setup", "Internet Banking", "WhatsApp Helper"],
-      availability: "Mon, Wed, Sat (Afternoons)",
-      badges: ["phone", "id", "community", "References"],
-      bio: "Retired BSNL telecom technician with 35 years of network experience. I enjoy teaching senior citizens how to navigate smartphones without fear.",
-      scoreBreakdown: { skillOverlap: 95, distance: '1.2km', availabilityOverlap: true }
-    },
-    {
-      id: "c2",
-      name: "Asha Devi",
-      age: 62,
-      role: "Culinary & Baking Specialist",
-      matchScore: 89,
-      distance: "0.8 km away",
-      rating: 5.0,
-      reviewsCount: 24,
-      skills: ["Low-Oil Cooking", "Sweets & Snacks", "Dietary Needs", "Gujarati Thali"],
-      availability: "Mon to Fri (Mornings)",
-      badges: ["phone", "id", "Health Check"],
-      bio: "Homemaker for over 38 years specializing in diabetic-friendly traditional Indian meals and baked festival snacks.",
-      scoreBreakdown: { skillOverlap: 90, distance: '0.8km', availabilityOverlap: true }
+  const fetchPostings = async () => {
+    try {
+      const { data } = await api.get('/requests/my');
+      if (Array.isArray(data) && data.length > 0) {
+        // Map the backend structure to the format required by postings state
+        const mappedPostings = data.map(post => ({
+          id: post._id,
+          title: post.title,
+          category: post.category,
+          desc: post.description,
+          pay: post.rate,
+          mode: post.mode,
+          timing: post.timing,
+          status: post.status,
+          applicantsCount: post.applicantsCount || 0
+        }));
+        setPostings(mappedPostings);
+      }
+    } catch (err) {
+      console.error('Failed to fetch postings:', err);
     }
-  ];
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchPostings();
+      setPreviewCity(user.city || '');
+    }
+  }, [user]);
+
+  // Applications Polling & Notification system
+  const [applications, setApplications] = useState([]);
+  const [dashboardAlert, setDashboardAlert] = useState(null);
+  const prevAppsRef = useRef([]);
+
+  const fetchApplications = async () => {
+    if (!user?._id) return;
+    try {
+      const { data } = await api.get(`/applications/user/${user._id}`);
+      const newApps = data || [];
+      
+      if (newApps.length > 0 && prevAppsRef.current.length > 0) {
+        // 1. Check for new applications (provider reached out/applied)
+        const newApp = newApps.find(app => !prevAppsRef.current.some(p => p._id === app._id));
+        if (newApp) {
+          setDashboardAlert({
+            title: t('dashboard.employer.notifications.new_application_title', "New Opportunity Match Reached Out!"),
+            message: t('dashboard.employer.notifications.new_application_msg', "{{name}} applied for your listing '{{title}}'", { 
+              name: newApp.providerId?.name || 'A neighbor', 
+              title: newApp.opportunityId?.title || 'Gig' 
+            }),
+            type: "application"
+          });
+          fetchPostings();
+        } else {
+          // 2. Check for new messages from providers inside existing application threads
+          newApps.forEach(app => {
+            const prevApp = prevAppsRef.current.find(p => p._id === app._id);
+            if (prevApp && Array.isArray(app.messages) && Array.isArray(prevApp.messages)) {
+              if (app.messages.length > prevApp.messages.length) {
+                const lastMsg = app.messages[app.messages.length - 1];
+                // Only trigger if message is sent by the provider, not the customer
+                if (lastMsg.senderId !== user._id && lastMsg.senderId?._id !== user._id) {
+                  setDashboardAlert({
+                    title: t('dashboard.employer.notifications.new_message_title', "New message from {{name}}", { name: app.providerId?.name || 'Provider' }),
+                    message: `"${lastMsg.text}"`,
+                    type: "message"
+                  });
+                }
+              }
+            }
+          });
+        }
+      }
+      
+      prevAppsRef.current = newApps;
+      setApplications(newApps);
+    } catch (err) {
+      console.error('Failed to poll applications:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchApplications();
+      const interval = setInterval(fetchApplications, 8000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  // Mock Candidate list for matched profiles
+
+
 
   const handleLogout = async () => {
     try {
@@ -150,6 +218,7 @@ const EmployerDashboard = ({ onNavigate }) => {
     }
   };
 
+  // --- Handlers ---
   const handleAutofillInput = () => {
     setRawText("I need a patient person who can cook home-cooked meals for my diabetic father every weekday morning. He likes Gujarati and Gujarati-style food. Preferably someone living near Connaught Place.");
   };
@@ -159,7 +228,7 @@ const EmployerDashboard = ({ onNavigate }) => {
     setIsAnalyzing(true);
     
     try {
-      const { data } = await api.post('/ai/structure-listing', { requestText: rawText, language: i18n.language });
+      const { data } = await api.post('/ai/structure-listing', { requestText: rawText });
       
       if (data) {
         setPreviewTitle(data.title || "Opportunity");
@@ -167,10 +236,13 @@ const EmployerDashboard = ({ onNavigate }) => {
         setPreviewDesc(data.cleanedDescription || rawText);
         setPreviewPay(data.suggestedPayRange || "Negotiable");
         setPreviewTiming(data.suggestedTiming || "Not specified");
+        
+        // Mode isn't extracted by our schema, so we default to offline
         setPreviewMode("offline");
       }
     } catch (error) {
       console.error('AI Structuring failed:', error);
+      // Fallback if AI fails: pre-fill with raw data so user isn't blocked
       setPreviewTitle("Opportunity");
       setPreviewCategory("other");
       setPreviewDesc(rawText);
@@ -186,7 +258,22 @@ const EmployerDashboard = ({ onNavigate }) => {
   const handlePublishOpportunity = async (e) => {
     e.preventDefault();
     
+    const CITY_COORDINATES = {
+      'delhi': [77.2090, 28.6139],
+      'noida': [77.3910, 28.5355],
+      'gurugram': [77.0266, 28.4595],
+      'mumbai': [72.8777, 19.0760],
+      'pune': [73.8567, 18.5204],
+      'bengaluru': [77.5946, 12.9716],
+      'chennai': [80.2707, 13.0827],
+      'hyderabad': [78.4867, 17.3850],
+      'kolkata': [88.3639, 22.5726]
+    };
+    
     try {
+      const cityKey = (previewCity || '').trim().toLowerCase();
+      const coords = CITY_COORDINATES[cityKey] || [77.2090, 28.6139];
+
       const payload = {
         title: previewTitle,
         description: previewDesc,
@@ -194,14 +281,16 @@ const EmployerDashboard = ({ onNavigate }) => {
         rate: previewPay,
         timing: previewTiming,
         mode: previewMode,
+        city: previewCity || 'Delhi',
         location: {
-          longitude: user?.location?.coordinates?.[0] || 0,
-          latitude: user?.location?.coordinates?.[1] || 0
+          longitude: coords[0],
+          latitude: coords[1]
         }
       };
 
       const { data } = await api.post('/requests', payload);
 
+      // Append returned data format to mock postings for immediate UI response
       const newPosting = {
         id: data._id,
         title: data.title,
@@ -218,14 +307,15 @@ const EmployerDashboard = ({ onNavigate }) => {
       setRawText('');
       setShowPreview(false);
       setActiveTab('postings');
-      alert(`Successfully published "${previewTitle}" opportunity!`);
+      // Replace alert with a less obtrusive approach or keep it for MVP
+      alert(`Successfully published "${previewTitle}" opportunity list!`);
     } catch (err) {
       console.error('Failed to publish opportunity:', err);
       alert(err.response?.data?.message || 'Failed to publish opportunity. Please try again.');
     }
   };
 
-  // Accessibility Styling Tokens
+  // --- Accessibility Styling Tokens ---
   const bgTheme = highContrast ? 'bg-black text-white' : 'bg-cream text-charcoal';
   const cardTheme = highContrast ? 'border-2 border-white bg-black' : 'bg-white border border-cream-dark shadow-sm';
   const textSecondaryTheme = highContrast ? 'text-gray-300' : 'text-charcoal-light';
@@ -239,8 +329,8 @@ const EmployerDashboard = ({ onNavigate }) => {
     : 'bg-terracotta hover:bg-terracotta-hover text-white shadow-md hover:shadow-lg font-bold h-[48px] rounded-2xl transition-all';
 
   const secondaryBtnTheme = highContrast
-    ? 'border-2 border-yellow-400 bg-black text-yellow-400 hover:bg-yellow-400 hover:text-black font-bold'
-    : 'bg-forest hover:bg-forest-hover text-white shadow-md hover:shadow-lg transition-all';
+    ? 'border-2 border-white bg-black text-white hover:bg-white hover:text-black h-[48px]'
+    : 'bg-forest hover:bg-forest-hover text-white shadow-md hover:shadow-lg font-bold h-[48px] rounded-2xl transition-all';
 
   const outlineBtnTheme = highContrast
     ? 'border-2 border-white bg-black text-white hover:bg-white hover:text-black h-[48px]'
@@ -255,9 +345,32 @@ const EmployerDashboard = ({ onNavigate }) => {
     : 'text-charcoal hover:bg-cream-dark/20';
 
   return (
-    <div className={`min-h-screen flex flex-col md:flex-row ${bgTheme} transition-colors duration-200 font-sans pb-16 md:pb-0`}>
+    <div className={`min-h-screen flex flex-col md:flex-row ${bgTheme} transition-colors duration-200 font-sans`}>
       
-      {/* 1. LEFT SIDEBAR */}
+      {/* Floating Notification Toast */}
+      {dashboardAlert && (
+        <div className={`fixed top-4 right-4 z-[9999] p-4 rounded-2xl shadow-xl flex items-start gap-3 border max-w-sm ${
+          highContrast 
+            ? 'bg-black text-white border-2 border-white' 
+            : 'bg-white border-cream-dark text-charcoal'
+        }`}>
+          <div className="bg-orange-100 text-terracotta p-2 rounded-xl shrink-0">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div className="flex-grow text-left">
+            <h4 className="font-bold text-sm">{dashboardAlert.title}</h4>
+            <p className="text-xs text-charcoal-light mt-0.5">{dashboardAlert.message}</p>
+          </div>
+          <button 
+            onClick={() => setDashboardAlert(null)}
+            className="text-gray-400 hover:text-charcoal text-xs font-bold font-serif px-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* 1. LEFT SIDEBAR (Desktop) / BOTTOM NAV (Mobile) */}
       <aside className={`w-full md:w-64 md:min-h-screen shrink-0 border-r md:sticky md:top-0 z-40 ${
         highContrast ? 'border-white bg-black' : 'border-cream-dark/50 bg-white'
       } flex md:flex-col justify-between`}>
@@ -294,6 +407,15 @@ const EmployerDashboard = ({ onNavigate }) => {
               <span>{t('dashboard.employer.tabs.postings')}</span>
             </button>
             <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base transition-all ${
+                activeTab === 'settings' ? activeSidebarItemTheme : inactiveSidebarItemTheme
+              }`}
+            >
+              <Settings className="h-5 w-5" />
+              <span>{t('dashboard.employer.tabs.settings')}</span>
+            </button>
+            <button
               onClick={() => setActiveTab('messages')}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base transition-all ${
                 activeTab === 'messages' ? activeSidebarItemTheme : inactiveSidebarItemTheme
@@ -311,23 +433,14 @@ const EmployerDashboard = ({ onNavigate }) => {
               <Shield className="h-5 w-5" />
               <span>{t('dashboard.employer.tabs.safety')}</span>
             </button>
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base transition-all ${
-                activeTab === 'settings' ? activeSidebarItemTheme : inactiveSidebarItemTheme
-              }`}
-            >
-              <Settings className="h-5 w-5" />
-              <span>{t('dashboard.employer.tabs.settings')}</span>
-            </button>
           </nav>
         </div>
 
-        {/* Mobile Bottom Navigation */}
+        {/* Mobile Bottom Navigation fallback */}
         <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t flex justify-around items-center py-2 px-1 bg-white border-cream-dark shadow-lg">
           <button
             onClick={() => setActiveTab('post')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg text-[10px] font-bold transition-all ${
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'post' ? 'text-forest' : 'text-charcoal-light'
             }`}
           >
@@ -336,7 +449,7 @@ const EmployerDashboard = ({ onNavigate }) => {
           </button>
           <button
             onClick={() => setActiveTab('postings')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg text-[10px] font-bold transition-all ${
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'postings' || activeTab === 'candidates' ? 'text-forest' : 'text-charcoal-light'
             }`}
           >
@@ -345,30 +458,30 @@ const EmployerDashboard = ({ onNavigate }) => {
           </button>
           <button
             onClick={() => setActiveTab('messages')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg text-[10px] font-bold transition-all ${
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'messages' ? 'text-forest' : 'text-charcoal-light'
             }`}
           >
             <MessageSquare className="h-5 w-5" />
-            <span>{t('dashboard.employer.tabs.messages')}</span>
+            <span>{t('dashboard.employer.tabs.messages', 'Messages')}</span>
           </button>
           <button
             onClick={() => setActiveTab('safety')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg text-[10px] font-bold transition-all ${
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'safety' ? 'text-forest' : 'text-charcoal-light'
             }`}
           >
             <Shield className="h-5 w-5" />
-            <span>{t('dashboard.employer.tabs.safety')}</span>
+            <span>{t('dashboard.employer.tabs.safety', 'Safety')}</span>
           </button>
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-lg text-[10px] font-bold transition-all ${
+            className={`flex flex-col items-center gap-1 py-1 px-3 rounded-lg text-xs font-bold transition-all ${
               activeTab === 'settings' ? 'text-forest' : 'text-charcoal-light'
             }`}
           >
             <Settings className="h-5 w-5" />
-            <span>{t('dashboard.employer.tabs.settings')}</span>
+            <span>{t('dashboard.employer.tabs.settings', 'Settings')}</span>
           </button>
         </nav>
 
@@ -403,19 +516,20 @@ const EmployerDashboard = ({ onNavigate }) => {
           <div className="text-left">
             <h1 className="text-xl font-bold font-serif md:text-2xl flex items-center gap-1.5">
               <span>{t('dashboard.employer.greeting', { name: user?.name || 'Col. Raghavan' })}</span>
-              <SpeakerButton text={t('dashboard.employer.greeting', { name: user?.name || 'Col. Raghavan' })} id="employer-dashboard-greeting" />
+              <SpeakerButton text={t('dashboard.employer.speaking_greeting', 'Good morning, Colonel Raghavan. Welcome back to your SilverHands Employer Dashboard.')} id="employer-dashboard-greeting" />
             </h1>
           </div>
 
-          {/* Quick Accessibility and Language Controls */}
+          {/* Quick Accessibility and Bell Controls */}
           <div className="flex items-center gap-3">
             
+            {/* Aa Accessibility Controls */}
             <button 
               onClick={() => setPanelOpen(true)}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${
                 highContrast ? 'border-white hover:bg-white hover:text-black bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/30 text-charcoal'
               }`}
-              aria-label={t('accessibility.options')}
+              aria-label="Open Accessibility Panel"
             >
               <Type className="h-4 w-4" />
               <span>{t('dashboard.provider.options')}</span>
@@ -426,11 +540,11 @@ const EmployerDashboard = ({ onNavigate }) => {
               <LanguageSwitcher />
             </div>
 
-            {/* Profile initial badge dynamically computed */}
+            {/* Profile badge */}
             <div className={`h-10 w-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm ${
               highContrast ? 'border border-white bg-black' : 'bg-forest'
             }`}>
-              {(user?.name || 'C')[0]}
+              R
             </div>
 
           </div>
@@ -438,7 +552,7 @@ const EmployerDashboard = ({ onNavigate }) => {
         </header>
 
         {/* 3. MAIN DASHBOARD CONTENT AREA */}
-        <main className="grow p-4 md:p-8 text-left">
+        <main className="grow p-4 md:p-8 pb-24 md:pb-8 text-left">
 
           {/* ================= VIEW 1: POST OPPORTUNITY ================= */}
           {activeTab === 'post' && (
@@ -491,7 +605,7 @@ const EmployerDashboard = ({ onNavigate }) => {
 
               </div>
 
-              {/* Structured preview card */}
+              {/* Structured preview card (editable inline) */}
               {showPreview && (
                 <div className="flex flex-col gap-5 mt-4">
                   <h4 className="font-serif text-lg font-bold text-forest flex items-center gap-1.5">
@@ -503,6 +617,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                     highContrast ? 'border-white bg-black' : 'border-cream-dark bg-white shadow-md'
                   }`}>
                     
+                    {/* Inline edit title */}
                     <div className="flex flex-col gap-1">
                       <label htmlFor="previewTitle" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_title')}</label>
                       <input 
@@ -514,76 +629,104 @@ const EmployerDashboard = ({ onNavigate }) => {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-1">
-                        <label htmlFor="previewCategory" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_category')}</label>
-                        <select 
-                          id="previewCategory"
-                          value={previewCategory} 
-                          onChange={(e) => setPreviewCategory(e.target.value)}
-                          className={`px-3 py-2 rounded-xl text-sm font-bold ${inputTheme}`}
-                        >
-                          <option value="tech">{t('customer.categories.tech')}</option>
-                          <option value="cooking">{t('customer.categories.cooking')}</option>
-                          <option value="gardening">{t('customer.categories.gardening')}</option>
-                          <option value="errands">{t('customer.categories.errands')}</option>
-                          <option value="companionship">{t('customer.categories.companionship')}</option>
-                          <option value="other">{t('customer.categories.other')}</option>
-                        </select>
-                      </div>
-
-                      <div className="flex flex-col gap-1">
-                        <label htmlFor="previewPay" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_pay')}</label>
-                        <input 
-                          type="text" 
-                          id="previewPay"
-                          value={previewPay} 
-                          onChange={(e) => setPreviewPay(e.target.value)}
-                          className={`px-3 py-2 rounded-xl text-sm font-bold ${inputTheme}`}
-                        />
-                      </div>
+                    {/* Inline edit Category */}
+                    <div className="flex flex-col gap-1">
+                      <label htmlFor="previewCategory" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_category')}</label>
+                      <select 
+                        id="previewCategory"
+                        value={previewCategory} 
+                        onChange={(e) => setPreviewCategory(e.target.value)}
+                        className={`px-3 py-2 rounded-xl text-sm ${inputTheme}`}
+                      >
+                        <option value="cooking">{t('customer.categories.cooking', 'Cooking / Meal Prep')}</option>
+                        <option value="tailoring">{t('customer.categories.tailoring', 'Tailoring / Alterations')}</option>
+                        <option value="tutoring">{t('customer.categories.tutoring', 'Tutoring')}</option>
+                        <option value="traditional-crafts">{t('customer.categories.traditional-crafts', 'Traditional Crafts')}</option>
+                        <option value="caregiving">{t('customer.categories.caregiving', 'Caregiving')}</option>
+                        <option value="mentoring">{t('customer.categories.mentoring', 'Mentoring')}</option>
+                        <option value="consulting">{t('customer.categories.consulting', 'Consulting')}</option>
+                        <option value="home-services">{t('customer.categories.home-services', 'Home Services')}</option>
+                        <option value="tech-support">{t('customer.categories.tech-support', 'Tech Support')}</option>
+                        <option value="gardening">{t('customer.categories.gardening', 'Gardening / Plant Care')}</option>
+                        <option value="errands">{t('customer.categories.errands', 'Errands / Deliveries')}</option>
+                        <option value="other">{t('customer.categories.other', 'Other')}</option>
+                      </select>
                     </div>
 
+                    {/* Inline edit Description */}
                     <div className="flex flex-col gap-1">
                       <label htmlFor="previewDesc" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_desc')}</label>
                       <textarea 
                         id="previewDesc"
-                        rows="3" 
+                        rows="3"
                         value={previewDesc} 
                         onChange={(e) => setPreviewDesc(e.target.value)}
                         className={`px-3 py-2 rounded-xl text-sm ${inputTheme}`}
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex flex-col gap-1">
-                        <label htmlFor="previewMode" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_mode')}</label>
-                        <select 
-                          id="previewMode"
-                          value={previewMode} 
-                          onChange={(e) => setPreviewMode(e.target.value)}
-                          className={`px-3 py-2 rounded-xl text-sm ${inputTheme}`}
-                        >
-                          <option value="offline">{t('onboarding.offline_only')}</option>
-                          <option value="online">{t('onboarding.online_only')}</option>
-                        </select>
-                      </div>
+                    {/* Suggested Pay Range */}
+                    <div className="flex flex-col gap-1">
+                      <label htmlFor="previewPay" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_pay')}</label>
+                      <input 
+                        type="text" 
+                        id="previewPay"
+                        value={previewPay} 
+                        onChange={(e) => setPreviewPay(e.target.value)}
+                        className={`px-3 py-2 rounded-xl text-sm ${inputTheme}`}
+                      />
+                    </div>
 
-                      <div className="flex flex-col gap-1">
-                        <label htmlFor="previewTiming" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_timing')}</label>
-                        <input 
-                          type="text" 
-                          id="previewTiming"
-                          value={previewTiming} 
-                          onChange={(e) => setPreviewTiming(e.target.value)}
-                          className={`px-3 py-2 rounded-xl text-sm ${inputTheme}`}
-                        />
+                    {/* Location/Online toggle pills */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_mode')}</span>
+                      <div className="flex gap-2">
+                        {['offline', 'online'].map(mode => (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => setPreviewMode(mode)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold border capitalize transition-all ${
+                              previewMode === mode 
+                                ? 'bg-forest text-white border-forest' 
+                                : 'bg-white border-cream-dark text-charcoal hover:bg-cream-dark/10'
+                            }`}
+                          >
+                            {mode === 'online' ? t('customer.modes.online', 'Online/Virtual') : t('customer.modes.offline', 'In Person (Offline)')}
+                          </button>
+                        ))}
                       </div>
                     </div>
 
-                    <button
-                      type="submit"
-                      className={`w-full mt-2 font-bold ${primaryBtnTheme}`}
+                    {/* City Location */}
+                    <div className="flex flex-col gap-1">
+                      <label htmlFor="previewCity" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_city', 'City / Location')}</label>
+                      <input 
+                        type="text" 
+                        id="previewCity"
+                        value={previewCity} 
+                        onChange={(e) => setPreviewCity(e.target.value)}
+                        className={`px-3 py-2 rounded-xl text-sm ${inputTheme}`}
+                        placeholder="e.g. Delhi, Mumbai, Bengaluru"
+                      />
+                    </div>
+
+                    {/* Timing */}
+                    <div className="flex flex-col gap-1">
+                      <label htmlFor="previewTiming" className="text-xs font-bold text-gray-500">{t('dashboard.employer.post.field_timing')}</label>
+                      <input 
+                        type="text" 
+                        id="previewTiming"
+                        value={previewTiming} 
+                        onChange={(e) => setPreviewTiming(e.target.value)}
+                        className={`px-3 py-2 rounded-xl text-sm ${inputTheme}`}
+                      />
+                    </div>
+
+                    {/* Submit publish */}
+                    <button 
+                      type="submit" 
+                      className={`w-full flex items-center justify-center gap-1.5 ${primaryBtnTheme} mt-4`}
                     >
                       {t('dashboard.employer.post.publish_btn')}
                     </button>
@@ -599,60 +742,93 @@ const EmployerDashboard = ({ onNavigate }) => {
           {activeTab === 'postings' && (
             <div className="flex flex-col gap-6">
               
-              <div className="flex flex-wrap items-center justify-between gap-4 border-b pb-3 border-cream-dark/30">
+              <div className="border-b pb-3 border-cream-dark/30 flex justify-between items-end">
                 <div>
                   <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.postings.title')}</h2>
-                  <p className={`text-sm ${textSecondaryTheme} mt-0.5`}>
+                  <p className={`text-sm ${textSecondaryTheme} mt-1`}>
                     {t('dashboard.employer.postings.desc')}
                   </p>
                 </div>
-
-                <button 
-                  onClick={() => setActiveTab('post')} 
-                  className={`px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 ${secondaryBtnTheme}`}
+                
+                <button
+                  onClick={() => setActiveTab('post')}
+                  className={`hidden sm:flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm ${primaryBtnTheme}`}
                 >
                   <Plus className="h-4 w-4" />
                   {t('dashboard.employer.postings.post_new')}
                 </button>
               </div>
 
-              {/* Postings Cards Grid */}
+              {/* Postings Card Grid */}
               <div className="grid gap-6 md:grid-cols-2">
-                {postings.map((p) => (
-                  <div key={p.id} className={`p-6 rounded-3xl border flex flex-col justify-between gap-4 ${cardTheme}`}>
+                {postings.map(post => (
+                  <div 
+                    key={post.id} 
+                    className={`p-6 rounded-3xl flex flex-col justify-between ${cardTheme}`}
+                  >
                     <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-forest bg-forest/10 px-2 py-0.5 rounded">
-                          {t(`customer.categories.${p.category}`) || p.category}
-                        </span>
-                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
-                          p.status === 'open' ? 'bg-green-100 text-green-800' : (p.status === 'in-progress' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-800')
+                      {/* Status Badges */}
+                      <div className="flex justify-between items-center mb-3">
+                        <span className={`px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
+                          post.category === 'tech' ? 'bg-orange-50 text-terracotta border border-orange-200' : 'bg-teal-50 text-forest border border-teal-200'
                         }`}>
-                          {p.status}
+                          {t('customer.categories.' + post.category, post.category)}
+                        </span>
+
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                          post.status === 'open' 
+                            ? 'bg-green-100 text-green-700' 
+                            : (post.status === 'in-progress' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600')
+                        }`}>
+                          {post.status === 'open' ? t('dashboard.employer.postings.status_open', 'open') : (post.status === 'in-progress' ? t('dashboard.employer.postings.status_in_progress', 'in-progress') : t('dashboard.employer.postings.status_filled', 'filled'))}
                         </span>
                       </div>
 
-                      <h3 className="font-serif text-xl font-bold mt-2">{p.title}</h3>
-                      <p className={`text-xs mt-2 leading-relaxed ${textSecondaryTheme}`}>{p.desc}</p>
-                    </div>
+                      <h3 className="font-serif text-xl font-bold mb-2">{post.title}</h3>
+                      <p className={`text-sm ${textSecondaryTheme} leading-relaxed mb-4`}>{post.desc}</p>
 
-                    <div className="border-t pt-4 border-cream-dark/20 flex flex-col gap-3">
-                      <div className="flex justify-between items-center text-xs font-bold text-charcoal">
-                        <span>{p.pay}</span>
-                        <span className="text-gray-500 font-normal">{p.timing}</span>
+                      {/* Specs */}
+                      <div className="grid grid-cols-2 gap-3 text-xs border-t pt-3 border-cream-dark/30 text-gray-500 mb-4">
+                        <span className="flex items-center gap-1 font-bold text-forest">
+                          <IndianRupee className="h-3.5 w-3.5" /> {post.pay}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5 text-terracotta" /> {post.mode === 'online' ? t('customer.modes.online_short', 'Online') : t('customer.modes.offline_short', 'In Person')}
+                        </span>
+                        <span className="flex items-center gap-1 col-span-2">
+                          <Clock className="h-3.5 w-3.5 text-gray-400" /> {post.timing}
+                        </span>
                       </div>
-
-                      <button 
-                        onClick={() => {
-                          setSelectedPosting(p);
-                          setActiveTab('candidates');
-                        }}
-                        className={`w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 ${primaryBtnTheme}`}
-                      >
-                        <Users className="h-4 w-4" />
-                        {t('dashboard.employer.postings.view_matches', { count: p.applicantsCount })}
-                      </button>
                     </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 border-t pt-4 border-cream-dark/30">
+                      {post.id !== "mock1" && post.id !== 2 && post.id !== 3 ? (
+                        <button
+                          onClick={async () => {
+                            setSelectedPosting(post);
+                            setActiveTab('candidates');
+                            setIsLoadingMatches(true);
+                            setMatchedCandidates([]);
+                            try {
+                              const { data } = await api.get(`/requests/${post.id}/matches`);
+                              setMatchedCandidates(data || []);
+                            } catch (err) {
+                              console.error('Failed to fetch matches', err);
+                            } finally {
+                              setIsLoadingMatches(false);
+                            }
+                          }}
+                          className={`grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${secondaryBtnTheme}`}
+                        >
+                          <Users className="h-4 w-4" />
+                          {t('dashboard.employer.postings.view_matches', { count: post.applicantsCount || 0 })}
+                        </button>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic py-2 grow text-center">{t('dashboard.employer.postings.ai_searching')}</p>
+                      )}
+                    </div>
+
                   </div>
                 ))}
               </div>
@@ -660,239 +836,434 @@ const EmployerDashboard = ({ onNavigate }) => {
             </div>
           )}
 
-          {/* ================= VIEW 3: CANDIDATES MATCH ================= */}
-          {activeTab === 'candidates' && (
-            <div className="flex flex-col gap-6">
+          {/* ================= VIEW 3: MATCHED CANDIDATES ================= */}
+          {activeTab === 'candidates' && selectedPosting && (
+            <div className="flex flex-col gap-6 text-left">
               
-              <div className="flex items-center gap-3 border-b pb-3 border-cream-dark/30">
+              {/* Back to postings header */}
+              <div>
                 <button 
-                  onClick={() => setActiveTab('postings')} 
-                  className={`p-2 rounded-xl border text-xs font-bold ${outlineBtnTheme}`}
+                  onClick={() => {
+                    setSelectedPosting(null);
+                    setActiveTab('postings');
+                  }}
+                  className={`text-xs font-bold text-terracotta flex items-center gap-1 hover:underline`}
                 >
-                  ← {t('dashboard.employer.candidates.back')}
+                  {t('dashboard.employer.candidates.back')}
                 </button>
-                <div>
-                  <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.candidates.title')}</h2>
-                  <p className={`text-sm ${textSecondaryTheme}`}>
-                    {t('dashboard.employer.candidates.desc')} <span className="font-bold text-charcoal">{selectedPosting?.title || 'Selected Request'}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Candidates Grid */}
-              <div className="grid gap-6 md:grid-cols-2">
-                {candidateProfiles.map((candidate) => (
-                  <div key={candidate.id} className={`p-6 rounded-3xl border flex flex-col justify-between gap-5 ${cardTheme}`}>
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className={`h-12 w-12 rounded-full flex items-center justify-center font-bold text-lg text-white bg-forest`}>
-                            {candidate.name[0]}
-                          </div>
-                          <div>
-                            <h3 className="font-serif text-lg font-bold">{candidate.name}</h3>
-                            <span className={`text-xs ${textSecondaryTheme}`}>{t('dashboard.employer.candidates.age', { age: candidate.age })} • {candidate.distance}</span>
-                          </div>
-                        </div>
-
-                        <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-orange-50 text-terracotta border border-orange-100">
-                          {candidate.matchScore}% {t('dashboard.employer.candidates.match')}
-                        </span>
-                      </div>
-
-                      {/* Badges */}
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {candidate.badges.map(b => (
-                          <VerificationBadge key={b} type={b} highContrast={highContrast} />
-                        ))}
-                      </div>
-
-                      <MatchExplanation 
-                        score={candidate.matchScore} 
-                        scoreBreakdown={candidate.scoreBreakdown}
-                        highContrast={highContrast}
-                      />
-
-                      <div className="text-xs space-y-1">
-                        <p><span className="font-bold">{t('dashboard.employer.candidates.skills')}</span> {candidate.skills.join(', ')}</p>
-                        <p><span className="font-bold">{t('dashboard.employer.candidates.availability')}</span> {candidate.availability}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 border-t pt-4 border-cream-dark/20">
-                      <button 
-                        onClick={() => setSelectedCandidate(candidate)}
-                        className={`flex-grow py-2.5 rounded-xl text-xs font-bold ${outlineBtnTheme}`}
-                      >
-                        {t('dashboard.employer.candidates.view_profile')}
-                      </button>
-                      <button 
-                        onClick={() => setActiveTab('messages')}
-                        className={`flex-grow py-2.5 rounded-xl text-xs font-bold ${primaryBtnTheme}`}
-                      >
-                        {t('dashboard.employer.candidates.contact')}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-            </div>
-          )}
-
-          {/* ================= VIEW 4: MESSAGES ================= */}
-          {activeTab === 'messages' && (
-            <div className="flex flex-col gap-6">
-              <div className="border-b pb-4 border-cream-dark/50">
-                <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.messages.title')}</h2>
+                
+                <h2 className="font-serif text-2xl font-bold mt-2 pr-12">{t('dashboard.employer.candidates.title')}</h2>
                 <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  {t('dashboard.employer.messages.desc')}
+                  {t('dashboard.employer.candidates.desc')} <strong>{selectedPosting.title}</strong>
                 </p>
               </div>
 
-              <ChatInterface 
-                user={user} 
-                highContrast={highContrast}
-                onNavigate={onNavigate}
-              />
+              {/* Matched Candidates Grid */}
+              <div className="grid gap-6">
+                {isLoadingMatches && (
+                  <div className="p-8 flex justify-center items-center text-forest animate-pulse font-bold">
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    Finding best AI matches...
+                  </div>
+                )}
+                {!isLoadingMatches && matchedCandidates.length === 0 && (
+                  <div className="flex flex-col gap-6 p-8 rounded-3xl border border-cream-dark/50 bg-cream/10 text-left">
+                    <div className="flex items-center gap-2 text-terracotta">
+                      <Sparkles className="h-5 w-5 animate-pulse" />
+                      <h4 className="font-bold text-base">No AI Matches Found Yet</h4>
+                    </div>
+                    <p className={`text-sm ${textSecondaryTheme}`}>
+                      We couldn't find any direct matches in your city for this skill category right now. Here are some actionable suggestions on how we can connect you with local providers:
+                    </p>
+                    <div className="grid gap-4 sm:grid-cols-2 mt-2">
+                      <div className={`p-5 rounded-2xl ${cardTheme} flex flex-col gap-1.5`}>
+                        <h5 className="font-bold text-sm text-forest flex items-center gap-1.5">
+                          <span>📞</span>
+                          <span>Call Our Local Coordinator</span>
+                        </h5>
+                        <p className="text-xs text-gray-500 leading-relaxed">Reach out directly to our community helpdesk at <strong>+91 99999-77777</strong>. We maintain offline registries of senior citizens who may not have smartphones but are active and ready to take tutoring/craft requests.</p>
+                      </div>
+                      <div className={`p-5 rounded-2xl ${cardTheme} flex flex-col gap-1.5`}>
+                        <h5 className="font-bold text-sm text-forest flex items-center gap-1.5">
+                          <span>💡</span>
+                          <span>Simplify Opportunity Title</span>
+                        </h5>
+                        <p className="text-xs text-gray-500 leading-relaxed">Try updating your request with simpler keywords. Using general categories (e.g. "Cooking" or "Tutoring") rather than narrow specialized descriptions helps matching algorithms discover more profiles.</p>
+                      </div>
+                      <div className={`p-5 rounded-2xl ${cardTheme} flex flex-col gap-1.5`}>
+                        <h5 className="font-bold text-sm text-forest flex items-center gap-1.5">
+                          <span>🌐</span>
+                          <span>Broaden Location Range</span>
+                        </h5>
+                        <p className="text-xs text-gray-500 leading-relaxed">If your request is online or can be done in nearby cities, consider expanding the scope to neighboring cities (like Noida, Gurugram, or Delhi) under your posting details to double matching range.</p>
+                      </div>
+                      <div className={`p-5 rounded-2xl ${cardTheme} flex flex-col gap-1.5`}>
+                        <h5 className="font-bold text-sm text-forest flex items-center gap-1.5">
+                          <span>⭐</span>
+                          <span>Offer Flexible Timing</span>
+                        </h5>
+                        <p className="text-xs text-gray-500 leading-relaxed">Senior citizens prefer gigs that can work around their morning walks or household schedules. Adding "Flexible Timing" or offering a slightly higher rate attracts up to 3x more local helpers.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {!isLoadingMatches && matchedCandidates.map((match) => {
+                  const cand = match.provider;
+                  if (!cand) return null;
+                  return (
+                  <div 
+                    key={match._id} 
+                    className={`p-6 rounded-3xl flex flex-col sm:flex-row gap-5 relative overflow-hidden ${cardTheme}`}
+                  >
+                    
+                    {/* Circle Match Score badge */}
+                    <div className={`absolute top-4 right-4 h-14 w-14 rounded-full flex flex-col items-center justify-center text-white text-xs font-bold leading-none ${
+                      highContrast ? 'border-2 border-white bg-black' : 'bg-forest shadow-sm'
+                    }`}>
+                      <span className="text-base">{match.score}%</span>
+                      <span className="text-[8px] uppercase font-bold">{t('dashboard.employer.candidates.match')}</span>
+                    </div>
+
+                    {/* Left: Avatar placeholder */}
+                    <div className={`h-16 w-16 rounded-full shrink-0 flex items-center justify-center text-2xl font-serif font-extrabold ${
+                      highContrast ? 'border-2 border-white text-white' : 'bg-orange-100 text-terracotta border border-orange-200'
+                    }`}>
+                      {cand.name ? cand.name[0] : '?'}
+                    </div>
+
+                    {/* Right Info info-dense panel */}
+                    <div className="grow flex flex-col gap-2.5">
+                      
+                      {/* Name, Age, Badges */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h4 className="text-xl font-bold">{cand.name || 'Anonymous Provider'}</h4>
+                        <span className={`text-xs ${textSecondaryTheme}`}>{cand.role === 'provider' ? 'Provider' : ''}</span>
+                        
+                        {/* Badges list */}
+                        <div className="flex gap-1.5 flex-wrap">
+                           <VerificationBadge key="ID" type="ID" highContrast={highContrast} />
+                        </div>
+                      </div>
+
+                      {/* AI summary block */}
+                      <MatchExplanation opp={{ ...match, rationale: "Matched based on skills and proximity." }} highContrast={highContrast} />
+
+                      {/* Info details */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-500">
+                        <span>💪 <strong>{t('dashboard.employer.candidates.skills')}</strong> {cand.skills && cand.skills.length > 0 ? cand.skills.slice(0, 3).map(s => typeof s === 'object' ? s.skillName : s).join(', ') : 'Not specified'}</span>
+                        <span>📅 <strong>{t('dashboard.employer.candidates.availability')}</strong> {cand.availability ? 'Available' : 'Unavailable'}</span>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-3 mt-4 border-t pt-4 border-cream-dark/30">
+                        <button
+                          onClick={() => setSelectedCandidate(cand)}
+                          className={`px-6 text-sm font-bold ${outlineBtnTheme}`}
+                        >
+                          {t('dashboard.employer.candidates.view_profile')}
+                        </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await api.post('/applications', {
+                                opportunityId: selectedPosting.id,
+                                providerId: cand._id,
+                                employerId: user._id
+                              });
+                              setActiveTab('messages');
+                            } catch (err) {
+                              console.error(err);
+                              setActiveTab('messages');
+                            }
+                          }}
+                          className={`px-6 text-sm font-bold flex items-center gap-1.5 ${primaryBtnTheme}`}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          {t('dashboard.employer.candidates.contact')}
+                        </button>
+                      </div>
+
+                    </div>
+
+                  </div>
+                )})}
+              </div>
+
+            </div>
+          )}
+
+          {/* ================= VIEW 4: SETTINGS (STUB) ================= */}
+          {activeTab === 'settings' && (
+            <div className="flex flex-col gap-6 max-w-2xl mx-auto">
+              <div className="border-b pb-3 border-cream-dark/30">
+                <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.settings.title', 'Account Settings')}</h2>
+                <p className={`text-sm ${textSecondaryTheme} mt-1`}>
+                  {t('dashboard.employer.settings.desc', 'Manage preferences, billing, and help support contacts.')}
+                </p>
+              </div>
+
+              <div className={`p-6 rounded-3xl ${cardTheme} flex flex-col gap-3`}>
+                <h4 className="font-serif font-bold text-sm text-forest">{t('dashboard.employer.settings.helpline', 'Helpline assistance')}</h4>
+                <p className="text-sm">{t('dashboard.employer.settings.helpline_desc', 'For employer billing, corporate sponsorships, and verified listing checks, please call:')} <strong>+91 99999-77777</strong></p>
+              </div>
+            </div>
+          )}
+
+          {/* ================= VIEW 6: MESSAGES ================= */}
+          {activeTab === 'messages' && (
+            <div className="flex flex-col gap-6 text-left">
+              <div className="border-b pb-3 border-cream-dark/30">
+                <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.messages.title', 'Candidate Messages')}</h2>
+                <p className={`text-sm ${textSecondaryTheme} mt-1`}>
+                  {t('dashboard.employer.messages.desc', 'Communicate securely with senior citizens and homemakers matching your gigs.')}
+                </p>
+              </div>
+
+              <ErrorBoundary>
+                <ChatInterface user={user} highContrast={highContrast} onNavigate={onNavigate} />
+              </ErrorBoundary>
             </div>
           )}
 
           {/* ================= VIEW 5: SAFETY CENTER ================= */}
           {activeTab === 'safety' && (
-            <div className="flex flex-col gap-8 max-w-4xl mx-auto">
+            <div className="flex flex-col gap-8 text-left pb-16">
               
-              <div className="border-b pb-4 border-cream-dark/50">
-                <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.safety.title')}</h2>
-                <p className={`text-sm ${textSecondaryTheme} mt-1 leading-relaxed`}>
-                  {t('dashboard.employer.safety.desc')}
+              {/* Header */}
+              <div className="border-b pb-4 border-cream-dark/30">
+                <h2 className="font-serif text-3xl font-bold flex items-center gap-2">
+                  <Shield className="h-7 w-7 text-forest" />
+                  {t('safety.employer.title', 'Trust & Safety Center')}
+                </h2>
+                <p className={`text-sm ${textSecondaryTheme} mt-1.5 max-w-2xl`}>
+                  {t('safety.employer.desc', 'SilverHands leverages smart local validation and AI guard tools to keep our community safe. Review live alerts, report accounts, or write neighborhood endorsements below.')}
                 </p>
               </div>
 
-              {/* Demo Scam Shield Simulation */}
-              <div className={`p-6 rounded-3xl border flex flex-col gap-4 ${cardTheme}`}>
-                <h3 className="font-serif text-lg font-bold">{t('dashboard.employer.safety.demo_title')}</h3>
-                <p className={`text-xs ${textSecondaryTheme}`}>
-                  {t('dashboard.employer.safety.demo_desc')}
-                </p>
-
-                <div className="p-4 rounded-2xl bg-cream-dark/20 border border-cream-dark/40 flex flex-col gap-3">
-                  <div className="flex items-center justify-between text-xs font-bold border-b pb-2">
-                    <span>{t('dashboard.employer.safety.chat_sim_header')}</span>
-                    <span className="text-teal-600 bg-teal-50 px-2 py-0.5 rounded">{t('dashboard.employer.safety.active_match_badge')}</span>
-                  </div>
-
-                  <ScamAlertBanner 
-                    message="AI Flagged: Candidate requested ₹3,500 advance money before work started."
-                    onLearnMore={() => alert("SilverHands safety policy prohibits advance cash demands.")}
-                    onReport={() => setIsReportOpen(true)}
-                    highContrast={highContrast}
-                  />
-                </div>
-              </div>
-
-              {/* Endorsements and Guarantee */}
-              <div className="grid gap-6 md:grid-cols-2">
+              {/* Core Layout Grid */}
+              <div className="grid gap-8 lg:grid-cols-3">
                 
-                {/* Recent Endorsements */}
-                <div className={`p-6 rounded-3xl border flex flex-col gap-4 ${cardTheme}`}>
-                  <h3 className="font-serif text-lg font-bold">{t('dashboard.employer.safety.endorsements_title')}</h3>
-                  <div className="flex flex-col gap-3">
-                    {reviewsList.map((rev, idx) => (
-                      <ReviewCard key={idx} {...rev} highContrast={highContrast} />
-                    ))}
+                {/* Left Columns - Alert Banner, Chat Demo, Reviews Feed */}
+                <div className="lg:col-span-2 flex flex-col gap-8">
+                  
+                  {/* AI Safety Guard Banner Demonstration */}
+                  <div className={`p-6 rounded-3xl border flex flex-col gap-4 ${cardTheme}`}>
+                    <div className="flex items-center gap-2 border-b pb-2 border-cream-dark/20">
+                      <span className="h-2.5 w-2.5 rounded-full bg-red-500 animate-ping"></span>
+                      <h3 className="font-serif font-bold text-base text-charcoal">{t('safety.employer.demo_title', 'Demo: AI scam detection in action')}</h3>
+                    </div>
+
+                    <p className="text-xs text-charcoal-light">
+                      {t('safety.employer.demo_desc', 'Below is a preview simulation of a secure message thread where our AI scanner flagged a suspicious message:')}
+                    </p>
+
+                    {/* Chat Simulation Box */}
+                    <div className={`border rounded-2xl overflow-hidden ${
+                      highContrast ? 'border-white bg-black' : 'border-cream-dark/50 bg-cream/20 shadow-inner'
+                    }`}>
+                      {/* Chat Header */}
+                      <div className="px-4 py-2 bg-cream-dark/20 border-b border-cream-dark/20 flex items-center justify-between text-xs font-bold">
+                        <span>💬 {t('safety.employer.chat_header', 'Secure chat with candidate: Ramesh S.')}</span>
+                        <span className="text-[10px] text-teal-800 bg-teal-50 px-2 py-0.5 rounded-full font-sans">{t('safety.employer.active_match', 'Active Match')}</span>
+                      </div>
+
+                      {/* Scam warning banner inserted above chat message */}
+                      <div className="p-3 bg-white border-b border-cream-dark/20">
+                        <ScamAlertBanner 
+                          message={t('safety.employer.alert_message', 'This message requests an advance cash transfer before work has commenced. This violates community safety guidelines.')}
+                          onLearnMore={() => alert("Scam Guards detect UPI IDs, bank details, and keywords like 'advance', 'upfront', 'deposit' in initial chats to protect elders from online fraud.")}
+                          onReport={() => setIsReportOpen(true)}
+                          highContrast={highContrast}
+                        />
+                      </div>
+
+                      {/* Chat Message Bubble */}
+                      <div className="p-4 flex flex-col gap-3">
+                        <div className="self-start max-w-[85%] rounded-2xl p-3 text-xs bg-cream-dark/30 text-charcoal text-left">
+                          <p className="font-bold text-forest mb-0.5">Ramesh S.</p>
+                          <p>{t('safety.employer.chat_body', 'Namaste. I am ready to start cooking for your father tomorrow morning. Please transfer a ₹3,500 security advance to my GPay number 98765-54321 today so I can purchase custom organic groceries.')}</p>
+                          <span className="text-[9px] text-charcoal-light mt-1 block">{t('safety.employer.sent_time', 'Sent 12:35 PM')}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
+                  {/* Dynamic Reviews Feed */}
+                  <div className="flex flex-col gap-4">
+                    <h3 className="font-serif text-xl font-bold">{t('safety.employer.endorsements_title', 'Recent Neighborhood Endorsements')}</h3>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {reviewsList.map((rev, idx) => (
+                        <ReviewCard 
+                          key={idx}
+                          reviewerName={rev.reviewerName}
+                          date={rev.date}
+                          rating={rev.rating}
+                          text={rev.text}
+                          highContrast={highContrast}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Right Column - Submit Review & Rotating Tips card */}
+                <div className="flex flex-col gap-6">
+                  
+                  {/* Safety Tips mobile/supplemental widget */}
+                  <div className="block md:hidden">
+                    <SafetyTipsCard highContrast={highContrast} />
+                  </div>
+
+                  {/* Submit Review Form */}
                   <SubmitReviewForm 
-                    onSubmit={(newRev) => setReviewsList([newRev, ...reviewsList])}
+                    onSubmit={(newRev) => setReviewsList([
+                      {
+                        reviewerName: "You",
+                        date: newRev.date,
+                        rating: newRev.rating,
+                        text: newRev.comment
+                      },
+                      ...reviewsList
+                    ])}
                     highContrast={highContrast}
                   />
-                </div>
 
-                {/* Safety Guarantee */}
-                <div className={`p-6 rounded-3xl border flex flex-col gap-4 ${cardTheme}`}>
-                  <h3 className="font-serif text-lg font-bold">{t('dashboard.employer.safety.guarantee_title')}</h3>
-                  <div className="space-y-3 text-xs leading-relaxed text-charcoal-light">
-                    <p>{t('dashboard.employer.safety.guarantee_item1')}</p>
-                    <p>{t('dashboard.employer.safety.guarantee_item2')}</p>
-                    <p>{t('dashboard.employer.safety.guarantee_item3')}</p>
+                  {/* safety guarantee card */}
+                  <div className={`p-5 rounded-3xl border text-xs leading-relaxed ${
+                    highContrast ? 'border-white bg-black' : 'bg-white border-cream-dark/50 text-charcoal-light'
+                  }`}>
+                     <h4 className="font-serif font-bold text-sm text-charcoal mb-2">{t('safety.employer.guarantee_title', 'Our Safety Guarantee')}</h4>
+                    <p className="mb-2">✓ {t('safety.employer.guarantee_1', 'All providers undergo digital identity verification before matching.')}</p>
+                    <p className="mb-2">✓ {t('safety.employer.guarantee_2', 'Dynamic 2dsphere location search prevents matching with distant unknown accounts.')}</p>
+                    <p>✓ {t('safety.employer.guarantee_3', 'Endorsements can only be submitted by verified residents inside the same block group.')}</p>
                   </div>
+
                 </div>
 
               </div>
 
-            </div>
-          )}
+              {/* Report & Block Modal Overlay */}
+              <ReportBlockModal 
+                isOpen={isReportOpen}
+                onClose={() => setIsReportOpen(false)}
+                onSubmit={(report) => {
+                  alert(`Report submitted! You have reported Ramesh S. for: "${report.reason}". This user has been blocked from contacting you.`);
+                }}
+                targetName="Ramesh S."
+                highContrast={highContrast}
+              />
 
-          {/* ================= VIEW 6: SETTINGS ================= */}
-          {activeTab === 'settings' && (
-            <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-              <div className="border-b pb-4 border-cream-dark/50">
-                <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.settings.title')}</h2>
-                <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  {t('dashboard.employer.settings.desc')}
-                </p>
-              </div>
-
-              <div className={`p-6 rounded-3xl border flex flex-col gap-3 ${cardTheme}`}>
-                <h3 className="font-bold text-base">{t('dashboard.provider.settings.need_help')}</h3>
-                <p className="text-xs text-charcoal-light leading-relaxed">
-                  {t('dashboard.employer.settings.helpline')}
-                </p>
-              </div>
             </div>
           )}
 
         </main>
       </div>
 
-      {/* CANDIDATE MODAL */}
+      {/* 4. CANDIDATE PROFILE MODAL OVERLAY */}
       {selectedCandidate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-[fadeIn_0.2s_ease-out]">
-          <div className={`w-full max-w-lg rounded-3xl p-6 shadow-2xl border text-left flex flex-col gap-4 animate-[slideUp_0.25s_ease-out] ${
-            highContrast ? 'bg-black text-white border-white' : 'bg-white border-cream-dark'
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+          
+          <div className={`w-full max-w-xl rounded-3xl p-6 relative overflow-hidden flex flex-col gap-5 ${
+            highContrast ? 'border-2 border-white bg-black' : 'bg-white shadow-xl border border-cream-dark'
           }`}>
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-serif text-xl font-bold">{selectedCandidate.name}</h3>
-              <button onClick={() => setSelectedCandidate(null)} className="p-1 rounded-full hover:bg-cream-dark/30">
-                <X className="h-5 w-5" />
-              </button>
+            
+            {/* Close button */}
+            <button 
+              onClick={() => setSelectedCandidate(null)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-red-500"
+              aria-label="Close modal"
+            >
+              <X className="h-6 w-6" />
+            </button>
+
+            {/* Profile Header */}
+            <div className="flex items-center gap-4 border-b pb-4 border-cream-dark/30 text-left">
+              <div className="h-16 w-16 rounded-full flex items-center justify-center font-serif text-2xl font-bold bg-orange-100 text-terracotta">
+                {selectedCandidate.name[0]}
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold font-serif">{selectedCandidate.name}</h3>
+                <p className={`text-sm ${textSecondaryTheme}`}>
+                  {t('dashboard.employer.candidates.modal_age_rating', 'Age {{age}} • Rating {{rating}} ★', { age: selectedCandidate.age, rating: selectedCandidate.rating })}
+                </p>
+              </div>
             </div>
 
-            <p className="text-xs leading-relaxed text-charcoal-light">{selectedCandidate.bio}</p>
+            {/* Content stats */}
+            <div className="flex flex-col gap-4 text-left text-sm max-h-[60vh] overflow-y-auto">
+              
+              {/* Verification indicators */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-bold text-gray-400 uppercase">{t('dashboard.employer.candidates.verification_checks', 'Verification Checks')}</span>
+                <div className="flex flex-wrap gap-2">
+                  {selectedCandidate.verified.map(v => (
+                    <VerificationBadge key={v} type={v} highContrast={highContrast} />
+                  ))}
+                </div>
+              </div>
 
-            <div className="flex flex-wrap gap-1.5">
-              {selectedCandidate.badges.map(b => (
-                <VerificationBadge key={b} type={b} highContrast={highContrast} />
-              ))}
+              {/* Skills Chips */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-bold text-gray-400 uppercase">{t('dashboard.employer.candidates.specialized_skills', 'Specialized Skills')}</span>
+                <div className="flex flex-wrap gap-2">
+                  {selectedCandidate.skills.map(s => (
+                    <span key={s} className="bg-teal-50 text-forest border border-teal-200 px-2.5 py-1 rounded-xl text-xs font-bold">
+                      {t(`customer.skills.${s.toLowerCase().replace(' ', '_')}`, s)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Availability */}
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-gray-400 uppercase">{t('dashboard.employer.candidates.availability_summary', 'Availability Summary')}</span>
+                <p className="font-bold text-charcoal">{t(`customer.availability.${selectedCandidate.availability.toLowerCase().replace(' ', '_')}`, selectedCandidate.availability)}</p>
+              </div>
+
+              {/* Reviews section */}
+              <div className="flex flex-col gap-2.5 border-t pt-4 border-cream-dark/30">
+                <span className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1">
+                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                  {t('dashboard.employer.candidates.past_reviews', 'Past Neighbor Reviews ({{count}})', { count: selectedCandidate.reviewsCount })}
+                </span>
+                
+                {selectedCandidate.reviews.map((r, idx) => (
+                  <div key={idx} className="p-3 bg-cream/30 border border-cream-dark/50 rounded-xl">
+                    <div className="flex justify-between items-center text-xs mb-1.5">
+                      <span className="font-bold text-forest">{r.author}</span>
+                      <span className="text-amber-500 font-bold">{"★".repeat(r.rating)}</span>
+                    </div>
+                    <p className="text-xs italic text-gray-600">"{r.comment}"</p>
+                  </div>
+                ))}
+              </div>
+
             </div>
 
-            <div className="flex gap-2 justify-end mt-4">
-              <button onClick={() => setSelectedCandidate(null)} className={`px-4 py-2 rounded-xl text-xs font-bold ${outlineBtnTheme}`}>
-                {t('common.close')}
+            {/* Chat connection trigger CTA */}
+            <div className="border-t pt-4 border-cream-dark/30 flex gap-3">
+              <button 
+                onClick={() => setSelectedCandidate(null)}
+                className={`grow ${outlineBtnTheme}`}
+              >
+                {t('dashboard.employer.candidates.close_profile', 'Close Profile')}
               </button>
               <button 
                 onClick={() => {
                   setSelectedCandidate(null);
                   setActiveTab('messages');
                 }}
-                className={`px-6 py-2 rounded-xl text-xs font-bold ${primaryBtnTheme}`}
+                className={`grow ${primaryBtnTheme}`}
               >
-                {t('dashboard.employer.candidates.contact')}
+                {t('dashboard.employer.candidates.start_chat', 'Start Chat')}
               </button>
             </div>
+
           </div>
+
         </div>
       )}
-
-      {/* REPORT MODAL */}
-      <ReportBlockModal 
-        isOpen={isReportOpen}
-        onClose={() => setIsReportOpen(false)}
-        onSubmit={(rep) => alert("Report filed with SilverHands safety team.")}
-        targetName="Suspicious Account"
-        highContrast={highContrast}
-      />
 
     </div>
   );

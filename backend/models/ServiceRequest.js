@@ -34,6 +34,12 @@ const ServiceRequestSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  city: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    default: 'delhi'
+  },
   location: {
     type: PointSchema,
     required: true

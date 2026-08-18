@@ -39,17 +39,32 @@ const UserSchema = new mongoose.Schema({
   },
   password: { 
     type: String, 
-    required: true 
-  }, // hashed password
+    required: false // Optional now because we use OTP
+  }, // hashed password (legacy)
   role: { 
     type: String, 
-    enum: ['provider', 'customer'], 
+    enum: ['provider', 'customer', 'employer'], // Support both legacy customer and new employer role aliases
     required: true 
+  },
+  age: {
+    type: Number,
+    required: false
+  },
+  category: {
+    type: String,
+    enum: ['senior_citizen', 'homemaker', 'both', 'none'],
+    required: false
   },
   preferredLanguage: { 
     type: String, 
     enum: ['en', 'hi', 'ta'], 
     default: 'en' 
+  },
+  city: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    default: 'delhi'
   },
   location: {
     type: PointSchema,
@@ -76,6 +91,10 @@ const UserSchema = new mongoose.Schema({
   embedding: {
     type: [Number],
     default: null
+  },
+  isOnboarded: {
+    type: Boolean,
+    default: false
   }
 }, { timestamps: true });
 

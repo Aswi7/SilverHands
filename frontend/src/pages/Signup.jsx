@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
-import { Type, MapPin, Globe } from 'lucide-react';
+import { Type, Eye, MapPin, Globe } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
-import { useAccessibility } from '../context/AccessibilityContext';
 
 const Signup = ({ onNavigate, initialRole = 'provider' }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const { signup } = useAuth();
-  const { highContrast, setPanelOpen } = useAccessibility();
+  
+  // Accessibility States
+  const [fontSize, setFontSize] = useState('normal'); 
+  const [highContrast, setHighContrast] = useState(false);
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -19,51 +21,53 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
   useEffect(() => {
     setRole(initialRole);
   }, [initialRole]);
-
-  // Maintain current selected i18n language instead of hardcoding 'en'
-  const [prefLang, setPrefLang] = useState(i18n.language || 'en');
+  const [prefLang, setPrefLang] = useState('en');
+  const [cityName, setCityName] = useState('Delhi');
   
-  useEffect(() => {
-    if (prefLang && prefLang !== i18n.language) {
-      i18n.changeLanguage(prefLang);
-    }
-  }, [prefLang, i18n]);
-
-  const [longitude, setLongitude] = useState('');
-  const [latitude, setLatitude] = useState('');
+  const CITY_COORDINATES = {
+    'delhi': [77.2090, 28.6139],
+    'new delhi': [77.2090, 28.6139],
+    'connaught place': [77.2197, 28.6304],
+    'mumbai': [72.8777, 19.0760],
+    'bengaluru': [77.5946, 12.9716],
+    'bangalore': [77.5946, 12.9716],
+    'chennai': [80.2707, 13.0827],
+    'kolkata': [88.3639, 22.5726],
+    'noida': [77.3910, 28.5355],
+    'gurgaon': [77.0266, 28.4595]
+  };
   
   const [geoState, setGeoState] = useState(''); // 'detecting', 'success', 'error'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleGetLocation = () => {
-    if (!navigator.geolocation) {
-      setGeoState('error');
-      setError(t('auth.geolocation_unsupported'));
-      return;
+  // Sync Root Font Size
+  useEffect(() => {
+    const root = document.documentElement;
+    if (fontSize === 'normal') {
+      root.style.fontSize = '16px';
+    } else if (fontSize === 'large') {
+      root.style.fontSize = '20px';
+    } else if (fontSize === 'xlarge') {
+      root.style.fontSize = '24px';
     }
-    setGeoState('detecting');
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLongitude(position.coords.longitude.toFixed(6));
-        setLatitude(position.coords.latitude.toFixed(6));
-        setGeoState('success');
-      },
-      (err) => {
-        console.error(err);
-        setGeoState('error');
-      }
-    );
+    return () => {
+      root.style.fontSize = '16px';
+    };
+  }, [fontSize]);
+
+  const cycleFontSize = () => {
+    if (fontSize === 'normal') setFontSize('large');
+    else if (fontSize === 'large') setFontSize('xlarge');
+    else setFontSize('normal');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
-    if (!longitude || !latitude) {
-      setError(t('auth.coordinates_required'));
-      return;
-    }
+    const cityKey = cityName.trim().toLowerCase();
+    const coords = CITY_COORDINATES[cityKey] || [77.2090, 28.6139]; // Default to Delhi coordinates
 
     setLoading(true);
     try {
@@ -75,8 +79,8 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
         role,
         preferredLanguage: prefLang,
         location: {
-          longitude: parseFloat(longitude),
-          latitude: parseFloat(latitude)
+          longitude: coords[0],
+          latitude: coords[1]
         }
       });
       if (role === 'customer') {
@@ -85,7 +89,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
         onNavigate('onboarding');
       }
     } catch (err) {
-      setError(err.response?.data?.message || t('auth.registration_failed'));
+      setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -127,12 +131,21 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
           {/* Accessibility Controls */}
           <div className="flex items-center gap-3">
             <button 
-              onClick={() => setPanelOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
-              aria-label={t('accessibility.options')}
+              onClick={cycleFontSize}
+              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
+              aria-label="Toggle Font Size"
             >
               <Type className="h-4 w-4" />
-              <span>{t('accessibility.options')}</span>
+              <span>Aa</span>
+            </button>
+
+            <button 
+              onClick={() => setHighContrast(!highContrast)}
+              className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm font-semibold transition-all ${highContrast ? 'border-white bg-white text-black' : 'border-cream-dark hover:bg-cream-dark/30'}`}
+              aria-label="Toggle High Contrast"
+            >
+              <Eye className="h-4 w-4" />
+              <span className="hidden sm:inline">Contrast</span>
             </button>
 
             <div className="flex items-center gap-1 text-sm">
@@ -161,7 +174,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                placeholder={t('auth.name_placeholder')}
+                placeholder="e.g. Asha Devi"
                 className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
               />
             </div>
@@ -175,7 +188,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
-                placeholder={t('auth.phone_placeholder')}
+                placeholder="e.g. 9876543210"
                 className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
               />
             </div>
@@ -183,7 +196,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
             {/* Email (Optional) */}
             <div className="flex flex-col gap-2">
               <label htmlFor="email" className="text-sm font-bold">
-                {t('auth.email')} <span className={`font-normal ${textSecondaryTheme}`}>({t('common.optional')})</span>
+                Email <span className={`font-normal ${textSecondaryTheme}`}>(Optional)</span>
               </label>
               <input
                 type="email"
@@ -216,26 +229,26 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
                 <button
                   type="button"
                   onClick={() => setRole('provider')}
-                  className={`p-3.5 rounded-xl border-2 text-xs font-bold transition-all text-center flex flex-col items-center gap-1.5 ${
+                  className={`p-3 rounded-xl border-2 text-sm font-bold transition-all text-center flex flex-col items-center gap-1 ${
                     role === 'provider'
                       ? (highContrast ? 'bg-white text-black border-white' : 'bg-orange-50 border-terracotta text-terracotta')
                       : (highContrast ? 'border-white text-white bg-black' : 'border-cream-dark text-charcoal hover:bg-cream-dark/20')
                   }`}
                 >
-                  <span className="text-lg">👩‍🌾</span>
-                  <span>{t('roles.provider')}</span>
+                  <span className="text-base">👩‍🌾</span>
+                  {t('roles.provider').split(' ')[0]}
                 </button>
                 <button
                   type="button"
                   onClick={() => setRole('customer')}
-                  className={`p-3.5 rounded-xl border-2 text-xs font-bold transition-all text-center flex flex-col items-center gap-1.5 ${
+                  className={`p-3 rounded-xl border-2 text-sm font-bold transition-all text-center flex flex-col items-center gap-1 ${
                     role === 'customer'
                       ? (highContrast ? 'bg-white text-black border-white' : 'bg-teal-50 border-forest text-forest')
                       : (highContrast ? 'border-white text-white bg-black' : 'border-cream-dark text-charcoal hover:bg-cream-dark/20')
                   }`}
                 >
-                  <span className="text-lg">🤝</span>
-                  <span>{t('roles.customer')}</span>
+                  <span className="text-base">🤝</span>
+                  {t('roles.customer').split(' ')[0]}
                 </button>
               </div>
             </div>
@@ -255,55 +268,23 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
               </select>
             </div>
 
-            {/* Geolocation Section */}
-            <div className="flex flex-col gap-3 border-t pt-4 border-cream-dark/30">
-              <label className="text-sm font-bold">{t('auth.location_coordinates')}</label>
-              
-              <button
-                type="button"
-                onClick={handleGetLocation}
-                className={`w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-xl ${outlineBtnTheme}`}
-              >
-                <MapPin className="h-5 w-5 text-terracotta" />
-                {t('auth.detect_location')}
-              </button>
-              
-              {geoState === 'detecting' && (
-                <p className="text-xs text-center text-forest animate-pulse">{t('auth.detecting_coordinates')}</p>
-              )}
-              {geoState === 'success' && (
-                <p className="text-xs text-center text-green-600 font-semibold">{t('auth.location_detected')}</p>
-              )}
-              {geoState === 'error' && (
-                <p className="text-xs text-center text-red-500 font-semibold">{t('auth.location_failed')}</p>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="latitude" className="text-xs text-gray-500">{t('auth.latitude')}</label>
-                  <input
-                    type="number"
-                    step="any"
-                    id="latitude"
-                    value={latitude}
-                    onChange={(e) => setLatitude(e.target.value)}
-                    required
-                    className={`px-3 py-2 rounded-lg text-sm ${inputTheme}`}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="longitude" className="text-xs text-gray-500">{t('auth.longitude')}</label>
-                  <input
-                    type="number"
-                    step="any"
-                    id="longitude"
-                    value={longitude}
-                    onChange={(e) => setLongitude(e.target.value)}
-                    required
-                    className={`px-3 py-2 rounded-lg text-sm ${inputTheme}`}
-                  />
-                </div>
-              </div>
+            {/* City Location Section */}
+            <div className="flex flex-col gap-2 border-t pt-4 border-cream-dark/30">
+              <label htmlFor="cityName" className="text-sm font-bold">
+                {t('auth.city_location', 'City / Location')}
+              </label>
+              <input
+                type="text"
+                id="cityName"
+                value={cityName}
+                onChange={(e) => setCityName(e.target.value)}
+                required
+                placeholder="e.g. Delhi, Mumbai, Noida"
+                className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
+              />
+              <p className="text-[10px] text-gray-500">
+                Enter your city name. We will use this to show jobs and opportunities nearby.
+              </p>
             </div>
 
             {/* Submit Button */}

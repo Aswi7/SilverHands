@@ -1,7 +1,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Model configuration constant for easy swapping
-const DEFAULT_MODEL = "gemini-3.5-flash"; // Fallback to "gemini-3.5-flash-lite" if rate limits are hit
+const DEFAULT_MODEL = "gemini-3.6-flash"; // Supported model for sandbox API key
 
 let genAI = null;
 
@@ -87,8 +87,13 @@ const callGemini = async (systemPrompt, userInput, responseSchema) => {
 const generateEmbedding = async (text) => {
   try {
     const ai = initGemini();
-    const model = ai.getGenerativeModel({ model: "text-embedding-004" });
-    const result = await model.embedContent(text);
+    const model = ai.getGenerativeModel({ model: "gemini-embedding-001" });
+    const result = await model.embedContent({
+      content: {
+        parts: [{ text }]
+      },
+      outputDimensionality: 768
+    });
     return result.embedding.values;
   } catch (err) {
     console.error('Failed to generate embedding:', err.message);

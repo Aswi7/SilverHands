@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles } from 'lucide-react';
 import api from '../services/api';
-import { useTranslation } from 'react-i18next';
 
 export const MatchExplanation = ({ opp, highContrast }) => {
-  const { t, i18n } = useTranslation();
   const [explanation, setExplanation] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
@@ -37,8 +35,7 @@ export const MatchExplanation = ({ opp, highContrast }) => {
       const { data } = await api.post('/ai/explain-match', {
         skillOverlap: opp.score,
         distance: opp.distance || 'nearby',
-        availabilityOverlap: true,
-        language: i18n.language
+        availabilityOverlap: true // Defaulted for MVP
       });
       if (data && data.explanation) {
         setExplanation(data.explanation);
@@ -62,7 +59,7 @@ export const MatchExplanation = ({ opp, highContrast }) => {
     >
       <Sparkles className={`h-4 w-4 shrink-0 text-terracotta mt-0.5 ${isLoading ? 'animate-pulse' : ''}`} />
       <p className="text-xs font-semibold leading-relaxed">
-        {isLoading ? t('ai.generating_match_explanation') : `"${explanation || opp.rationale}"`}
+        {isLoading ? "Generating match explanation..." : `"${explanation || opp.rationale || 'This opportunity aligns well with your extracted skills and location.'}"`}
       </p>
     </div>
   );
