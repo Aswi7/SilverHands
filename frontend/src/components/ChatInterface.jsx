@@ -48,9 +48,11 @@ const getInitials = (nameStr) => {
 };
 
 const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversation, onPrepareListing }) => {
-  const [conversations, setConversations] = useState([SAKHI_CONVERSATION]);
-  const [selectedConv, setSelectedConv] = useState(SAKHI_CONVERSATION);
-  const [messages, setMessages] = useState(INITIAL_SAKHI_MESSAGES);
+  const isCustomer = user?.role === 'customer';
+
+  const [conversations, setConversations] = useState(isCustomer ? [] : [SAKHI_CONVERSATION]);
+  const [selectedConv, setSelectedConv] = useState(isCustomer ? null : SAKHI_CONVERSATION);
+  const [messages, setMessages] = useState(isCustomer ? [] : INITIAL_SAKHI_MESSAGES);
   const [sakhiMessages, setSakhiMessages] = useState(INITIAL_SAKHI_MESSAGES);
   const [newMessageText, setNewMessageText] = useState('');
   const [loadingConvs, setLoadingConvs] = useState(true);
@@ -67,12 +69,12 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Fetch all user conversations from MongoDB & include Sakhi AI Assistant
+  // Fetch all user conversations from MongoDB (include Sakhi AI for providers only)
   const fetchConversations = async (autoSelectMatchId = null) => {
     try {
       const { data } = await api.get('/chat/conversations');
       const convList = Array.isArray(data) ? data : [];
-      const fullList = [SAKHI_CONVERSATION, ...convList];
+      const fullList = isCustomer ? convList : [SAKHI_CONVERSATION, ...convList];
       setConversations(fullList);
 
       if (autoSelectMatchId) {
@@ -82,9 +84,11 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
         });
         if (target) {
           setSelectedConv(target);
+        } else if (convList.length > 0) {
+          setSelectedConv(convList[0]);
         }
-      } else if (!selectedConv) {
-        setSelectedConv(SAKHI_CONVERSATION);
+      } else if (!selectedConv || (isCustomer && selectedConv.isSakhi)) {
+        setSelectedConv(isCustomer ? (convList[0] || null) : SAKHI_CONVERSATION);
       }
     } catch (err) {
       console.error('Failed to fetch conversations:', err);
@@ -169,7 +173,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
     setIsSending(true);
 
     // ----------------------------------------------------
-    // SAKHI AI ASSISTANT CHAT HANDLING
+    // SAKHI AI ASSISTANT CHAT HANDLING (Providers Only)
     // ----------------------------------------------------
     if (selectedConv._id === 'sakhi_ai_assistant') {
       const userMsg = {
@@ -213,7 +217,6 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
         setSakhiMessages(finalSakhiMsgs);
         setMessages(finalSakhiMsgs);
         
-        // Update Sakhi last message preview
         SAKHI_CONVERSATION.lastMessage = replyText;
         SAKHI_CONVERSATION.lastMessageAt = new Date();
       } catch (err) {
@@ -280,10 +283,12 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
         <div>
           <h2 className="font-serif text-2xl font-bold flex items-center gap-2">
             <MessageSquare className="h-6 w-6 text-forest" />
-            <span>Messages & Sakhi AI Assistant</span>
+            <span>{isCustomer ? 'Provider Messages & Chat' : 'Messages & Sakhi AI Assistant'}</span>
           </h2>
           <p className="text-xs text-gray-500 mt-0.5">
-            Chat with Sakhi AI Assistant or communicate directly with your connected matches.
+            {isCustomer 
+              ? 'Communicate directly with your connected service providers.'
+              : 'Chat with Sakhi AI Assistant or communicate directly with your connected matches.'}
           </p>
         </div>
         <button
@@ -301,14 +306,20 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
         <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-cream-dark/30 flex flex-col shrink-0 bg-cream/10">
           <div className="p-3 border-b border-cream-dark/30 font-bold text-xs uppercase tracking-wider text-gray-500 flex justify-between items-center">
             <span>Conversations ({conversations.length})</span>
-            <span className="text-[10px] text-terracotta font-extrabold flex items-center gap-1">
-              <Sparkles className="h-3 w-3" /> Sakhi AI Active
-            </span>
+            {!isCustomer && (
+              <span className="text-[10px] text-terracotta font-extrabold flex items-center gap-1">
+                <Sparkles className="h-3 w-3" /> Sakhi AI Active
+              </span>
+            )}
           </div>
 
           {loadingConvs ? (
             <div className="p-6 text-center text-xs font-bold text-forest animate-pulse flex items-center justify-center gap-2">
               <Sparkles className="h-4 w-4 text-terracotta" /> Loading conversations...
+            </div>
+          ) : conversations.length === 0 ? (
+            <div className="p-8 text-center text-xs text-gray-400">
+              No active conversations found. Accept a match or request a connection to start chatting!
             </div>
           ) : (
             <div className="grow overflow-y-auto divide-y divide-cream-dark/20">
@@ -536,7 +547,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
             <div className="m-auto text-center p-8 flex flex-col items-center gap-2 text-gray-400">
               <MessageSquare className="h-12 w-12 text-gray-300" />
               <h4 className="font-bold text-base text-gray-600">Select a Conversation</h4>
-              <p className="text-xs">Choose a connected user or Sakhi AI Assistant to start chatting.</p>
+              <p className="text-xs">Choose a connected user to start chatting.</p>
             </div>
           )}
         </div>
