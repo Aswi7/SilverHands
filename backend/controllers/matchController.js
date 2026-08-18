@@ -1,4 +1,5 @@
 const Match = require('../models/Match');
+const Conversation = require('../models/Conversation');
 
 // Valid state transitions dictionary
 const VALID_TRANSITIONS = {
@@ -71,6 +72,23 @@ const updateMatchStatus = async (req, res) => {
     if (status === 'ACCEPTED') {
       match.respondedAt = now;
       match.acceptedAt = now;
+
+      // Automatically create Conversation document for both users upon acceptance
+      try {
+        const existingConv = await Conversation.findOne({ match: match._id });
+        if (!existingConv) {
+          await Conversation.create({
+            customer: match.customer._id || match.customer,
+            provider: match.provider._id || match.provider,
+            match: match._id,
+            lastMessage: 'Connection accepted! Start chatting below.',
+            lastMessageAt: now
+          });
+          console.log(`[CONVERSATION CREATED] Created conversation for match ${match._id}`);
+        }
+      } catch (convErr) {
+        console.error('Auto conversation creation error:', convErr.message);
+      }
     } else if (status === 'REJECTED') {
       match.respondedAt = now;
       match.rejectedAt = now;

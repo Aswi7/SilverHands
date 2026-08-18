@@ -37,7 +37,7 @@ import LanguageSwitcher from '../components/LanguageSwitcher';
 import api from '../services/api';
 import { SafetyTipsCard } from '../components/TrustSafety';
 import { MatchExplanation } from '../components/MatchExplanation';
-import { ChatInterface } from '../components/ChatInterface';
+import ChatInterface from '../components/ChatInterface';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
 import { forecastData } from '../data/forecastData';
