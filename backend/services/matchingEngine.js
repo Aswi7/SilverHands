@@ -91,15 +91,44 @@ const findMatches = async (opportunityId) => {
     
     pipeline.push(projectStage);
 
-    // Run the aggregation on the User model
-    const candidates = await User.aggregate(pipeline);
+    let candidates = [];
+    try {
+      // Run the aggregation on the User model (Atlas Vector Search)
+      candidates = await User.aggregate(pipeline);
+    } catch (aggErr) {
+      console.warn("Atlas Vector search failed, using local fallback matching engine:", aggErr.message);
+      
+      // Standalone/Local MongoDB Fallback: Fetch all providers manually
+      const filter = { role: 'provider' };
+      if (opportunity.mode === 'offline' && opportunity.city) {
+        const allowedCities = getNearbyCities(opportunity.city);
+        filter.city = { $in: allowedCities };
+      }
+      candidates = await User.find(filter).lean();
+    }
 
     const newMatches = [];
 
     for (const provider of candidates) {
       // 1. Skill Similarity (0 to 100)
-      const rawVectorScore = provider.searchScore || 0;
-      const skillScore = Math.max(0, rawVectorScore) * 100;
+      let skillScore = 0;
+      if (provider.searchScore !== undefined) {
+        const rawVectorScore = provider.searchScore || 0;
+        skillScore = Math.max(0, rawVectorScore) * 100;
+      } else {
+        // Fallback: simple text keyword matching based on skills category or name
+        const oppCategory = (opportunity.category || '').toLowerCase();
+        const oppTitle = (opportunity.title || '').toLowerCase();
+        const oppDesc = (opportunity.description || '').toLowerCase();
+        
+        const hasSkill = provider.skills && provider.skills.some(s => {
+          const sName = (s.skillName || '').toLowerCase();
+          const sCat = (s.category || '').toLowerCase();
+          return sName.includes(oppCategory) || sCat.includes(oppCategory) ||
+                 oppTitle.includes(sName) || oppDesc.includes(sName);
+        });
+        skillScore = hasSkill ? 95 : 30;
+      }
 
       // 2. Proximity Score (0 to 100) based on city matching
       let proximityScore = 100;
