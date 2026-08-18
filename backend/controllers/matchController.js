@@ -1,0 +1,129 @@
+const Match = require('../models/Match');
+
+// Valid state transitions dictionary
+const VALID_TRANSITIONS = {
+  PENDING: ['ACCEPTED', 'REJECTED', 'CANCELLED'],
+  ACCEPTED: ['CONTACTED', 'COMPLETED', 'CANCELLED'],
+  REJECTED: [],
+  CONTACTED: ['COMPLETED', 'CANCELLED'],
+  COMPLETED: [],
+  CANCELLED: []
+};
+
+// @desc    Update match request status (Accept/Reject by Provider, Contact/Cancel by Customer)
+// @route   PUT /api/matches/:id/status
+// @access  Private
+const updateMatchStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const matchId = req.params.id;
+
+    if (!status) {
+      return res.status(400).json({ message: 'Status field is required' });
+    }
+
+    const match = await Match.findById(matchId).populate('opportunity provider customer');
+
+    if (!match) {
+      return res.status(404).json({ message: 'Match request not found' });
+    }
+
+    const currentStatus = match.status || 'PENDING';
+
+    // State machine transition validation
+    const allowedNext = VALID_TRANSITIONS[currentStatus] || [];
+    if (!allowedNext.includes(status)) {
+      return res.status(400).json({
+        message: `Invalid state transition from '${currentStatus}' to '${status}'. Allowed transitions: ${allowedNext.join(', ') || 'None (Terminal state)'}`
+      });
+    }
+
+    // Role-based permission check
+    const userIdStr = req.user._id.toString();
+    const providerIdStr = match.provider?._id?.toString() || match.provider?.toString();
+    const customerIdStr = match.customer?._id?.toString() || match.customer?.toString();
+
+    if (['ACCEPTED', 'REJECTED'].includes(status)) {
+      if (req.user.role !== 'provider' || userIdStr !== providerIdStr) {
+        return res.status(403).json({ message: 'Only the assigned Provider can Accept or Reject this match request' });
+      }
+    }
+
+    if (['CONTACTED', 'CANCELLED'].includes(status)) {
+      if (userIdStr !== customerIdStr && userIdStr !== providerIdStr) {
+        return res.status(403).json({ message: 'Not authorized to update this match request' });
+      }
+    }
+
+    // Apply timestamps based on status
+    const now = new Date();
+    match.status = status;
+
+    if (status === 'ACCEPTED') {
+      match.respondedAt = now;
+      match.acceptedAt = now;
+    } else if (status === 'REJECTED') {
+      match.respondedAt = now;
+      match.rejectedAt = now;
+    } else if (status === 'CONTACTED') {
+      match.contactedAt = now;
+    }
+
+    await match.save();
+
+    console.log(`[MATCH STATUS UPDATE] Match ${match._id} updated from '${currentStatus}' to '${status}' by User ${req.user._id}`);
+
+    res.status(200).json(match);
+  } catch (error) {
+    console.error('Update match status error:', error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get match requests for the logged-in provider
+// @route   GET /api/matches/my-requests
+// @access  Private (Provider only)
+const getProviderMatchRequests = async (req, res) => {
+  try {
+    if (req.user.role !== 'provider') {
+      return res.status(403).json({ message: 'Only providers can view match requests' });
+    }
+
+    const matches = await Match.find({ provider: req.user._id })
+      .populate('opportunity')
+      .populate('customer', 'name phone preferredLanguage city')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(matches);
+  } catch (error) {
+    console.error('Get provider match requests error:', error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get single match details
+// @route   GET /api/matches/:id
+// @access  Private
+const getMatchDetails = async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id)
+      .populate('opportunity')
+      .populate('provider', 'name phone location skills bio availability age category preferredLanguage')
+      .populate('customer', 'name phone preferredLanguage city');
+
+    if (!match) {
+      return res.status(404).json({ message: 'Match not found' });
+    }
+
+    res.status(200).json(match);
+  } catch (error) {
+    console.error('Get match details error:', error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = {
+  updateMatchStatus,
+  getProviderMatchRequests,
+  getMatchDetails
+};

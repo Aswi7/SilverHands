@@ -11,6 +11,10 @@ const MatchSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
+  customer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   score: {
     type: Number,
     required: true,
@@ -22,7 +26,16 @@ const MatchSchema = new mongoose.Schema({
     proximityScore: { type: Number, default: 0 },
     rating: { type: Number, default: 0 },
     experienceLevel: { type: Number, default: 0 }
-  }
+  },
+  status: {
+    type: String,
+    enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'CONTACTED', 'COMPLETED', 'CANCELLED'],
+    default: 'PENDING'
+  },
+  respondedAt: { type: Date },
+  acceptedAt: { type: Date },
+  rejectedAt: { type: Date },
+  contactedAt: { type: Date }
 }, { timestamps: true });
 
 // Ensure we don't duplicate matches for the same provider + opportunity

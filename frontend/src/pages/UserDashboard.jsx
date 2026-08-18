@@ -28,7 +28,10 @@ import {
   Bot,
   X,
   Mic,
-  MicOff
+  MicOff,
+  Pencil,
+  Check,
+  Plus
 } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import api from '../services/api';
@@ -176,13 +179,110 @@ const UserDashboard = ({ onNavigate }) => {
   const [extractError, setExtractError] = useState(null);
   const [isListeningBio, setIsListeningBio] = useState(false);
 
+  // Profile Editing & Persistence State
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [newManualSkill, setNewManualSkill] = useState('');
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    city: '',
+    age: '',
+    preferredLanguage: 'en',
+    bio: '',
+    availability: true,
+    skills: []
+  });
+
   // Sync state with user when user loads
   useEffect(() => {
     if (user) {
       setBioText(prev => prev || user.bio || '');
       setExtractedSkills(prev => prev.length ? prev : (Array.isArray(user.skills) ? user.skills : []));
+      setProfileForm({
+        name: user.name || '',
+        city: user.city || '',
+        age: user.age || '',
+        preferredLanguage: user.preferredLanguage || 'en',
+        bio: user.bio || '',
+        availability: user.availability !== undefined ? user.availability : true,
+        skills: Array.isArray(user.skills) ? user.skills : []
+      });
     }
   }, [user]);
+
+  const handleSaveProfile = async (e) => {
+    if (e) e.preventDefault();
+    setIsSavingProfile(true);
+    setProfileSuccessMsg(false);
+    try {
+      const skillsToSave = (profileForm.skills || []).map(s => 
+        typeof s === 'object' ? s : { category: 'other', skillName: s, experienceLevel: 'Not specified', confidence: 1.0 }
+      );
+
+      const { data } = await api.put('/users/profile', {
+        name: profileForm.name,
+        city: profileForm.city,
+        age: profileForm.age,
+        preferredLanguage: profileForm.preferredLanguage,
+        bio: profileForm.bio,
+        availability: profileForm.availability,
+        skills: skillsToSave
+      });
+
+      if (updateUserInState && data) {
+        updateUserInState(data);
+      }
+      setIsEditingProfile(false);
+      setProfileSuccessMsg(true);
+      setTimeout(() => setProfileSuccessMsg(false), 5000);
+    } catch (err) {
+      console.error("Failed to save profile:", err);
+      alert(err.response?.data?.message || "Failed to save profile details.");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleAddSkillToProfile = (e) => {
+    e.preventDefault();
+    if (newManualSkill.trim()) {
+      const updated = [...(profileForm.skills || []), newManualSkill.trim()];
+      setProfileForm({ ...profileForm, skills: updated });
+      setNewManualSkill('');
+    }
+  };
+
+  const handleRemoveSkillFromProfile = (indexToRemove) => {
+    const updated = (profileForm.skills || []).filter((_, idx) => idx !== indexToRemove);
+    setProfileForm({ ...profileForm, skills: updated });
+  };
+
+  const handleAcceptMatch = async (opp) => {
+    try {
+      if (opp.matchId) {
+        await api.put(`/matches/${opp.matchId}/status`, { status: 'ACCEPTED' });
+      }
+      setOpportunities(prev => prev.map(item => item.id === opp.id ? { ...item, matchStatus: 'ACCEPTED' } : item));
+      alert(`Connection request accepted for "${opp.title}"! Contact/Chat is now available.`);
+    } catch (err) {
+      console.error('Failed to accept match request:', err);
+      alert(err.response?.data?.message || 'Failed to accept connection request.');
+    }
+  };
+
+  const handleRejectMatch = async (opp) => {
+    try {
+      if (opp.matchId) {
+        await api.put(`/matches/${opp.matchId}/status`, { status: 'REJECTED' });
+      }
+      setOpportunities(prev => prev.map(item => item.id === opp.id ? { ...item, matchStatus: 'REJECTED' } : item));
+      alert(`Declined connection request for "${opp.title}".`);
+    } catch (err) {
+      console.error('Failed to decline match request:', err);
+      alert(err.response?.data?.message || 'Failed to decline connection request.');
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -278,6 +378,8 @@ const UserDashboard = ({ onNavigate }) => {
         
         const mappedData = data.map((req) => ({
           id: req._id,
+          matchId: req.matchId,
+          matchStatus: req.matchStatus || 'PENDING',
           title: req.title,
           category: req.category,
           score: req.score || 50,
@@ -712,12 +814,25 @@ const UserDashboard = ({ onNavigate }) => {
 
                         <div className="flex flex-col gap-3 text-left">
                           
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className={`px-2.5 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
                               highContrast ? 'border border-white bg-black text-white' : 'bg-forest/10 text-forest'
                             }`}>
                               {opp.category}
                             </span>
+                            {opp.matchStatus === 'ACCEPTED' ? (
+                              <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-teal-100 text-teal-800 border border-teal-200">
+                                ✓ Accepted Connection
+                              </span>
+                            ) : opp.matchStatus === 'REJECTED' ? (
+                              <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-red-100 text-red-800 border border-red-200">
+                                Declined
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                New Match Request
+                              </span>
+                            )}
                           </div>
 
                           <h3 className="text-xl font-extrabold pr-14 leading-tight font-serif">{opp.title}</h3>
@@ -741,38 +856,44 @@ const UserDashboard = ({ onNavigate }) => {
 
                         </div>
 
-                        {/* Action buttons */}
+                        {/* Action buttons based on Match Connection Status */}
                         <div className="flex items-center gap-2 mt-6 border-t pt-4 border-cream-dark/30">
-                          <button
-                            onClick={async () => {
-                              try {
-                                await api.post('/applications', {
-                                  opportunityId: opp.id,
-                                  providerId: user._id,
-                                  employerId: opp.employerId || opp.user
-                                });
-                                alert('Applied successfully!');
-                                setActiveTab('applications');
-                              } catch (err) {
-                                console.error(err);
-                                alert('Error applying');
-                              }
-                            }}
-                            className={`grow font-bold rounded-xl text-sm flex items-center justify-center gap-1.5 ${primaryBtnTheme}`}
-                          >
-                            {t('dashboard.provider.matches.interested')}
-                          </button>
-                          <button
-                            onClick={() => {
-                              alert(`Archived "${opp.title}" match`);
-                            }}
-                            className={`px-4 rounded-xl text-sm font-bold ${outlineBtnTheme}`}
-                          >
-                            {t('dashboard.provider.matches.maybe_later')}
-                          </button>
+                          {opp.matchStatus === 'ACCEPTED' || opp.matchStatus === 'CONTACTED' ? (
+                            <button
+                              onClick={() => setActiveTab('messages')}
+                              className="grow font-bold rounded-xl text-sm py-2.5 bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center gap-1.5 shadow-sm"
+                            >
+                              <MessageSquare className="h-4 w-4" />
+                              <span>Contact / Chat Customer</span>
+                            </button>
+                          ) : opp.matchStatus === 'REJECTED' ? (
+                            <button
+                              disabled
+                              className="grow font-bold rounded-xl text-sm py-2.5 bg-gray-100 text-gray-400 cursor-not-allowed text-center"
+                            >
+                              You Declined This Request
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleAcceptMatch(opp)}
+                                className={`grow font-bold rounded-xl text-sm py-2.5 flex items-center justify-center gap-1.5 ${primaryBtnTheme}`}
+                              >
+                                <Check className="h-4 w-4" />
+                                <span>Accept Match</span>
+                              </button>
+                              <button
+                                onClick={() => handleRejectMatch(opp)}
+                                className="px-4 py-2.5 rounded-xl text-sm font-bold border border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-1"
+                              >
+                                <X className="h-4 w-4" />
+                                <span>Decline</span>
+                              </button>
+                            </>
+                          )}
                           <button
                             onClick={() => toggleBookmark(opp.id)}
-                            className={`h-12 w-12 rounded-xl border flex items-center justify-center transition-all ${
+                            className={`h-10 w-10 shrink-0 rounded-xl border flex items-center justify-center transition-all ${
                               isBookmarked
                                 ? (highContrast ? 'border-white bg-white text-black' : 'bg-forest/10 border-forest text-forest')
                                 : (highContrast ? 'border-white bg-black text-white hover:bg-white hover:text-black' : 'border-cream-dark hover:bg-cream-dark/20 text-gray-400')
@@ -1051,44 +1172,271 @@ const UserDashboard = ({ onNavigate }) => {
           {/* ================= VIEW: MY PROFILE ================= */}
           {activeTab === 'profile' && (
             <div className="flex flex-col gap-6 text-left">
-              <div className="border-b pb-3 border-cream-dark/30 mb-6">
-                <h2 className="font-serif text-2xl font-bold">My Profile</h2>
-                <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  View your details and update your AI-extracted skills.
-                </p>
+              <div className="border-b pb-3 border-cream-dark/30 mb-6 flex justify-between items-center">
+                <div>
+                  <h2 className="font-serif text-2xl font-bold">My Profile</h2>
+                  <p className={`text-sm ${textSecondaryTheme} mt-1`}>
+                    Manage your provider details, skills, bio, and matchmaking settings.
+                  </p>
+                </div>
+                {!isEditingProfile ? (
+                  <button 
+                    onClick={() => setIsEditingProfile(true)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold bg-terracotta text-white hover:bg-terracotta-hover shadow-sm transition-all"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    <span>Edit Profile</span>
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => setIsEditingProfile(false)}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-bold bg-gray-200 text-charcoal hover:bg-gray-300 transition-all"
+                  >
+                    <X className="h-4 w-4" />
+                    <span>Cancel Editing</span>
+                  </button>
+                )}
               </div>
 
-              {/* Profile Overview Card */}
+              {/* Profile Saved Success Banner */}
+              {profileSuccessMsg && (
+                <div className="p-4 rounded-2xl bg-teal-50 border border-teal-200 text-forest font-bold text-sm flex items-center justify-between shadow-sm animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-teal-600" />
+                    <span>Profile Saved Successfully! Saved to MongoDB & 768-dim Vector Embedding generated.</span>
+                  </div>
+                  <button onClick={() => setProfileSuccessMsg(false)}><X className="h-4 w-4" /></button>
+                </div>
+              )}
+
+              {/* Profile Overview / Edit Card */}
               <div className={`p-6 rounded-3xl flex flex-col gap-4 mb-2 ${cardTheme}`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                
+                {/* Header Row */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 border-cream-dark/30">
                   <div className="flex items-center gap-4">
                     <div className={`h-16 w-16 rounded-full flex items-center justify-center font-serif text-2xl font-extrabold shadow-sm ${highContrast ? 'border-2 border-white bg-black text-white' : 'bg-terracotta text-white'}`}>
-                      {user?.name ? user.name[0] : 'U'}
+                      {user?.name ? user.name[0] : 'P'}
                     </div>
                     <div>
-                      <h3 className="text-xl font-bold font-serif">{user?.name || 'User Name'}</h3>
+                      <h3 className="text-xl font-bold font-serif">{user?.name || 'Provider'}</h3>
                       <p className={`text-sm mt-0.5 ${textSecondaryTheme}`}>
-                        {user?.phone || 'No phone'} • Language: <span className="uppercase font-semibold">{user?.preferredLanguage || 'en'}</span>
+                        {user?.phone || 'No phone'} • City: <span className="font-semibold capitalize">{user?.city || 'Delhi'}</span>
                       </p>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider text-center ${
-                    highContrast ? 'border border-white bg-black text-white' : 'bg-forest/10 text-forest'
-                  }`}>
-                    {user?.role === 'provider' ? 'Service Provider' : 'User'}
-                  </span>
+
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider text-center ${
+                      highContrast ? 'border border-white bg-black text-white' : 'bg-forest/10 text-forest'
+                    }`}>
+                      Provider
+                    </span>
+                    {user?.isOnboarded ? (
+                      <span className="px-3 py-1 rounded-lg text-xs font-bold tracking-wider text-center bg-teal-100 text-teal-800 border border-teal-200 flex items-center gap-1">
+                        <Check className="h-3.5 w-3.5" /> Complete Profile
+                      </span>
+                    ) : (
+                      <span className="px-3 py-1 rounded-lg text-xs font-bold tracking-wider text-center bg-amber-100 text-amber-800 border border-amber-200">
+                        ⚠️ Profile Incomplete
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {user?.bio && (
-                  <div className="mt-4 pt-4 border-t border-cream-dark/30">
-                    <h4 className="text-sm font-bold text-forest mb-2 flex items-center gap-1.5">
-                      <User className="h-4 w-4" /> My Bio
-                    </h4>
-                    <p className={`text-sm leading-relaxed ${textSecondaryTheme} italic bg-cream/20 p-4 rounded-xl border border-cream-dark/30`}>
-                      "{user.bio}"
-                    </p>
+                {!isEditingProfile ? (
+                  /* READ-ONLY PROFILE DISPLAY */
+                  <div className="flex flex-col gap-5 pt-2">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div className="p-3 rounded-2xl border border-cream-dark/30 bg-cream/20">
+                        <span className="text-xs text-gray-500 font-bold uppercase">Preferred Language</span>
+                        <p className="font-bold text-charcoal capitalize mt-0.5">{user?.preferredLanguage === 'ta' ? 'Tamil' : user?.preferredLanguage === 'hi' ? 'Hindi' : 'English'}</p>
+                      </div>
+                      <div className="p-3 rounded-2xl border border-cream-dark/30 bg-cream/20">
+                        <span className="text-xs text-gray-500 font-bold uppercase">Age</span>
+                        <p className="font-bold text-charcoal mt-0.5">{user?.age ? `${user.age} years` : 'Not specified'}</p>
+                      </div>
+                      <div className="p-3 rounded-2xl border border-cream-dark/30 bg-cream/20">
+                        <span className="text-xs text-gray-500 font-bold uppercase">Availability Status</span>
+                        <p className={`font-bold mt-0.5 ${user?.availability !== false ? 'text-teal-700' : 'text-red-600'}`}>
+                          {user?.availability !== false ? '● Available for Work' : '○ Currently Unavailable'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {user?.bio && (
+                      <div>
+                        <h4 className="text-sm font-bold text-forest mb-2 flex items-center gap-1.5">
+                          <User className="h-4 w-4" /> Description / Bio
+                        </h4>
+                        <p className={`text-sm leading-relaxed ${textSecondaryTheme} italic bg-cream/20 p-4 rounded-xl border border-cream-dark/30`}>
+                          "{user.bio}"
+                        </p>
+                      </div>
+                    )}
+
+                    {Array.isArray(user?.skills) && user.skills.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-bold text-forest mb-2 flex items-center gap-1.5">
+                          <Sparkles className="h-4 w-4 text-terracotta" /> Saved Skills ({user.skills.length})
+                        </h4>
+                        <div className="flex flex-wrap gap-2">
+                          {user.skills.map((skill, idx) => {
+                            const skillName = typeof skill === 'object' ? skill.skillName : skill;
+                            return (
+                              <span key={idx} className="px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-50 text-forest border border-teal-200">
+                                {skillName}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
+                ) : (
+                  /* EDITABLE PROFILE FORM */
+                  <form onSubmit={handleSaveProfile} className="flex flex-col gap-5 pt-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold uppercase text-gray-500">Full Name</label>
+                        <input
+                          type="text"
+                          value={profileForm.name}
+                          onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                          required
+                          className={`px-4 py-2.5 rounded-xl text-sm ${highContrast ? 'bg-black border border-white text-white' : 'border border-cream-dark bg-cream/10'}`}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold uppercase text-gray-500">City / Location</label>
+                        <input
+                          type="text"
+                          value={profileForm.city}
+                          onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
+                          required
+                          placeholder="e.g. Delhi, Mumbai"
+                          className={`px-4 py-2.5 rounded-xl text-sm ${highContrast ? 'bg-black border border-white text-white' : 'border border-cream-dark bg-cream/10'}`}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold uppercase text-gray-500">Age</label>
+                        <input
+                          type="number"
+                          value={profileForm.age}
+                          onChange={(e) => setProfileForm({ ...profileForm, age: e.target.value })}
+                          placeholder="Age (e.g. 62)"
+                          className={`px-4 py-2.5 rounded-xl text-sm ${highContrast ? 'bg-black border border-white text-white' : 'border border-cream-dark bg-cream/10'}`}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-bold uppercase text-gray-500">Preferred Language</label>
+                        <select
+                          value={profileForm.preferredLanguage}
+                          onChange={(e) => setProfileForm({ ...profileForm, preferredLanguage: e.target.value })}
+                          className={`px-4 py-2.5 rounded-xl text-sm ${highContrast ? 'bg-black border border-white text-white' : 'border border-cream-dark bg-cream/10'}`}
+                        >
+                          <option value="en">English</option>
+                          <option value="ta">தமிழ் (Tamil)</option>
+                          <option value="hi">हिन्दी (Hindi)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold uppercase text-gray-500">Description / Bio</label>
+                      <textarea
+                        value={profileForm.bio}
+                        onChange={(e) => setProfileForm({ ...profileForm, bio: e.target.value })}
+                        rows="3"
+                        placeholder="Describe your experience and services offered..."
+                        className={`w-full px-4 py-2.5 rounded-xl text-sm ${highContrast ? 'bg-black border border-white text-white' : 'border border-cream-dark bg-cream/10'}`}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3 py-1">
+                      <input
+                        type="checkbox"
+                        id="availCheck"
+                        checked={profileForm.availability}
+                        onChange={(e) => setProfileForm({ ...profileForm, availability: e.target.checked })}
+                        className="h-4 w-4 text-terracotta rounded border-gray-300"
+                      />
+                      <label htmlFor="availCheck" className="text-sm font-bold cursor-pointer">
+                        Active & Available for Work Matchmaking
+                      </label>
+                    </div>
+
+                    {/* Skills Manager */}
+                    <div className="flex flex-col gap-2 border-t pt-4 border-cream-dark/30">
+                      <label className="text-xs font-bold uppercase text-gray-500">Manage Skills</label>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {(profileForm.skills || []).map((skill, index) => {
+                          const skillName = typeof skill === 'object' ? skill.skillName : skill;
+                          return (
+                            <div key={index} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-50 text-forest border border-teal-200">
+                              <span>{skillName}</span>
+                              <button 
+                                type="button" 
+                                onClick={() => handleRemoveSkillFromProfile(index)}
+                                className="hover:text-red-500"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newManualSkill}
+                          onChange={(e) => setNewManualSkill(e.target.value)}
+                          placeholder="Add skill (e.g. Cooking, Tutoring)"
+                          className={`flex-grow px-3 py-2 rounded-xl text-xs ${highContrast ? 'bg-black border border-white text-white' : 'border border-cream-dark bg-cream/10'}`}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddSkillToProfile}
+                          className="px-4 py-2 bg-forest text-white font-bold text-xs rounded-xl hover:bg-forest-hover flex items-center gap-1"
+                        >
+                          <Plus className="h-4 w-4" /> Add
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3 mt-4 border-t pt-4 border-cream-dark/30">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingProfile(false)}
+                        className="px-5 py-2.5 rounded-xl text-sm font-bold border border-cream-dark hover:bg-gray-100"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingProfile}
+                        className="px-6 py-2.5 rounded-xl text-sm font-bold bg-terracotta text-white hover:bg-terracotta-hover shadow-md flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {isSavingProfile ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Saving to MongoDB...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="h-4 w-4" />
+                            <span>Save Profile</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
                 )}
+
               </div>
 
               {/* My Published Services (Listings) */}

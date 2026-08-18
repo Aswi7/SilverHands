@@ -10,6 +10,7 @@ const providerRoutes = require('./routes/providerRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const listingRoutes = require('./routes/listingRoutes');
 const applicationRoutes = require('./routes/applicationRoutes');
+const matchRoutes = require('./routes/matchRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -36,6 +37,7 @@ app.use('/api/providers', providerRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/listings', listingRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api/matches', matchRoutes);
 
 // Base health check route
 app.get('/api/health', (req, res) => {

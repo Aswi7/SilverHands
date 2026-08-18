@@ -21,6 +21,10 @@ const createServiceRequest = async (req, res) => {
     const textToEmbed = `Category: ${category}. Description: ${description}`;
     const embedding = await generateEmbedding(textToEmbed);
 
+    console.log(`[MATCHMAKING LOG] New Request Created by Customer ID: ${req.user._id}`);
+    console.log(`[MATCHMAKING LOG] Request details -> Title: "${title}", Category: "${category}"`);
+    console.log(`[MATCHMAKING LOG] Embedding generated: ${embedding ? embedding.length : 0} dimensions`);
+
     const request = await ServiceRequest.create({
       customer: req.user._id,
       title,
@@ -37,7 +41,30 @@ const createServiceRequest = async (req, res) => {
       embedding
     });
 
-    res.status(201).json(request);
+    console.log(`[MATCHMAKING LOG] Saved ServiceRequest to MongoDB -> Request ID: ${request._id}`);
+
+    // Immediately trigger matchmaking engine from the backend
+    await findMatches(request._id);
+
+    // Fetch created match documents from MongoDB
+    const populatedMatches = await Match.find({ opportunity: request._id })
+      .populate('provider', 'name phone location skills bio availability age category preferredLanguage')
+      .sort({ score: -1 })
+      .lean();
+
+    console.log(`[MATCHMAKING LOG] Summary for Request ID ${request._id}:`);
+    console.log(`  - Customer ID: ${req.user._id}`);
+    console.log(`  - Request ID: ${request._id}`);
+    console.log(`  - Matches Created: ${populatedMatches.length}`);
+    populatedMatches.forEach(m => {
+      console.log(`  - Match ID: ${m._id} | Customer ID: ${req.user._id} | Provider ID: ${m.provider?._id || m.provider} | Score: ${m.score}`);
+    });
+
+    res.status(201).json({
+      ...request.toObject(),
+      applicantsCount: populatedMatches.length,
+      matches: populatedMatches
+    });
   } catch (error) {
     console.error('Create request error:', error.message);
     res.status(500).json({ message: error.message });
@@ -104,6 +131,8 @@ const getNearbyRequests = async (req, res) => {
       const matchDoc = matchMap[req._id.toString()];
       return {
         ...req,
+        matchId: matchDoc ? matchDoc._id : null,
+        matchStatus: matchDoc ? (matchDoc.status || 'PENDING') : 'PENDING',
         score: matchDoc ? matchDoc.score : 50, // default if no match computed
         scoreBreakdown: matchDoc ? matchDoc.scoreBreakdown : null
       };
@@ -152,8 +181,17 @@ const getMyRequests = async (req, res) => {
     if (req.user.role !== 'customer') {
       return res.status(403).json({ message: 'Only customers can view their requests' });
     }
-    const requests = await ServiceRequest.find({ customer: req.user._id }).sort({ createdAt: -1 });
-    res.status(200).json(requests);
+    const requests = await ServiceRequest.find({ customer: req.user._id }).sort({ createdAt: -1 }).lean();
+
+    const enrichedRequests = await Promise.all(requests.map(async (request) => {
+      const matchCount = await Match.countDocuments({ opportunity: request._id });
+      return {
+        ...request,
+        applicantsCount: matchCount
+      };
+    }));
+
+    res.status(200).json(enrichedRequests);
   } catch (error) {
     console.error('Get my requests error:', error.message);
     res.status(500).json({ message: error.message });

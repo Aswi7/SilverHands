@@ -300,7 +300,7 @@ const EmployerDashboard = ({ onNavigate }) => {
         mode: data.mode,
         timing: data.timing,
         status: data.status,
-        applicantsCount: 0
+        applicantsCount: data.applicantsCount !== undefined ? data.applicantsCount : (Array.isArray(data.matches) ? data.matches.length : 0)
       };
 
       setPostings([newPosting, ...postings]);
@@ -950,6 +950,23 @@ const EmployerDashboard = ({ onNavigate }) => {
                       {/* AI summary block */}
                       <MatchExplanation opp={{ ...match, rationale: "Matched based on skills and proximity." }} highContrast={highContrast} />
 
+                      {/* Connection Request Status Badge */}
+                      <div className="flex items-center gap-2 mt-1">
+                        {match.status === 'ACCEPTED' || match.status === 'CONTACTED' ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-800 border border-teal-200 flex items-center gap-1">
+                            <CheckCircle className="h-3.5 w-3.5 text-teal-600" /> Match Accepted by Provider
+                          </span>
+                        ) : match.status === 'REJECTED' ? (
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">
+                            Declined by Provider
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                            <Clock className="h-3.5 w-3.5 text-amber-700" /> Potential Match - Awaiting Provider Response
+                          </span>
+                        )}
+                      </div>
+
                       {/* Info details */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-500">
                         <span>💪 <strong>{t('dashboard.employer.candidates.skills')}</strong> {cand.skills && cand.skills.length > 0 ? cand.skills.slice(0, 3).map(s => typeof s === 'object' ? s.skillName : s).join(', ') : 'Not specified'}</span>
@@ -960,29 +977,45 @@ const EmployerDashboard = ({ onNavigate }) => {
                       <div className="flex items-center gap-3 mt-4 border-t pt-4 border-cream-dark/30">
                         <button
                           onClick={() => setSelectedCandidate(cand)}
-                          className={`px-6 text-sm font-bold ${outlineBtnTheme}`}
+                          className={`px-6 py-2.5 text-sm font-bold ${outlineBtnTheme}`}
                         >
                           {t('dashboard.employer.candidates.view_profile')}
                         </button>
-                        <button
-                          onClick={async () => {
-                            try {
-                              const res = await api.post('/applications', {
-                                opportunityId: selectedPosting.id,
-                                providerId: cand._id,
-                                employerId: user._id
-                              });
-                              setActiveTab('messages');
-                            } catch (err) {
-                              console.error(err);
-                              setActiveTab('messages');
-                            }
-                          }}
-                          className={`px-6 text-sm font-bold flex items-center gap-1.5 ${primaryBtnTheme}`}
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                          {t('dashboard.employer.candidates.contact')}
-                        </button>
+
+                        {match.status === 'ACCEPTED' || match.status === 'CONTACTED' ? (
+                          <button
+                            onClick={async () => {
+                              try {
+                                if (match._id) {
+                                  await api.put(`/matches/${match._id}/status`, { status: 'CONTACTED' });
+                                }
+                                setActiveTab('messages');
+                              } catch (err) {
+                                console.error(err);
+                                setActiveTab('messages');
+                              }
+                            }}
+                            className="px-6 py-2.5 text-sm font-bold flex items-center gap-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-2xl shadow-sm transition-all"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            <span>Contact / Chat</span>
+                          </button>
+                        ) : match.status === 'REJECTED' ? (
+                          <button
+                            disabled
+                            className="px-6 py-2.5 text-sm font-bold bg-gray-100 text-gray-400 cursor-not-allowed rounded-2xl"
+                          >
+                            Declined
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="px-6 py-2.5 text-sm font-bold bg-amber-50 text-amber-800 border border-amber-200 cursor-not-allowed rounded-2xl flex items-center gap-1.5"
+                          >
+                            <Clock className="h-4 w-4" />
+                            <span>Awaiting Acceptance</span>
+                          </button>
+                        )}
                       </div>
 
                     </div>

@@ -14,8 +14,10 @@ const Login = ({ onNavigate }) => {
   const [highContrast, setHighContrast] = useState(false);
 
   const [phone, setPhone] = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
-  const [step, setStep] = useState('phone');
+  const [loginMethod, setLoginMethod] = useState('password'); // 'password' or 'otp'
+  const [otpSent, setOtpSent] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [role, setRole] = useState(() => {
@@ -44,30 +46,54 @@ const Login = ({ onNavigate }) => {
     else setFontSize('normal');
   };
 
-  const handleSubmit = async (e) => {
+  const handlePasswordLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      if (step === 'phone') {
-        await sendOtp(phone);
-        setStep('otp');
-      } else {
-        // Find state in history if passed from provider entry
-        const providerState = window.history.state || {};
-        
-        await verifyOtp({ 
-          phone, 
-          otp,
-          role: role,
-          name: providerState.name || 'User',
-          age: providerState.age,
-          category: providerState.category
-        });
-        onNavigate('dashboard');
-      }
+      await login(phone, password);
+      onNavigate('dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Action failed. Please check details.');
+      setError(err.response?.data?.message || 'Login failed. Please check your phone and password.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    setError('');
+    if (!phone) {
+      setError('Please enter your phone number first.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await sendOtp(phone);
+      setOtpSent(true);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to send OTP. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const providerState = window.history.state || {};
+      await verifyOtp({ 
+        phone, 
+        otp,
+        role: role,
+        name: providerState.name || 'User',
+        age: providerState.age,
+        category: providerState.category
+      });
+      onNavigate('dashboard');
+    } catch (err) {
+      setError(err.response?.data?.message || 'OTP verification failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -82,28 +108,19 @@ const Login = ({ onNavigate }) => {
         return;
       }
       
-      // First attempt without role - backend will tell us if it's a new user
       const result = await googleLogin(credentialResponse.credential);
       
-      // If it's a new user, result will have status: 'new_user'
       if (result?.status === 'new_user') {
-        // User needs to select role for new Google account
-        // The role is already selected in the form, so use that
         const resultWithRole = await googleLogin(credentialResponse.credential, role);
-        
-        // After creating the account, navigate based on role
         if (role === 'customer') {
           onNavigate('dashboard');
         } else {
-          // Provider needs to go through onboarding
           onNavigate('onboarding');
         }
       } else {
-        // Existing user - navigate to appropriate dashboard
-        if (result?.role === 'customer') {
+        if (result?.role === 'customer' || result?.role === 'employer') {
           onNavigate('dashboard');
         } else {
-          // Provider - check if they've completed onboarding
           if (result?.isOnboarded) {
             onNavigate('dashboard');
           } else {
@@ -178,67 +195,101 @@ const Login = ({ onNavigate }) => {
       {/* LOGIN FORM CONTAINER */}
       <main className="mx-auto max-w-lg px-4 mt-12 md:px-8">
         <div className={`p-8 rounded-3xl ${cardTheme}`}>
-          <h2 className="font-serif text-3xl font-bold text-center mb-6">{t('auth.login_title')}</h2>
+          <h2 className="font-serif text-3xl font-bold text-center mb-6">{t('auth.login_title', 'SilverHands Login')}</h2>
           
           {error && <div className="p-3 mb-4 rounded-xl text-center text-sm bg-red-100 text-red-700 border border-red-200">{error}</div>}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-5 text-left">
-            
-            {/* Role Selection (Tappable Cards) */}
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold">{t('auth.select_role', 'Select Role')}</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setRole('provider')}
-                  className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center ${
-                    role === 'provider'
-                      ? (highContrast ? 'border-yellow-400 bg-white/10 text-yellow-400 font-bold' : 'border-terracotta bg-orange-50/50 text-terracotta')
-                      : (highContrast ? 'border-white bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/20')
-                  }`}
-                >
-                  <span className="font-bold text-sm">{t('auth.role_earn', 'Earn / Provide Help')}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('customer')}
-                  className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center justify-center ${
-                    role === 'customer'
-                      ? (highContrast ? 'border-yellow-400 bg-white/10 text-yellow-400 font-bold' : 'border-forest bg-teal-50/50 text-forest')
-                      : (highContrast ? 'border-white bg-black text-white' : 'border-cream-dark hover:bg-cream-dark/20')
-                  }`}
-                >
-                  <span className="font-bold text-sm">{t('auth.role_hire', 'Hire / Request Help')}</span>
-                </button>
+          {/* Method Selection (Password vs OTP) */}
+          <div className="flex rounded-xl p-1 mb-6 bg-cream-dark/20 border border-cream-dark/40">
+            <button
+              type="button"
+              onClick={() => { setLoginMethod('password'); setError(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                loginMethod === 'password'
+                  ? 'bg-white shadow text-terracotta'
+                  : 'text-charcoal-light hover:text-charcoal'
+              }`}
+            >
+              Password Login
+            </button>
+            <button
+              type="button"
+              onClick={() => { setLoginMethod('otp'); setError(''); }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                loginMethod === 'otp'
+                  ? 'bg-white shadow text-terracotta'
+                  : 'text-charcoal-light hover:text-charcoal'
+              }`}
+            >
+              OTP Login
+            </button>
+          </div>
+
+          {loginMethod === 'password' ? (
+            /* PASSWORD LOGIN FORM */
+            <form onSubmit={handlePasswordLogin} className="flex flex-col gap-5 text-left">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="phone" className="text-sm font-bold">{t('auth.phone', 'Phone Number')}</label>
+                <input
+                  type="text"
+                  id="phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  placeholder="e.g. 9876543210"
+                  className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
+                />
               </div>
-            </div>
 
-            {/* Phone */}
-            <div className="flex flex-col gap-2">
-              <label htmlFor="phone" className="text-sm font-bold">{t('auth.phone')}</label>
-              <input
-                type="text"
-                id="phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                placeholder="e.g. 9876543210"
-                className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
-              />
-            </div>
+              <div className="flex flex-col gap-2">
+                <label htmlFor="password" className="text-sm font-bold">{t('auth.password', 'Password')}</label>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
+                />
+              </div>
 
-            {/* Password / OTP */}
-            {step === 'phone' ? (
               <button
                 type="submit"
-                disabled={loading || !phone}
+                disabled={loading || !phone || !password}
                 className={`w-full font-bold flex items-center justify-center ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed mt-2`}
               >
-                {loading ? '...' : t('auth.login_btn', 'Get OTP')}
+                {loading ? '...' : t('auth.login_btn', 'Log In')}
               </button>
-            ) : (
-              <>
-                <div className="flex flex-col gap-2">
+            </form>
+          ) : (
+            /* OTP LOGIN FORM */
+            <form onSubmit={handleOtpLogin} className="flex flex-col gap-5 text-left">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="phone" className="text-sm font-bold">{t('auth.phone', 'Phone Number')}</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    id="phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    placeholder="e.g. 9876543210"
+                    className={`flex-1 px-4 py-3 rounded-xl text-base ${inputTheme}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={loading || !phone}
+                    className="px-4 py-3 bg-terracotta text-white font-bold text-xs rounded-xl hover:bg-terracotta-hover disabled:opacity-50"
+                  >
+                    {otpSent ? 'Resend' : 'Send OTP'}
+                  </button>
+                </div>
+              </div>
+
+              {otpSent && (
+                <div className="flex flex-col gap-2 animate-fade-in">
                   <label htmlFor="otp" className="text-sm font-bold">OTP</label>
                   <input
                     type="text"
@@ -246,22 +297,21 @@ const Login = ({ onNavigate }) => {
                     value={otp}
                     onChange={(e) => setOtp(e.target.value)}
                     required
-                    placeholder="Enter OTP"
+                    placeholder="Enter 4-digit OTP"
                     className={`px-4 py-3 rounded-xl text-base ${inputTheme}`}
                   />
                 </div>
-                <button
-                  type="submit"
-                  disabled={loading || !otp}
-                  className={`w-full font-bold flex items-center justify-center ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed mt-2`}
-                >
-                  {loading ? '...' : 'Verify OTP & Login'}
-                </button>
-              </>
-            )}
+              )}
 
-
-          </form>
+              <button
+                type="submit"
+                disabled={loading || !otpSent || !otp}
+                className={`w-full font-bold flex items-center justify-center ${primaryBtnTheme} disabled:opacity-50 disabled:cursor-not-allowed mt-2`}
+              >
+                {loading ? '...' : 'Verify OTP & Login'}
+              </button>
+            </form>
+          )}
 
           <div className="flex items-center gap-4 my-6">
             <div className={`flex-1 h-px ${highContrast ? 'bg-white' : 'bg-cream-dark'}`} />
@@ -286,7 +336,7 @@ const Login = ({ onNavigate }) => {
             onClick={() => onNavigate('signup')}
             className="text-center mt-6 text-sm font-bold text-terracotta hover:underline cursor-pointer"
           >
-            {t('auth.no_account')}
+            {t('auth.no_account', 'Don\'t have an account? Sign Up')}
           </p>
         </div>
       </main>

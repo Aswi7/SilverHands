@@ -66,16 +66,12 @@ const ProviderEntry = ({ onNavigate }) => {
       else category = 'none';
     }
 
-    // Go to login/OTP view and carry state
-    window.history.pushState({ view: 'login', signupRole: 'provider', name, age, category }, '', '#/login');
-    const event = new PopStateEvent('popstate', { state: { view: 'login', signupRole: 'provider', name, age, category } });
-    window.dispatchEvent(event);
+    // Go to signup view for provider
+    onNavigate('signup', 'provider');
   };
 
   const handleGoEmployer = () => {
-    window.history.pushState({ view: 'signup', signupRole: 'customer' }, '', '#/signup');
-    const event = new PopStateEvent('popstate', { state: { view: 'signup', signupRole: 'customer' } });
-    window.dispatchEvent(event);
+    onNavigate('signup', 'customer');
   };
 
   // Accessibility styling configurations

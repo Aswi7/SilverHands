@@ -96,16 +96,22 @@ const findMatches = async (opportunityId) => {
       // Run the aggregation on the User model (Atlas Vector Search)
       candidates = await User.aggregate(pipeline);
     } catch (aggErr) {
-      console.warn("Atlas Vector search failed, using local fallback matching engine:", aggErr.message);
-      
-      // Standalone/Local MongoDB Fallback: Fetch all providers manually
+      console.warn("Atlas Vector search failed, using fallback query engine:", aggErr.message);
+    }
+
+    // Fallback if vector search returns 0 candidates or fails
+    if (!candidates || candidates.length === 0) {
       const filter = { role: 'provider' };
       if (opportunity.mode === 'offline' && opportunity.city) {
         const allowedCities = getNearbyCities(opportunity.city);
-        filter.city = { $in: allowedCities };
+        filter.city = { $in: allowedCities.map(c => new RegExp(`^${c.trim()}$`, 'i')) };
       }
       candidates = await User.find(filter).lean();
     }
+
+    console.log(`[MATCHMAKING ENGINE] Executing findMatches for Opportunity ID: ${opportunity._id}`);
+    console.log(`[MATCHMAKING ENGINE] Customer ID: ${opportunity.customer} | Category: "${opportunity.category}" | Mode: "${opportunity.mode}" | City: "${opportunity.city}"`);
+    console.log(`[MATCHMAKING ENGINE] Provider candidates evaluated: ${candidates.length}`);
 
     const newMatches = [];
 
@@ -181,18 +187,27 @@ const findMatches = async (opportunityId) => {
         experienceLevel: Math.round(experienceScore)
       };
 
-      // Upsert the Match document
+      // Upsert the Match document (preserve status if document already exists)
       const matchDoc = await Match.findOneAndUpdate(
         { opportunity: opportunity._id, provider: provider._id },
         {
-          score: Math.round(finalScore),
-          scoreBreakdown
+          $set: {
+            customer: opportunity.customer,
+            score: Math.round(finalScore),
+            scoreBreakdown
+          },
+          $setOnInsert: {
+            status: 'PENDING'
+          }
         },
         { upsert: true, new: true }
       );
 
       newMatches.push(matchDoc);
+      console.log(`[MATCHMAKING ENGINE] Created Match -> Match ID: ${matchDoc._id} | Request ID: ${opportunity._id} | Customer ID: ${opportunity.customer} | Provider ID: ${provider._id} | Score: ${matchDoc.score}`);
     }
+
+    console.log(`[MATCHMAKING ENGINE] Completed findMatches for Request ID ${opportunity._id} -> Persisted ${newMatches.length} matches in MongoDB.`);
 
     // Return matches sorted by score descending
     newMatches.sort((a, b) => b.score - a.score);

@@ -41,20 +41,16 @@ function AppContent() {
 
   // Unified navigation helper supporting push and replace history entries
   const navigate = (newView, role = 'provider', replace = false) => {
-    let targetView = newView;
-    if (newView === 'signup' && role === 'provider') {
-      targetView = 'provider-entry';
-    }
-    setView(targetView);
-    if (targetView === 'signup') {
+    setView(newView);
+    if (newView === 'signup') {
       setSignupRole(role);
     }
-    const targetHash = `#/${targetView}`;
+    const targetHash = `#/${newView}`;
     if (window.location.hash !== targetHash) {
       if (replace) {
-        window.history.replaceState({ view: targetView, signupRole: role }, '', targetHash);
+        window.history.replaceState({ view: newView, signupRole: role }, '', targetHash);
       } else {
-        window.history.pushState({ view: targetView, signupRole: role }, '', targetHash);
+        window.history.pushState({ view: newView, signupRole: role }, '', targetHash);
       }
     }
   };
@@ -68,10 +64,6 @@ function AppContent() {
     const handlePopState = (event) => {
       if (event.state && event.state.view) {
         let targetView = event.state.view;
-        let role = event.state.signupRole || 'provider';
-        if (targetView === 'signup' && role === 'provider') {
-          targetView = 'provider-entry';
-        }
         setView(targetView);
         if (event.state.signupRole) {
           setSignupRole(event.state.signupRole);
@@ -80,9 +72,6 @@ function AppContent() {
         const hash = window.location.hash;
         if (hash.startsWith('#/')) {
           let parsedView = hash.slice(2);
-          if (parsedView === 'signup' && signupRole === 'provider') {
-            parsedView = 'provider-entry';
-          }
           setView(parsedView);
         } else {
           setView('landing');
@@ -96,9 +85,6 @@ function AppContent() {
     const hash = window.location.hash;
     if (hash.startsWith('#/')) {
       let parsedView = hash.slice(2);
-      if (parsedView === 'signup' && signupRole === 'provider') {
-        parsedView = 'provider-entry';
-      }
       setView(parsedView);
       window.history.replaceState({ view: parsedView, signupRole }, '', hash);
     } else {
@@ -114,21 +100,22 @@ function AppContent() {
   useEffect(() => {
     if (!loading) {
       if (user) {
-        if (user.role === 'provider') {
+        const userRole = (user.role === 'customer' || user.role === 'employer') ? 'customer' : 'provider';
+        if (userRole === 'provider') {
           if (!user.isOnboarded) {
             // Force onboarding if trying to access dashboard, login, or signup, but allow landing page
-            if (view === 'dashboard' || view === 'login' || view === 'signup') {
+            if (view === 'dashboard' || view === 'login' || view === 'signup' || view === 'provider-entry') {
               navigate('onboarding', 'provider', true);
             }
           } else {
             // Already onboarded, don't allow returning to login, signup, or onboarding
-            if (view === 'login' || view === 'signup' || view === 'onboarding') {
+            if (view === 'login' || view === 'signup' || view === 'onboarding' || view === 'provider-entry') {
               navigate('dashboard', 'provider', true);
             }
           }
         } else {
-          // Employer/Customer
-          if (view === 'login' || view === 'signup' || view === 'onboarding') {
+          // Customer
+          if (view === 'login' || view === 'signup' || view === 'onboarding' || view === 'provider-entry') {
             navigate('dashboard', 'customer', true);
           }
         }
@@ -163,15 +150,12 @@ function AppContent() {
     case 'landing':
       return <LandingPage onNavigate={handleNavigate} />;
     case 'signup':
-      if (signupRole === 'provider') {
-        return <ProviderEntry onNavigate={handleNavigate} />;
-      }
       return <Signup onNavigate={handleNavigate} initialRole={signupRole} />;
     case 'onboarding':
       return <OnboardingFlow onNavigate={handleNavigate} />;
     case 'dashboard':
       return user ? (
-        user.role === 'customer' 
+        (user.role === 'customer' || user.role === 'employer')
           ? <EmployerDashboard onNavigate={handleNavigate} /> 
           : <UserDashboard onNavigate={handleNavigate} />
       ) : <Login onNavigate={handleNavigate} />;
