@@ -122,8 +122,30 @@ const getMatchDetails = async (req, res) => {
   }
 };
 
+// @desc    Get match requests created for the logged-in customer
+// @route   GET /api/matches/customer-requests
+// @access  Private (Customer only)
+const getCustomerMatchRequests = async (req, res) => {
+  try {
+    if (req.user.role !== 'customer') {
+      return res.status(403).json({ message: 'Only customers can view customer match requests' });
+    }
+
+    const matches = await Match.find({ customer: req.user._id })
+      .populate('opportunity', 'title category rate timing mode city description createdAt')
+      .populate('provider', 'name phone skills bio city location availability age category preferredLanguage')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(matches);
+  } catch (error) {
+    console.error('Get customer match requests error:', error.message);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   updateMatchStatus,
   getProviderMatchRequests,
+  getCustomerMatchRequests,
   getMatchDetails
 };

@@ -156,15 +156,12 @@ const getNearbyRequests = async (req, res) => {
 const getOpportunityMatches = async (req, res) => {
   try {
     const opportunityId = req.params.id;
-    // We can call findMatches to refresh or just rely on it being called on creation/update.
-    // For this implementation, we recompute matches on the fly to ensure freshness, 
-    // or we could just fetch existing matches. Let's compute then fetch to be safe.
-    await findMatches(opportunityId);
-
+    
+    // Fetch persisted matches directly from MongoDB Match collection
     const matches = await Match.find({ opportunity: opportunityId })
-      .populate('provider', 'name phone location skills bio availability')
+      .populate('provider', 'name phone location skills bio availability age category preferredLanguage')
       .sort({ score: -1 })
-      .limit(20);
+      .lean();
 
     res.status(200).json(matches);
   } catch (error) {
