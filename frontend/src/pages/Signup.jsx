@@ -5,7 +5,7 @@ import { Type, Eye, MapPin, Globe } from 'lucide-react';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 
 const Signup = ({ onNavigate, initialRole = 'provider' }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { signup } = useAuth();
   
   // Accessibility States
@@ -21,7 +21,7 @@ const Signup = ({ onNavigate, initialRole = 'provider' }) => {
   useEffect(() => {
     setRole(initialRole);
   }, [initialRole]);
-  const [prefLang, setPrefLang] = useState('en');
+  const [prefLang, setPrefLang] = useState(i18n.language || 'en');
   const [cityName, setCityName] = useState('Delhi');
   
   const CITY_COORDINATES = {

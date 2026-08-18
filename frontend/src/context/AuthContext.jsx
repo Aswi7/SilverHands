@@ -45,8 +45,19 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const googleLogin = async (credential) => {
-    const { data } = await api.post('/auth/google', { credential });
+  const googleLogin = async (credential, role = null) => {
+    const payload = { credential };
+    if (role) {
+      payload.role = role;
+    }
+    const { data } = await api.post('/auth/google', payload);
+    
+    // If it's a new user response, return it without setting user state yet
+    if (data.status === 'new_user') {
+      return data;
+    }
+    
+    // Otherwise, it's a full login response
     setUser(data);
     if (data.preferredLanguage) {
       i18n.changeLanguage(data.preferredLanguage);
