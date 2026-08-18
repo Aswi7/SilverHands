@@ -99,15 +99,23 @@ const findMatches = async (opportunityId) => {
       console.warn("Atlas Vector search failed, using fallback query engine:", aggErr.message);
     }
 
-    // Fallback if vector search returns 0 candidates or fails
-    if (!candidates || candidates.length === 0) {
-      const filter = { role: 'provider' };
-      if (opportunity.mode === 'offline' && opportunity.city) {
-        const allowedCities = getNearbyCities(opportunity.city);
-        filter.city = { $in: allowedCities.map(c => new RegExp(`^${c.trim()}$`, 'i')) };
-      }
-      candidates = await User.find(filter).lean();
+    // Fetch all database providers matching city criteria to guarantee candidate coverage
+    const filter = { role: 'provider' };
+    if (opportunity.mode === 'offline' && opportunity.city) {
+      const allowedCities = getNearbyCities(opportunity.city);
+      filter.city = { $in: allowedCities.map(c => new RegExp(`^${c.trim()}$`, 'i')) };
     }
+    const dbProviders = await User.find(filter).lean();
+
+    const candidateMap = new Map();
+    (candidates || []).forEach(c => candidateMap.set(c._id.toString(), c));
+    dbProviders.forEach(p => {
+      if (!candidateMap.has(p._id.toString())) {
+        candidateMap.set(p._id.toString(), p);
+      }
+    });
+
+    candidates = Array.from(candidateMap.values());
 
     console.log(`[MATCHMAKING ENGINE] Executing findMatches for Opportunity ID: ${opportunity._id}`);
     console.log(`[MATCHMAKING ENGINE] Customer ID: ${opportunity.customer} | Category: "${opportunity.category}" | Mode: "${opportunity.mode}" | City: "${opportunity.city}"`);
@@ -190,10 +198,9 @@ const findMatches = async (opportunityId) => {
       // Upsert the Match document (preserve status if document already exists)
       const matchDoc = await Match.findOneAndUpdate(
         {
-          $or: [
-            { customerId: opportunity.customerId || opportunity.customer, providerId: provider._id, requestId: opportunity._id },
-            { opportunity: opportunity._id, provider: provider._id }
-          ]
+          customerId: opportunity.customerId || opportunity.customer,
+          providerId: provider._id,
+          requestId: opportunity._id
         },
         {
           $set: {

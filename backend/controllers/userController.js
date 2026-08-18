@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const ProviderProfile = require('../models/ProviderProfile');
 const { generateEmbedding } = require('../config/gemini');
 
 // @desc    Update user profile details (language preference, bio, status)
@@ -40,6 +41,25 @@ const updateUserProfile = async (req, res) => {
           } else {
             console.warn('Gemini embedding generation did not return a 768-dimension vector. Skipping embedding overwrite.');
           }
+        }
+
+        // Synchronize with ProviderProfile collection
+        try {
+          await ProviderProfile.findOneAndUpdate(
+            { userId: user._id },
+            {
+              $set: {
+                userId: user._id,
+                skills: user.skills,
+                bio: user.bio,
+                availability: user.availability,
+                embedding: user.embedding
+              }
+            },
+            { upsert: true, new: true }
+          );
+        } catch (pErr) {
+          console.error('ProviderProfile sync error:', pErr.message);
         }
       }
 

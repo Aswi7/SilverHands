@@ -167,7 +167,7 @@ const getCustomerMatchRequests = async (req, res) => {
     })
       .populate('opportunity', 'title category rate timing mode city description createdAt')
       .populate('provider', 'name phone skills bio city location availability age category preferredLanguage')
-      .sort({ createdAt: -1 });
+      .sort({ updatedAt: -1, createdAt: -1 });
 
     res.status(200).json(matches);
   } catch (error) {
