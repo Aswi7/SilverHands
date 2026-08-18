@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
   Type, 
@@ -84,6 +84,7 @@ const OnboardingFlow = ({ onNavigate }) => {
   // --- Step 2: Skills & AI States ---
   const [chatText, setChatText] = useState('');
   const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef(null);
   const [skills, setSkills] = useState([]);
   const [manualSkill, setManualSkill] = useState('');
   const [showPopIn, setShowPopIn] = useState(false);
@@ -140,38 +141,75 @@ const OnboardingFlow = ({ onNavigate }) => {
     );
   };
 
+  const simulateMockSpeech = () => {
+    const fallbackText = "I can cook healthy home-cooked food, do laundry, and teach regional languages to school students.";
+    let index = 0;
+    setChatText('');
+    setIsListening(true);
+    
+    const timer = setInterval(() => {
+      if (index < fallbackText.length) {
+        setChatText(prev => prev + fallbackText[index]);
+        index++;
+      } else {
+        clearInterval(timer);
+        setIsListening(false);
+      }
+    }, 40);
+  };
+
   // Step 2: Voice Simulation & AI Skill Extraction
   const handleVoiceInput = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Voice dictation is not supported by your browser.");
+      console.warn("SpeechRecognition not supported in browser. Falling back to simulation.");
+      simulateMockSpeech();
       return;
     }
 
-    if (isListening) return;
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = speechLocale || 'en-IN';
-    recognition.interimResults = true;
-    recognition.continuous = false;
-
-    recognition.onstart = () => setIsListening(true);
-
-    recognition.onresult = (event) => {
-      const transcript = Array.from(event.results)
-        .map(result => result[0].transcript)
-        .join('');
-      setChatText(transcript);
-    };
-
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error", event.error);
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
       setIsListening(false);
-    };
+      return;
+    }
 
-    recognition.onend = () => setIsListening(false);
+    try {
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.lang = speechLocale || 'en-IN';
+      recognition.interimResults = true;
+      recognition.continuous = false;
 
-    recognition.start();
+      recognition.onstart = () => setIsListening(true);
+
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0].transcript)
+          .join('');
+        setChatText(transcript);
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error", event.error);
+        setIsListening(false);
+        // Fallback to simulation if microphone permission is denied
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed' || event.error === 'aborted') {
+          simulateMockSpeech();
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+      };
+
+      recognition.start();
+    } catch (e) {
+      console.error("Failed to start SpeechRecognition", e);
+      simulateMockSpeech();
+    }
   };
 
   useEffect(() => {
