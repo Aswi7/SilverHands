@@ -121,22 +121,58 @@ const UserDashboard = ({ onNavigate }) => {
     }
   }, [user]);
 
-  // Derive relevant forecasts
-  const safeSkills = Array.isArray(user?.skills) ? user.skills : [];
-  const userSkillCategories = safeSkills.map(s => (s && typeof s === 'object') ? (s.category || s.skillName) : s);
-  const relevantForecasts = forecastData.map(event => {
-    // If the user hasn't completed onboarding, they might have no skills yet.
-    // For the sake of the MVP demo, if Asha Devi is logged in, default match cooking.
-    const hasSkillMatch = event.relevantCategories.some(cat => 
-      userSkillCategories.some(skill => 
-        skill && typeof skill === 'string' && skill.toLowerCase().includes(cat.toLowerCase())
-      )
-    );
-    const isRelevant = hasSkillMatch || (user?.name === 'Asha Devi' && event.relevantCategories.includes('cooking'));
-    return { ...event, isRelevant };
-  });
+  // Provider Ranked Forecasts and states
+  const [rankedForecasts, setRankedForecasts] = useState([]);
+  const [isLoadingForecasts, setIsLoadingForecasts] = useState(false);
+  const [forecastCategoryFilter, setForecastCategoryFilter] = useState('all');
+  const [forecastDateFilter, setForecastDateFilter] = useState('all');
+  const [forecastLocationFilter, setForecastLocationFilter] = useState('all');
+  const [forecastRelevanceFilter, setForecastRelevanceFilter] = useState('all');
 
-  const topForecast = relevantForecasts.find(f => f.isRelevant) || relevantForecasts[0];
+  useEffect(() => {
+    if (activeTab === 'forecast' && user) {
+      setIsLoadingForecasts(true);
+      api.post('/ai/forecasts', { forecasts: forecastData })
+        .then(res => {
+          const rankings = res.data?.rankings || [];
+          const enriched = forecastData.map(f => {
+            const match = rankings.find(r => r.id === f.id);
+            return {
+              ...f,
+              relevanceScore: match ? match.relevanceScore : 30,
+              explanation: match ? match.explanation : '',
+              isRelevant: match ? match.relevanceScore >= 60 : false
+            };
+          });
+          enriched.sort((a, b) => b.relevanceScore - a.relevanceScore);
+          setRankedForecasts(enriched);
+        })
+        .catch(err => {
+          console.error("Failed to fetch ranked forecasts:", err);
+          // Fallback to local scoring
+          const fallback = forecastData.map(f => {
+            const hasMatch = f.relevantCategories.some(cat => 
+              (user.skills || []).some(s => (s.category || '').toLowerCase().includes(cat.toLowerCase()))
+            );
+            return {
+              ...f,
+              relevanceScore: hasMatch ? 80 : 30,
+              explanation: hasMatch 
+                ? `Recommended because your profile matches the ${f.relevantCategories[0] || 'service'} category.` 
+                : 'General seasonal opportunity.',
+              isRelevant: hasMatch
+            };
+          });
+          fallback.sort((a, b) => b.relevanceScore - a.relevanceScore);
+          setRankedForecasts(fallback);
+        })
+        .finally(() => {
+          setIsLoadingForecasts(false);
+        });
+    }
+  }, [activeTab, user]);
+
+  const topForecast = rankedForecasts.find(f => f.isRelevant) || rankedForecasts[0];
 
   const handlePrepareListing = (forecast) => {
     setSelectedForecast(forecast);
@@ -1133,91 +1169,258 @@ const UserDashboard = ({ onNavigate }) => {
           })()}
 
           {/* ================= VIEW: OPPORTUNITY FORECAST ================= */}
-          {activeTab === 'forecast' && (
-            <div className="flex flex-col gap-6 text-left">
-              
-              <div className="border-b pb-4 border-cream-dark/30 flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                  <h2 className="font-serif text-3xl font-bold flex items-center gap-2">
-                    <TrendingUp className="h-8 w-8 text-terracotta" />
-                    {t('forecast.page_title', 'Opportunity Forecast')}
-                  </h2>
-                  <p className={`text-sm ${textSecondaryTheme} mt-2`}>
-                    {t('forecast.page_subtitle', 'Plan ahead and prepare your services.')} <br/>
-                    <span className="italic text-xs text-gray-500">{t('forecast.disclaimer', '*AI estimate based on historical seasonal patterns')}</span>
-                  </p>
-                </div>
-              </div>
+          {activeTab === 'forecast' && (() => {
+            // Filter logic
+            const displayedForecasts = rankedForecasts.filter(event => {
+              if (forecastCategoryFilter !== 'all') {
+                const hasCat = event.relevantCategories.includes(forecastCategoryFilter) || event.suggestionCategory === forecastCategoryFilter;
+                if (!hasCat) return false;
+              }
+              if (forecastDateFilter !== 'all') {
+                if (forecastDateFilter === 'summer' && event.id !== 'f4') return false;
+                if (forecastDateFilter === 'monsoon' && event.id !== 'f5') return false;
+                if (forecastDateFilter === 'winter' && event.id !== 'f1' && event.id !== 'f2') return false;
+                if (forecastDateFilter === 'reopening' && event.id !== 'f3') return false;
+              }
+              if (forecastLocationFilter !== 'all') {
+                if (forecastLocationFilter === 'city' && event.id !== 'f5') return false;
+                if (forecastLocationFilter === 'national' && event.id === 'f5') return false;
+              }
+              if (forecastRelevanceFilter === 'high') {
+                if (!event.isRelevant && event.relevanceScore < 60) return false;
+              }
+              return true;
+            });
 
-              <div className="grid gap-6">
-                {relevantForecasts.map((event) => (
-                  <div 
-                    key={event.id} 
-                    className={`p-6 rounded-3xl border-2 flex flex-col md:flex-row justify-between gap-6 relative overflow-hidden transition-all ${
-                      event.isRelevant
-                        ? (highContrast ? 'border-yellow-400 bg-black' : 'border-terracotta bg-orange-50/30')
-                        : cardTheme
-                    }`}
-                  >
-                    {event.isRelevant && (
-                      <div className="absolute top-0 right-0 bg-terracotta text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl shadow-sm flex items-center gap-1">
-                        <Sparkles className="h-3 w-3" /> {t('forecast.relevant_badge', 'Relevant to you')}
-                      </div>
-                    )}
-                    
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-3xl">{t(`forecast.${event.id}.eventName`, event.eventName).split(' ')[0]}</span>
-                        <div>
-                          <h3 className="font-serif text-2xl font-bold">{t(`forecast.${event.id}.eventName`, event.eventName).substring(t(`forecast.${event.id}.eventName`, event.eventName).indexOf(' ') + 1)}</h3>
-                          <span className="text-sm font-bold text-gray-500 flex items-center gap-1">
-                            <Calendar className="h-4 w-4" /> {t(`forecast.${event.id}.dateRange`, event.dateRange)}
-                          </span>
+            const personalizedForecasts = rankedForecasts.filter(e => e.isRelevant || e.relevanceScore >= 60).slice(0, 3);
+
+            return (
+              <div className="flex flex-col gap-8 text-left">
+                
+                {/* Header */}
+                <div className="border-b pb-4 border-cream-dark/30 flex flex-col md:flex-row md:items-end justify-between gap-4">
+                  <div>
+                    <h2 className="font-serif text-3xl font-bold flex items-center gap-2">
+                      <TrendingUp className="h-8 w-8 text-terracotta" />
+                      {t('forecast.page_title', 'Opportunity Forecast')}
+                    </h2>
+                    <p className={`text-sm ${textSecondaryTheme} mt-2`}>
+                      {t('forecast.page_subtitle', 'Plan ahead and prepare your services based on personalized regional demands.')} <br/>
+                      <span className="italic text-xs text-gray-500">{t('forecast.disclaimer', '*AI estimate based on historical seasonal patterns and profile relevance')}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {isLoadingForecasts ? (
+                  <div className="py-12 text-center text-xs font-bold text-forest animate-pulse flex items-center justify-center gap-2">
+                    <Sparkles className="h-4 w-4 text-terracotta" /> Calculating personalized forecast relevance scores...
+                  </div>
+                ) : (
+                  <>
+                    {/* Personalized Section: Most Relevant For You */}
+                    <div className="flex flex-col gap-4">
+                      <h3 className="font-serif text-2xl font-bold flex items-center gap-2 text-terracotta">
+                        ⭐ Most Relevant For You
+                      </h3>
+                      {personalizedForecasts.length === 0 ? (
+                        <div className={`p-8 text-center rounded-3xl text-xs text-gray-500 border border-dashed ${cardTheme}`}>
+                          Update your skills or bio in your Profile tab to generate personalized recommendations!
                         </div>
-                      </div>
-                      
-                      <div className="mt-2">
-                        <span className="text-xs font-bold text-gray-500 uppercase">{t('forecast.relevant_categories', 'Relevant Categories')}</span>
-                        <div className="flex gap-2 mt-1">
-                          {event.relevantCategories.map(cat => (
-                            <span key={cat} className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
-                              highContrast ? 'border border-white text-white' : 'bg-cream-dark/30 text-charcoal'
-                            }`}>
-                              {t(`customer.categories.${cat}`, cat)}
-                            </span>
+                      ) : (
+                        <div className="grid gap-6 md:grid-cols-3">
+                          {personalizedForecasts.map((event) => (
+                            <div 
+                              key={event.id}
+                              className={`p-5 rounded-3xl border-2 flex flex-col justify-between gap-4 relative overflow-hidden transition-all hover:shadow-md ${
+                                highContrast ? 'border-yellow-400 bg-black text-white' : 'border-terracotta bg-orange-50/20'
+                              }`}
+                            >
+                              <div className="absolute top-0 right-0 bg-terracotta text-white text-[10px] font-extrabold px-3 py-1 rounded-bl-xl shadow-sm flex items-center gap-0.5 uppercase tracking-wider">
+                                <Sparkles className="h-3 w-3 text-yellow-200" /> Match {event.relevanceScore}%
+                              </div>
+
+                              <div className="flex flex-col gap-2 mt-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-2xl">{event.eventName.split(' ')[0]}</span>
+                                  <h4 className="font-serif text-lg font-bold truncate">{event.eventName.substring(event.eventName.indexOf(' ') + 1)}</h4>
+                                </div>
+
+                                <span className="text-xs font-bold text-gray-500 flex items-center gap-1">
+                                  <Calendar className="h-3.5 w-3.5" /> {event.dateRange}
+                                </span>
+
+                                <p className={`text-xs mt-1.5 p-2.5 rounded-xl border leading-relaxed bg-white text-charcoal font-medium ${
+                                  highContrast ? 'bg-black border-white' : 'border-orange-100'
+                                }`}>
+                                  💡 {event.explanation || `Highly relevant to your services around the ${event.eventName} season.`}
+                                </p>
+                              </div>
+
+                              <div className="flex flex-col gap-2 mt-2 border-t pt-3 border-cream-dark/20">
+                                <div className="flex justify-between items-center text-xs">
+                                  <span className="font-bold text-gray-500">Demand Uplift:</span>
+                                  <span className="font-bold text-green-700">{event.demandUplift}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-xs">
+                                  <span className="font-bold text-gray-500">Service:</span>
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-cream-dark/30 text-charcoal uppercase tracking-wider">
+                                    {event.suggestionCategory}
+                                  </span>
+                                </div>
+
+                                <button
+                                  onClick={() => handlePrepareListing(event)}
+                                  className={`mt-2 w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                                    highContrast ? 'bg-white text-black hover:bg-yellow-400' : 'bg-terracotta hover:bg-terracotta-hover text-white shadow-sm'
+                                  }`}
+                                >
+                                  <Sparkles className="h-3.5 w-3.5" />
+                                  View Opportunity
+                                </button>
+                              </div>
+                            </div>
                           ))}
                         </div>
-                      </div>
-                    </div>
-
-                    <div className={`md:w-72 shrink-0 p-5 rounded-2xl flex flex-col justify-center border border-dashed ${
-                      highContrast ? 'border-gray-600' : 'bg-white border-terracotta/30 shadow-sm'
-                    }`}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="h-5 w-5 text-green-600" />
-                        <span className="font-bold text-lg text-green-700">{t('forecast.demand_label', 'Demand')} {event.demandUplift}</span>
-                      </div>
-                      <p className={`text-sm ${textSecondaryTheme} leading-relaxed`}>{t(`forecast.${event.id}.insight`, event.insight)}</p>
-                      
-                      {event.isRelevant && (
-                        <button
-                          onClick={() => handlePrepareListing(event)}
-                          className={`mt-4 w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
-                            highContrast ? 'bg-white text-black hover:bg-yellow-400' : 'bg-terracotta hover:bg-terracotta-hover text-white shadow-md'
-                          }`}
-                        >
-                          <Sparkles className="h-4 w-4" />
-                          {t('forecast.prepare_btn', 'Prepare My Listing')}
-                        </button>
                       )}
                     </div>
 
-                  </div>
-                ))}
-              </div>
+                    {/* All Forecasts Section: All Upcoming Opportunities */}
+                    <div className="flex flex-col gap-4 mt-4">
+                      <div className="border-b pb-3 border-cream-dark/30 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <h3 className="font-serif text-2xl font-bold flex items-center gap-2">
+                          📅 All Upcoming Opportunities
+                        </h3>
+                        
+                        {/* Filters Controls */}
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          {/* Category Filter */}
+                          <select 
+                            value={forecastCategoryFilter}
+                            onChange={(e) => setForecastCategoryFilter(e.target.value)}
+                            className="px-2.5 py-1.5 bg-white border border-cream-dark rounded-xl font-bold text-charcoal focus:outline-none"
+                          >
+                            <option value="all">All Categories</option>
+                            <option value="cooking">Cooking</option>
+                            <option value="tailoring">Tailoring</option>
+                            <option value="tutoring">Tutoring</option>
+                            <option value="caregiving">Caregiving</option>
+                            <option value="errands">Errands</option>
+                            <option value="home-services">Home Services</option>
+                          </select>
 
-            </div>
-          )}
+                          {/* Date Filter */}
+                          <select 
+                            value={forecastDateFilter}
+                            onChange={(e) => setForecastDateFilter(e.target.value)}
+                            className="px-2.5 py-1.5 bg-white border border-cream-dark rounded-xl font-bold text-charcoal focus:outline-none"
+                          >
+                            <option value="all">All Dates</option>
+                            <option value="summer">Summer (Apr - May)</option>
+                            <option value="monsoon">Monsoon (Jul - Aug)</option>
+                            <option value="winter">Festive & Winter (Oct - Dec)</option>
+                            <option value="reopening">School Prep (June)</option>
+                          </select>
+
+                          {/* Location Filter */}
+                          <select 
+                            value={forecastLocationFilter}
+                            onChange={(e) => setForecastLocationFilter(e.target.value)}
+                            className="px-2.5 py-1.5 bg-white border border-cream-dark rounded-xl font-bold text-charcoal focus:outline-none"
+                          >
+                            <option value="all">All Locations</option>
+                            <option value="national">National / State</option>
+                            <option value="city">City / Local</option>
+                          </select>
+
+                          {/* Relevance filter */}
+                          <select 
+                            value={forecastRelevanceFilter}
+                            onChange={(e) => setForecastRelevanceFilter(e.target.value)}
+                            className="px-2.5 py-1.5 bg-white border border-cream-dark rounded-xl font-bold text-charcoal focus:outline-none"
+                          >
+                            <option value="all">All Relevance</option>
+                            <option value="high">Highly Relevant</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {displayedForecasts.length === 0 ? (
+                        <div className={`p-12 text-center rounded-3xl text-xs text-gray-400 ${cardTheme}`}>
+                          No opportunities match your current filters. Try resetting the filters.
+                        </div>
+                      ) : (
+                        <div className="grid gap-6">
+                          {displayedForecasts.map((event) => (
+                            <div 
+                              key={event.id} 
+                              className={`p-6 rounded-3xl border-2 flex flex-col md:flex-row justify-between gap-6 relative overflow-hidden transition-all ${
+                                event.isRelevant
+                                  ? (highContrast ? 'border-yellow-400 bg-black text-white' : 'border-terracotta bg-orange-50/10')
+                                  : cardTheme
+                              }`}
+                            >
+                              {event.isRelevant && (
+                                <div className="absolute top-0 right-0 bg-terracotta text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl shadow-sm flex items-center gap-1">
+                                  <Sparkles className="h-3 w-3" /> {t('forecast.relevant_badge', 'Highly Recommended')}
+                                </div>
+                              )}
+                              
+                              <div className="flex flex-col gap-3">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-3xl">{event.eventName.split(' ')[0]}</span>
+                                  <div>
+                                    <h3 className="font-serif text-2xl font-bold">{event.eventName.substring(event.eventName.indexOf(' ') + 1)}</h3>
+                                    <span className="text-sm font-bold text-gray-500 flex items-center gap-1">
+                                      <Calendar className="h-4 w-4" /> {event.dateRange}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="mt-2">
+                                  <span className="text-xs font-bold text-gray-500 uppercase">{t('forecast.relevant_categories', 'Relevant Categories')}</span>
+                                  <div className="flex gap-2 mt-1">
+                                    {event.relevantCategories.map(cat => (
+                                      <span key={cat} className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider ${
+                                        highContrast ? 'border border-white text-white' : 'bg-cream-dark/30 text-charcoal'
+                                      }`}>
+                                        {t(`customer.categories.${cat}`, cat)}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className={`md:w-80 shrink-0 p-5 rounded-2xl flex flex-col justify-center border border-dashed ${
+                                highContrast ? 'border-gray-600' : 'bg-white border-cream-dark/50 shadow-sm'
+                              }`}>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <TrendingUp className="h-5 w-5 text-green-600" />
+                                  <span className="font-bold text-lg text-green-700">{t('forecast.demand_label', 'Demand')} {event.demandUplift}</span>
+                                </div>
+                                <p className={`text-sm ${textSecondaryTheme} leading-relaxed`}>{event.insight}</p>
+                                
+                                <button
+                                  onClick={() => handlePrepareListing(event)}
+                                  className={`mt-4 w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all ${
+                                    highContrast ? 'bg-white text-black hover:bg-yellow-400' : 'bg-forest hover:bg-forest-hover text-white shadow-md'
+                                  }`}
+                                >
+                                  <Sparkles className="h-4 w-4" />
+                                  {t('forecast.prepare_btn', 'Prepare My Listing')}
+                                </button>
+                              </div>
+
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+              </div>
+            );
+          })()}
 
 
 

@@ -6,13 +6,15 @@ const bioGeneration = require('../config/ai-prompts/bioGeneration');
 const listingStructuring = require('../config/ai-prompts/listingStructuring');
 const matchExplanation = require('../config/ai-prompts/matchExplanation');
 const sakhiChat = require('../config/ai-prompts/sakhiChat');
+const forecastRanking = require('../config/ai-prompts/forecastRanking');
 
 const taskMap = {
   'skillExtraction': skillExtraction,
   'bioGeneration': bioGeneration,
   'listingStructuring': listingStructuring,
   'matchExplanation': matchExplanation,
-  'sakhiChat': sakhiChat
+  'sakhiChat': sakhiChat,
+  'forecastRanking': forecastRanking
 };
 
 /**
