@@ -13,6 +13,7 @@ const applicationRoutes = require('./routes/applicationRoutes');
 const matchRoutes = require('./routes/matchRoutes');
 const chatRoutes = require('./routes/chatRoutes');
 const forecastRoutes = require('./routes/forecastRoutes');
+const earningRoutes = require('./routes/earningRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -42,6 +43,7 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/matches', matchRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/forecasts', forecastRoutes);
+app.use('/api/earnings', earningRoutes);
 
 // Base health check route
 app.get('/api/health', (req, res) => {

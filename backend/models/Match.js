@@ -33,6 +33,24 @@ const MatchSchema = new mongoose.Schema({
     enum: ['APPLIED', 'PENDING', 'ACCEPTED', 'CONFIRMED', 'REJECTED', 'CONTACTED', 'COMPLETED', 'CANCELLED'],
     default: 'APPLIED'
   },
+  providerConfirmed: {
+    type: Boolean,
+    default: false
+  },
+  customerConfirmed: {
+    type: Boolean,
+    default: false
+  },
+  paymentReceived: {
+    type: Boolean,
+    default: false
+  },
+  agreedAmount: {
+    type: Number,
+    default: 0
+  },
+  completedAt: { type: Date },
+  completedBy: { type: String },
   respondedAt: { type: Date },
   acceptedAt: { type: Date },
   rejectedAt: { type: Date },

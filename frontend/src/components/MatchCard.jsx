@@ -7,7 +7,9 @@ import {
   Calendar,
   XCircle,
   Play,
-  Check
+  Check,
+  TrendingUp,
+  AlertCircle
 } from 'lucide-react';
 import ApplicationStepper from './ApplicationStepper';
 
@@ -18,13 +20,13 @@ const MatchCard = ({
   onAccept,
   onReject,
   onConfirm,
-  onStartService,
   onCompleteService,
   onCancel,
   onContact,
   onOpenChat
 }) => {
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   if (!match) return null;
 
@@ -42,7 +44,10 @@ const MatchCard = ({
   const partnerName = partner?.name || (isProvider ? 'Customer' : 'Provider');
   const partnerImage = partner?.profileImage || partner?.avatarUrl;
 
-  // Plain-language status explanations
+  const pConf = match.providerConfirmed || false;
+  const cConf = match.customerConfirmed || false;
+
+  // Plain-language status explanations as requested in REQUIREMENT 15
   const getStatusExplanation = () => {
     switch (status) {
       case 'APPLIED':
@@ -50,17 +55,24 @@ const MatchCard = ({
           ? "A customer has submitted a request. Please review it."
           : "Your request has been submitted to the provider.";
       case 'ACCEPTED':
-        return isProvider
-          ? `You've accepted this request. You can now contact ${partnerName}.`
-          : "Your request has been accepted.";
+        if (!pConf && !cConf) {
+          return "Both you and the customer need to confirm this service.";
+        }
+        if (isProvider) {
+          return pConf 
+            ? "Waiting for the customer to confirm." 
+            : "Customer has confirmed. Please confirm the service.";
+        } else {
+          return cConf 
+            ? "Waiting for the provider to confirm." 
+            : "Provider has confirmed. Please confirm the service.";
+        }
       case 'CONFIRMED':
-        return isProvider
-          ? `You and ${partnerName} have confirmed the service.`
-          : `You and the service provider have confirmed the service.`;
+        return "Both you and the customer have confirmed this service.";
       case 'COMPLETED':
-        return "Service completed successfully.";
+        return "Service completed. Payment received.";
       case 'REJECTED':
-        return "This application was declined.";
+        return "This application was rejected.";
       case 'CANCELLED':
         return "This application was cancelled.";
       default:
@@ -98,54 +110,111 @@ const MatchCard = ({
         }
 
       case 'ACCEPTED':
+        const iConfirmed = isProvider ? pConf : cConf;
+        const otherConfirmed = isProvider ? cConf : pConf;
+
+        if (iConfirmed) {
+          return (
+            <div className="flex flex-col gap-3 w-full">
+              <div className="p-3 bg-gray-50 border rounded-2xl text-xs space-y-1">
+                <p className="flex items-center gap-1.5 font-bold text-green-700">
+                  <Check className="h-4 w-4" /> You confirmed
+                </p>
+                <p className="flex items-center gap-1.5 font-medium text-gray-400">
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full" /> 
+                  {isProvider ? 'Customer' : 'Provider'} confirmation pending
+                </p>
+              </div>
+              <button
+                onClick={() => onReject && onReject(match)}
+                className="w-full py-3 px-6 rounded-2xl font-bold text-sm border border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
+              >
+                <XCircle className="h-4 w-4" />
+                <span>Reject Deal</span>
+              </button>
+            </div>
+          );
+        }
+
         return (
-          <div className="flex flex-col gap-2 w-full">
-            <button
-              onClick={() => onContact ? onContact(match) : onOpenChat && onOpenChat(match)}
-              className={`w-full py-3.5 px-6 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-sm transition-all ${
-                highContrast
-                  ? 'bg-white text-black hover:bg-gray-200'
-                  : 'bg-teal-700 hover:bg-teal-800 text-white'
-              }`}
-            >
-              <MessageSquare className="h-4 w-4" />
-              <span>Contact {partnerName}</span>
-            </button>
+          <div className="flex flex-col gap-2.5 w-full">
+            {/* Show status if other party confirmed */}
+            {otherConfirmed && (
+              <div className="p-2.5 bg-orange-50 border border-orange-100 rounded-2xl text-xs font-bold text-orange-700 text-center">
+                ⚠️ {isProvider ? 'Customer' : 'Provider'} has confirmed. Please confirm.
+              </div>
+            )}
             
-            {/* Direct confirm service action */}
-            <button
-              onClick={() => onConfirm && onConfirm(match)}
-              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 flex items-center justify-center gap-1.5"
-            >
-              <CheckCircle className="h-4 w-4 text-teal-600" />
-              <span>Confirm Service Details</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onConfirm && onConfirm(match)}
+                className={`grow py-3 px-4 rounded-2xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-sm transition-all ${
+                  highContrast
+                    ? 'bg-white text-black hover:bg-gray-200'
+                    : 'bg-forest hover:bg-forest-hover text-white'
+                }`}
+              >
+                <Check className="h-4 w-4" />
+                <span>Confirm</span>
+              </button>
+              <button
+                onClick={() => onReject && onReject(match)}
+                className="py-3 px-4 rounded-2xl font-bold text-sm border border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center gap-1.5"
+              >
+                <XCircle className="h-4 w-4" />
+                <span>Reject</span>
+              </button>
+            </div>
           </div>
         );
 
       case 'CONFIRMED':
-        return (
-          <button
-            onClick={() => {
-              if (onStartService) onStartService(match);
-              else if (onCompleteService) onCompleteService(match);
-            }}
-            className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all ${
-              highContrast
-                ? 'bg-white text-black hover:bg-gray-200'
-                : 'bg-terracotta hover:bg-terracotta-hover text-white'
-            }`}
-          >
-            <Play className="h-4 w-4 fill-white" />
-            <span>Start Service / Mark Complete</span>
-          </button>
-        );
+        if (isProvider) {
+          return (
+            <button
+              onClick={() => setShowPaymentModal(true)}
+              className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all ${
+                highContrast
+                  ? 'bg-white text-black hover:bg-gray-200'
+                  : 'bg-terracotta hover:bg-terracotta-hover text-white'
+              }`}
+            >
+              <Check className="h-4 w-4" />
+              <span>Mark as Completed</span>
+            </button>
+          );
+        } else {
+          return (
+            <div className="p-3 bg-teal-50 border border-teal-100 rounded-2xl text-xs text-teal-800 font-bold text-center">
+              Both you and the provider have confirmed this service. Waiting for provider completion.
+            </div>
+          );
+        }
 
       case 'COMPLETED':
+        return (
+          <div className="p-3 bg-green-50 border border-green-200 rounded-2xl text-xs text-green-800 font-bold text-center flex items-center justify-center gap-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <span>Completed — Payment Received (₹{match.agreedAmount || 1500})</span>
+          </div>
+        );
+
       case 'REJECTED':
+        return (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-800 font-bold text-center">
+            This application was rejected.
+          </div>
+        );
+
       case 'CANCELLED':
+        return (
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-2xl text-xs text-gray-600 font-bold text-center">
+            This application was cancelled.
+          </div>
+        );
+
       default:
-        return null; // No primary action button for terminal states
+        return null;
     }
   };
 
@@ -174,7 +243,7 @@ const MatchCard = ({
           <div className="flex items-center gap-3 text-xs text-gray-500 font-medium mt-1">
             <span className="flex items-center gap-1">
               <MapPin className="h-3.5 w-3.5 text-gray-400" />
-              {opp?.city || partner?.city || 'Coimbatore'}
+              {opp?.city || partner?.city || 'Delhi'}
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
@@ -195,6 +264,10 @@ const MatchCard = ({
             {opp.description}
           </p>
         )}
+        <div className="mt-2.5 flex items-center justify-between text-xs border-t pt-2 border-cream-dark/20">
+          <span className="font-medium text-gray-500">Service Fee:</span>
+          <span className="font-extrabold text-forest">{opp?.rate || 'Negotiable'}</span>
+        </div>
       </div>
 
       {/* 3. Four-Step Status Tracker Stepper */}
@@ -209,7 +282,18 @@ const MatchCard = ({
         </p>
       </div>
 
-      {/* 5. ONE Primary Action Button */}
+      {/* 5. Contact Option during Acceptance (ACCEPTED or CONFIRMED) */}
+      {(status === 'ACCEPTED' || status === 'CONFIRMED') && (
+        <button
+          onClick={() => onContact ? onContact(match) : onOpenChat && onOpenChat(match)}
+          className="w-full mb-3.5 py-3 px-4 rounded-2xl text-xs font-bold bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 flex items-center justify-center gap-2"
+        >
+          <MessageSquare className="h-4.5 w-4.5 text-teal-600" />
+          <span>Contact {partnerName}</span>
+        </button>
+      )}
+
+      {/* 6. ONE Primary Action Button */}
       <div>
         {renderPrimaryAction()}
       </div>
@@ -254,6 +338,47 @@ const MatchCard = ({
                 className="w-full py-2.5 rounded-xl font-bold text-xs text-gray-500 hover:bg-gray-100 mt-1"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Confirmation Modal for Provider upon clicking Mark as Completed */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-cream-dark">
+            <div className="flex items-center gap-2 mb-3 text-terracotta">
+              <AlertCircle className="h-6 w-6 shrink-0" />
+              <h3 className="font-serif text-xl font-bold text-charcoal">
+                Confirm Payment Receipt
+              </h3>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+              Have you received the payment for this service?
+              <span className="block mt-2 font-extrabold text-charcoal">
+                Amount: {opp?.rate || '₹1,500'}
+              </span>
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  if (onCompleteService) onCompleteService(match);
+                }}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm bg-forest hover:bg-forest-hover text-white shadow-sm flex items-center justify-center gap-2"
+              >
+                <Check className="h-5 w-5" />
+                <span>Yes, Payment Received</span>
+              </button>
+
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm border border-gray-200 text-gray-500 hover:bg-gray-50 flex items-center justify-center gap-2"
+              >
+                <span>Cancel</span>
               </button>
             </div>
           </div>

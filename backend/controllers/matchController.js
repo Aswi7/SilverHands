@@ -1,14 +1,14 @@
 const Match = require('../models/Match');
 const Conversation = require('../models/Conversation');
 const ServiceRequest = require('../models/ServiceRequest');
+const Earning = require('../models/Earning');
 
 // Valid state transitions dictionary for the 4 main user-facing stages
 const VALID_TRANSITIONS = {
   APPLIED: ['ACCEPTED', 'REJECTED'],
   PENDING: ['ACCEPTED', 'REJECTED'], // Backward compatibility alias for APPLIED
-  ACCEPTED: ['CONFIRMED', 'CANCELLED', 'CONTACTED'],
-  CONTACTED: ['CONFIRMED', 'CANCELLED'],
-  CONFIRMED: ['COMPLETED', 'CANCELLED'],
+  ACCEPTED: ['CONFIRMED', 'REJECTED', 'CANCELLED'],
+  CONFIRMED: ['COMPLETED', 'REJECTED', 'CANCELLED'],
   REJECTED: [],
   COMPLETED: [],
   CANCELLED: []
@@ -19,7 +19,7 @@ const VALID_TRANSITIONS = {
 // @access  Private
 const updateMatchStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, paymentReceived, agreedAmount } = req.body;
     const matchId = req.params.id;
 
     if (!status) {
@@ -37,89 +37,147 @@ const updateMatchStatus = async (req, res) => {
 
     const currentStatus = match.status || 'APPLIED';
 
-    // Idempotent check: if already in the requested target status, return success
-    if (currentStatus === status) {
-      return res.status(200).json(match);
-    }
-
-    // Explicit Stage Skipping Checks as mandated by SilverHands requirements:
-    // APPLIED -> CONFIRMED (FORBIDDEN)
-    // APPLIED -> COMPLETED (FORBIDDEN)
-    // ACCEPTED -> COMPLETED (FORBIDDEN)
-    if (['APPLIED', 'PENDING'].includes(currentStatus) && ['CONFIRMED', 'COMPLETED'].includes(status)) {
-      return res.status(400).json({ 
-        message: `Stage skipping forbidden: Cannot transition from '${currentStatus}' directly to '${status}'. Application must be accepted first.` 
-      });
-    }
-
-    if (currentStatus === 'ACCEPTED' && status === 'COMPLETED') {
-      return res.status(400).json({ 
-        message: `Stage skipping forbidden: Cannot transition from 'ACCEPTED' directly to 'COMPLETED'. Service must be confirmed first.` 
-      });
-    }
-
-    // State machine transition validation
-    const allowedNext = VALID_TRANSITIONS[currentStatus] || [];
-    if (!allowedNext.includes(status)) {
-      return res.status(400).json({
-        message: `Invalid state transition from '${currentStatus}' to '${status}'. Allowed transitions: ${allowedNext.join(', ') || 'None (Terminal state)'}`
-      });
-    }
-
     // Role-based permission & ownership check
     const userIdStr = req.user._id.toString();
     const providerIdStr = (match.providerId || match.provider)?._id?.toString() || (match.providerId || match.provider)?.toString();
     const customerIdStr = (match.customerId || match.customer)?._id?.toString() || (match.customerId || match.customer)?.toString();
 
-    if (['ACCEPTED', 'REJECTED'].includes(status) && ['APPLIED', 'PENDING'].includes(currentStatus)) {
+    const now = new Date();
+
+    // 1. APPLIED -> ACCEPTED / REJECTED
+    if (['APPLIED', 'PENDING'].includes(currentStatus)) {
+      if (['CONFIRMED', 'COMPLETED'].includes(status)) {
+        return res.status(400).json({ 
+          message: `Stage skipping forbidden: Cannot transition from '${currentStatus}' directly to '${status}'. Application must be accepted first.` 
+        });
+      }
       if (req.user.role !== 'provider' || userIdStr !== providerIdStr) {
         return res.status(403).json({ message: 'Unauthorized: Only the assigned Provider can Accept or Reject an applied request' });
       }
-    }
 
-    if (['CONFIRMED', 'COMPLETED', 'CANCELLED', 'CONTACTED'].includes(status)) {
-      if (userIdStr !== customerIdStr && userIdStr !== providerIdStr) {
-        return res.status(403).json({ message: 'Unauthorized: Not permitted to update this match request' });
-      }
-    }
+      if (status === 'ACCEPTED') {
+        match.status = 'ACCEPTED';
+        match.respondedAt = now;
+        match.acceptedAt = now;
 
-    // Apply timestamps based on status
-    const now = new Date();
-    match.status = status;
-
-    if (status === 'ACCEPTED') {
-      match.respondedAt = now;
-      match.acceptedAt = now;
-
-      // Automatically create Conversation document for both users upon acceptance
-      try {
-        const existingConv = await Conversation.findOne({
-          $or: [{ matchId: match._id }, { match: match._id }]
-        });
-        if (!existingConv) {
-          await Conversation.create({
-            customerId: match.customerId || match.customer._id || match.customer,
-            providerId: match.providerId || match.provider._id || match.provider,
-            matchId: match._id,
-            lastMessage: 'Connection accepted! You can now contact each other.',
-            lastMessageAt: now
+        // Auto create Conversation
+        try {
+          const existingConv = await Conversation.findOne({
+            $or: [{ matchId: match._id }, { match: match._id }]
           });
-          console.log(`[CONVERSATION CREATED] Created conversation for match ${match._id}`);
+          if (!existingConv) {
+            await Conversation.create({
+              customerId: match.customerId._id || match.customerId,
+              providerId: match.providerId._id || match.providerId,
+              matchId: match._id,
+              lastMessage: 'Connection accepted! You can now contact each other.',
+              lastMessageAt: now
+            });
+          }
+        } catch (convErr) {
+          console.error('Conversation creation error:', convErr.message);
         }
-      } catch (convErr) {
-        console.error('Auto conversation creation error:', convErr.message);
+      } else if (status === 'REJECTED') {
+        match.status = 'REJECTED';
+        match.respondedAt = now;
+        match.rejectedAt = now;
       }
-    } else if (status === 'REJECTED') {
-      match.respondedAt = now;
-      match.rejectedAt = now;
-    } else if (status === 'CONTACTED') {
-      match.contactedAt = now;
+    }
+
+    // 2. CONFIRMATION STAGE (ACCEPTED -> CONFIRMED / REJECTED)
+    else if (currentStatus === 'ACCEPTED') {
+      if (status === 'COMPLETED') {
+        return res.status(400).json({ 
+          message: `Stage skipping forbidden: Cannot transition from 'ACCEPTED' directly to 'COMPLETED'. Service must be confirmed first.` 
+        });
+      }
+
+      if (userIdStr !== customerIdStr && userIdStr !== providerIdStr) {
+        return res.status(403).json({ message: 'Unauthorized to confirm or reject this match connection' });
+      }
+
+      if (status === 'REJECTED') {
+        // Immediate rejection by either party
+        match.status = 'REJECTED';
+        match.rejectedAt = now;
+      } else if (status === 'CONFIRMED') {
+        // Update confirmation flag for the calling user
+        if (userIdStr === providerIdStr) {
+          match.providerConfirmed = true;
+        } else if (userIdStr === customerIdStr) {
+          match.customerConfirmed = true;
+        }
+
+        // If both confirmed, transition status to CONFIRMED
+        if (match.providerConfirmed && match.customerConfirmed) {
+          match.status = 'CONFIRMED';
+        }
+      }
+    }
+
+    // 3. CONFIRMED STAGE (CONFIRMED -> COMPLETED / REJECTED)
+    else if (currentStatus === 'CONFIRMED') {
+      if (userIdStr !== customerIdStr && userIdStr !== providerIdStr) {
+        return res.status(403).json({ message: 'Unauthorized to update this match connection' });
+      }
+
+      if (status === 'REJECTED') {
+        // Immediate rejection by either party
+        match.status = 'REJECTED';
+        match.rejectedAt = now;
+      } else if (status === 'COMPLETED') {
+        // Only the assigned Provider can mark completed & confirm payment
+        if (req.user.role !== 'provider' || userIdStr !== providerIdStr) {
+          return res.status(403).json({ message: 'Unauthorized: Only the assigned Provider can complete this service and verify payment' });
+        }
+
+        if (paymentReceived !== true) {
+          return res.status(400).json({ message: 'Payment verification is required to complete the service' });
+        }
+
+        match.status = 'COMPLETED';
+        match.paymentReceived = true;
+        match.completedAt = now;
+        match.completedBy = 'provider';
+
+        if (agreedAmount !== undefined) {
+          match.agreedAmount = agreedAmount;
+        }
+
+        // Parse default amount from rate string if not explicitly set
+        let finalAmount = match.agreedAmount || agreedAmount || 0;
+        if (!finalAmount) {
+          const rateStr = match.requestId?.rate || '1500';
+          const parsed = parseInt(rateStr.replace(/[^0-9]/g, ''), 10);
+          finalAmount = isNaN(parsed) ? 1500 : parsed;
+        }
+        match.agreedAmount = finalAmount;
+
+        // Idempotent Earnings Record Generation
+        try {
+          const existingEarning = await Earning.findOne({ applicationId: match._id });
+          if (!existingEarning) {
+            await Earning.create({
+              providerId: match.providerId._id || match.providerId,
+              applicationId: match._id,
+              customerId: match.customerId._id || match.customerId,
+              amount: finalAmount,
+              serviceName: match.requestId?.title || 'Service Connection',
+              paymentReceived: true,
+              earnedAt: now
+            });
+            console.log(`[EARNING CREATED] persistent Earning record added for match ${match._id}: ₹${finalAmount}`);
+          }
+        } catch (earningErr) {
+          console.error('Idempotent earnings generation error:', earningErr.message);
+        }
+      }
+    } else {
+      return res.status(400).json({ message: `Cannot change status of a terminal ${currentStatus} application` });
     }
 
     await match.save();
-
-    console.log(`[MATCH STATUS UPDATE] Match ${match._id} updated from '${currentStatus}' to '${status}' by User ${req.user._id}`);
-
+    console.log(`[MATCH STATUS UPDATE] Match ${match._id} updated from '${currentStatus}' to status '${match.status}' by User ${req.user._id}`);
     res.status(200).json(match);
   } catch (error) {
     console.error('Update match status error:', error.message);

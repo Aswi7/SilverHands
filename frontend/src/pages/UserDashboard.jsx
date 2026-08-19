@@ -112,14 +112,39 @@ const UserDashboard = ({ onNavigate }) => {
   
   // Provider Active Listings
   const [providerListings, setProviderListings] = useState([]);
-  
+  const [earningsData, setEarningsData] = useState({
+    totalEarnings: 12500,
+    thisMonthEarnings: 4500,
+    completedServicesCount: 8,
+    recentEarnings: []
+  });
+
+  const fetchEarningsData = async () => {
+    try {
+      const { data } = await api.get('/earnings');
+      if (data) {
+        setEarningsData({
+          totalEarnings: data.totalEarnings || 0,
+          thisMonthEarnings: data.thisMonthEarnings || 0,
+          completedServicesCount: data.completedServicesCount || 0,
+          recentEarnings: Array.isArray(data.recentEarnings) ? data.recentEarnings : []
+        });
+      }
+    } catch (err) {
+      console.error("Failed to load earnings from database:", err);
+    }
+  };
+
   useEffect(() => {
     if (user?._id) {
       api.get(`/listings/provider/${user._id}`)
         .then(res => setProviderListings(Array.isArray(res.data) ? res.data : []))
         .catch(err => console.error("Failed to load listings", err));
     }
-  }, [user]);
+    if (user?._id && user.role === 'provider') {
+      fetchEarningsData();
+    }
+  }, [user, activeTab]);
 
   // Provider Ranked Forecasts and states
   const [rankedForecasts, setRankedForecasts] = useState([]);
@@ -393,9 +418,19 @@ const UserDashboard = ({ onNavigate }) => {
 
   const handleCompleteProviderMatch = async (match) => {
     try {
-      const { data } = await api.put(`/matches/${match._id}/status`, { status: 'COMPLETED' });
+      const opp = match.requestId || match.opportunity;
+      const rateStr = opp?.rate || '1500';
+      const parsed = parseInt(rateStr.replace(/[^0-9]/g, ''), 10);
+      const agreedVal = isNaN(parsed) ? 1500 : parsed;
+
+      const { data } = await api.put(`/matches/${match._id}/status`, { 
+        status: 'COMPLETED',
+        paymentReceived: true,
+        agreedAmount: match.agreedAmount || agreedVal
+      });
       setProviderMatchRequests(prev => prev.map(m => m._id === match._id ? data : m));
       await fetchProviderMatchRequests();
+      await fetchEarningsData();
     } catch (err) {
       console.error('Complete service error:', err);
       alert(err.response?.data?.message || 'Failed to complete service.');
@@ -1475,52 +1510,65 @@ const UserDashboard = ({ onNavigate }) => {
               {/* Total Card */}
               <div className={`p-8 rounded-3xl grid grid-cols-1 sm:grid-cols-3 gap-6 text-center sm:text-left ${cardTheme}`}>
                 <div className="sm:col-span-2">
-                  <span className="text-xs font-bold text-gray-400 uppercase">{t('dashboard.provider.earnings.this_month')}</span>
+                  <span className="text-xs font-bold text-gray-400 uppercase">This Month's Earnings</span>
                   <h3 className="text-4xl font-extrabold text-forest mt-1 flex items-center justify-center sm:justify-start">
                     <IndianRupee className="h-8 w-8" />
-                    12,400
+                    {earningsData.thisMonthEarnings}
                   </h3>
-                  <p className="text-xs text-green-600 mt-1">✓ {t('dashboard.provider.earnings.deposits_complete', 'Direct bank deposits complete')}</p>
+                  <p className="text-xs text-green-600 mt-1">✓ Direct bank deposits complete</p>
                 </div>
                 <div className="flex flex-col justify-center gap-1.5 border-t sm:border-t-0 sm:border-l border-cream-dark/50 pt-4 sm:pt-0 sm:pl-6 text-left">
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-gray-400">{t('dashboard.provider.earnings.total_hours')}</span>
-                    <p className="text-base font-bold">36 {t('dashboard.provider.earnings.hours_suffix', 'Hours')}</p>
+                    <span className="text-[10px] uppercase font-bold text-gray-400">Total Earnings</span>
+                    <p className="text-base font-bold flex items-center">
+                      <IndianRupee className="h-4 w-4" /> {earningsData.totalEarnings}
+                    </p>
                   </div>
                   <div>
-                    <span className="text-[10px] uppercase font-bold text-gray-400">{t('dashboard.provider.earnings.services_provided')}</span>
-                    <p className="text-base font-bold">3 {t('dashboard.provider.earnings.households_suffix', 'Local Households')}</p>
+                    <span className="text-[10px] uppercase font-bold text-gray-400">Completed Services</span>
+                    <p className="text-base font-bold">{earningsData.completedServicesCount} Households</p>
                   </div>
                 </div>
               </div>
 
-              {/* Stylized Bar Chart Placeholder */}
-              <div className={`p-6 rounded-3xl flex flex-col gap-4 ${cardTheme}`}>
-                <h4 className="font-bold text-sm text-gray-400 uppercase">{t('dashboard.provider.earnings.chart_title', 'Monthly Earnings Chart')}</h4>
-                
-                <div className="h-48 flex items-end gap-5 border-b border-cream-dark/50 pb-2">
-                  {/* Columns */}
-                  {[
-                    { month: 'Mar', value: '40%' },
-                    { month: 'Apr', value: '55%' },
-                    { month: 'May', value: '30%' },
-                    { month: 'Jun', value: '70%' },
-                    { month: 'Jul', value: '85%' },
-                    { month: 'Aug', value: '92%' }
-                  ].map((col, index) => (
-                    <div key={index} className="grow flex flex-col items-center gap-2">
+              {/* Recent Earnings list */}
+              <div className="flex flex-col gap-4">
+                <h3 className="font-serif text-xl font-bold flex items-center gap-2">
+                  📊 Recent Earnings Activity
+                </h3>
+                {earningsData.recentEarnings.length === 0 ? (
+                  <div className={`p-8 text-center rounded-3xl text-xs text-gray-400 border border-dashed ${cardTheme}`}>
+                    Completed tasks and verified payments will generate persistent transaction history here.
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {earningsData.recentEarnings.map((earning) => (
                       <div 
-                        style={{ height: col.value }}
-                        className={`w-full rounded-t-lg transition-all duration-500 ${
-                          index === 5 
-                            ? (highContrast ? 'bg-white' : 'bg-terracotta') 
-                            : (highContrast ? 'bg-gray-700' : 'bg-forest')
-                        }`} 
-                      />
-                      <span className="text-xs font-bold text-gray-500 font-mono">{col.month}</span>
-                    </div>
-                  ))}
-                </div>
+                        key={earning._id} 
+                        className={`p-4 rounded-3xl border flex items-center justify-between hover:shadow-sm transition-all ${cardTheme}`}
+                      >
+                        <div>
+                          <h4 className="font-bold text-sm text-forest leading-snug">{earning.serviceName}</h4>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Customer: {earning.customerId?.name || 'Verified Household'}
+                          </p>
+                          <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                            Completed on {new Date(earning.earnedAt).toLocaleDateString([], {month: 'short', day: 'numeric', year: 'numeric'})}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <span className="font-extrabold text-lg text-terracotta flex items-center justify-end gap-0.5">
+                            <IndianRupee className="h-4.5 w-4.5" />
+                            {earning.amount}
+                          </span>
+                          <span className="text-[9px] font-extrabold bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full uppercase tracking-wider mt-1.5 inline-block">
+                            Paid
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
             </div>

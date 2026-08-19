@@ -262,14 +262,14 @@ const EmployerDashboard = ({ onNavigate }) => {
     }
   };
 
-  const handleCompleteCustomerMatch = async (match) => {
+  const handleRejectCustomerMatch = async (match) => {
     try {
-      const { data } = await api.put(`/matches/${match._id}/status`, { status: 'COMPLETED' });
+      const { data } = await api.put(`/matches/${match._id}/status`, { status: 'REJECTED' });
       setCustomerMatches(prev => prev.map(m => m._id === match._id ? data : m));
       await fetchCustomerMatches();
     } catch (err) {
-      console.error('Complete service error:', err);
-      alert(err.response?.data?.message || 'Failed to mark service complete.');
+      console.error('Reject service error:', err);
+      alert(err.response?.data?.message || 'Failed to reject service.');
     }
   };
 
@@ -1268,8 +1268,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                         userRole="customer"
                         highContrast={highContrast}
                         onConfirm={handleConfirmCustomerMatch}
-                        onStartService={handleCompleteCustomerMatch}
-                        onCompleteService={handleCompleteCustomerMatch}
+                        onReject={handleRejectCustomerMatch}
                         onCancel={handleCancelCustomerMatch}
                         onContact={handleContactProviderFromMatch}
                         onOpenChat={() => setActiveTab('messages')}
