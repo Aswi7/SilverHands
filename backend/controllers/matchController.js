@@ -2,17 +2,19 @@ const Match = require('../models/Match');
 const Conversation = require('../models/Conversation');
 const ServiceRequest = require('../models/ServiceRequest');
 
-// Valid state transitions dictionary
+// Valid state transitions dictionary for the 4 main user-facing stages
 const VALID_TRANSITIONS = {
-  PENDING: ['ACCEPTED', 'REJECTED', 'CANCELLED'],
-  ACCEPTED: ['CONTACTED', 'COMPLETED', 'CANCELLED'],
+  APPLIED: ['ACCEPTED', 'REJECTED'],
+  PENDING: ['ACCEPTED', 'REJECTED'], // Backward compatibility alias for APPLIED
+  ACCEPTED: ['CONFIRMED', 'CANCELLED', 'CONTACTED'],
+  CONTACTED: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['COMPLETED', 'CANCELLED'],
   REJECTED: [],
-  CONTACTED: ['COMPLETED', 'CANCELLED'],
   COMPLETED: [],
   CANCELLED: []
 };
 
-// @desc    Update match request status (Accept/Reject by Provider, Contact/Cancel by Customer)
+// @desc    Update match request status (APPLIED -> ACCEPTED -> CONFIRMED -> COMPLETED)
 // @route   PUT /api/matches/:id/status
 // @access  Private
 const updateMatchStatus = async (req, res) => {
@@ -33,20 +35,32 @@ const updateMatchStatus = async (req, res) => {
       return res.status(404).json({ message: 'Match request not found' });
     }
 
-    const currentStatus = match.status || 'PENDING';
+    const currentStatus = match.status || 'APPLIED';
 
-    // Prevent duplicate accept/reject operations (idempotent success if already in target state)
-    if (['ACCEPTED', 'REJECTED'].includes(status) && currentStatus === status) {
+    // Idempotent check: if already in the requested target status, return success
+    if (currentStatus === status) {
       return res.status(200).json(match);
     }
 
-    if (['ACCEPTED', 'REJECTED'].includes(status) && currentStatus !== 'PENDING') {
-      return res.status(400).json({ message: `Cannot change status from '${currentStatus}' to '${status}'` });
+    // Explicit Stage Skipping Checks as mandated by SilverHands requirements:
+    // APPLIED -> CONFIRMED (FORBIDDEN)
+    // APPLIED -> COMPLETED (FORBIDDEN)
+    // ACCEPTED -> COMPLETED (FORBIDDEN)
+    if (['APPLIED', 'PENDING'].includes(currentStatus) && ['CONFIRMED', 'COMPLETED'].includes(status)) {
+      return res.status(400).json({ 
+        message: `Stage skipping forbidden: Cannot transition from '${currentStatus}' directly to '${status}'. Application must be accepted first.` 
+      });
+    }
+
+    if (currentStatus === 'ACCEPTED' && status === 'COMPLETED') {
+      return res.status(400).json({ 
+        message: `Stage skipping forbidden: Cannot transition from 'ACCEPTED' directly to 'COMPLETED'. Service must be confirmed first.` 
+      });
     }
 
     // State machine transition validation
     const allowedNext = VALID_TRANSITIONS[currentStatus] || [];
-    if (!allowedNext.includes(status) && currentStatus !== status) {
+    if (!allowedNext.includes(status)) {
       return res.status(400).json({
         message: `Invalid state transition from '${currentStatus}' to '${status}'. Allowed transitions: ${allowedNext.join(', ') || 'None (Terminal state)'}`
       });
@@ -57,13 +71,13 @@ const updateMatchStatus = async (req, res) => {
     const providerIdStr = (match.providerId || match.provider)?._id?.toString() || (match.providerId || match.provider)?.toString();
     const customerIdStr = (match.customerId || match.customer)?._id?.toString() || (match.customerId || match.customer)?.toString();
 
-    if (['ACCEPTED', 'REJECTED'].includes(status)) {
+    if (['ACCEPTED', 'REJECTED'].includes(status) && ['APPLIED', 'PENDING'].includes(currentStatus)) {
       if (req.user.role !== 'provider' || userIdStr !== providerIdStr) {
-        return res.status(403).json({ message: 'Unauthorized: Only the assigned Provider can Accept or Reject this match request' });
+        return res.status(403).json({ message: 'Unauthorized: Only the assigned Provider can Accept or Reject an applied request' });
       }
     }
 
-    if (['CONTACTED', 'CANCELLED'].includes(status)) {
+    if (['CONFIRMED', 'COMPLETED', 'CANCELLED', 'CONTACTED'].includes(status)) {
       if (userIdStr !== customerIdStr && userIdStr !== providerIdStr) {
         return res.status(403).json({ message: 'Unauthorized: Not permitted to update this match request' });
       }
@@ -87,7 +101,7 @@ const updateMatchStatus = async (req, res) => {
             customerId: match.customerId || match.customer._id || match.customer,
             providerId: match.providerId || match.provider._id || match.provider,
             matchId: match._id,
-            lastMessage: 'Connection accepted! Start chatting below.',
+            lastMessage: 'Connection accepted! You can now contact each other.',
             lastMessageAt: now
           });
           console.log(`[CONVERSATION CREATED] Created conversation for match ${match._id}`);
@@ -104,7 +118,7 @@ const updateMatchStatus = async (req, res) => {
 
     await match.save();
 
-    console.log(`[MATCH STATUS UPDATE] Match ${match._id} updated from '${currentStatus}' to '${status}' by Provider/User ${req.user._id}`);
+    console.log(`[MATCH STATUS UPDATE] Match ${match._id} updated from '${currentStatus}' to '${status}' by User ${req.user._id}`);
 
     res.status(200).json(match);
   } catch (error) {

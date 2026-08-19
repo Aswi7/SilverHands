@@ -211,7 +211,7 @@ const findMatches = async (opportunityId) => {
             scoreBreakdown
           },
           $setOnInsert: {
-            status: 'PENDING'
+            status: 'APPLIED'
           }
         },
         { upsert: true, new: true }

@@ -296,7 +296,7 @@ const UserDashboard = ({ onNavigate }) => {
   // Dedicated Provider Match Requests State
   const [providerMatchRequests, setProviderMatchRequests] = useState([]);
   const [isLoadingMatchRequests, setIsLoadingMatchRequests] = useState(false);
-  const [providerMatchSubTab, setProviderMatchSubTab] = useState('new'); // 'new' | 'active' | 'previous'
+  const [providerMatchSubTab, setProviderMatchSubTab] = useState('active'); // 'active' | 'previous'
 
   const fetchProviderMatchRequests = async () => {
     setIsLoadingMatchRequests(true);
@@ -323,7 +323,40 @@ const UserDashboard = ({ onNavigate }) => {
       await fetchProviderMatchRequests();
     } catch (err) {
       console.error('Accept match error:', err);
-      alert(err.response?.data?.message || 'Failed to accept match request.');
+      alert(err.response?.data?.message || 'Failed to accept application.');
+    }
+  };
+
+  const handleConfirmProviderMatch = async (match) => {
+    try {
+      const { data } = await api.put(`/matches/${match._id}/status`, { status: 'CONFIRMED' });
+      setProviderMatchRequests(prev => prev.map(m => m._id === match._id ? data : m));
+      await fetchProviderMatchRequests();
+    } catch (err) {
+      console.error('Confirm service error:', err);
+      alert(err.response?.data?.message || 'Failed to confirm service details.');
+    }
+  };
+
+  const handleCompleteProviderMatch = async (match) => {
+    try {
+      const { data } = await api.put(`/matches/${match._id}/status`, { status: 'COMPLETED' });
+      setProviderMatchRequests(prev => prev.map(m => m._id === match._id ? data : m));
+      await fetchProviderMatchRequests();
+    } catch (err) {
+      console.error('Complete service error:', err);
+      alert(err.response?.data?.message || 'Failed to complete service.');
+    }
+  };
+
+  const handleCancelProviderMatch = async (match) => {
+    try {
+      const { data } = await api.put(`/matches/${match._id}/status`, { status: 'CANCELLED' });
+      setProviderMatchRequests(prev => prev.map(m => m._id === match._id ? data : m));
+      await fetchProviderMatchRequests();
+    } catch (err) {
+      console.error('Cancel service error:', err);
+      alert(err.response?.data?.message || 'Failed to cancel application.');
     }
   };
 
@@ -331,7 +364,6 @@ const UserDashboard = ({ onNavigate }) => {
     try {
       const matchId = (typeof match === 'object' && match !== null) ? (match._id || match.matchId || match.id) : match;
       if (matchId) {
-        await api.put(`/matches/${matchId}/status`, { status: 'CONTACTED' });
         try {
           await api.post('/chat/conversations', { matchId });
         } catch (cErr) {
@@ -342,7 +374,7 @@ const UserDashboard = ({ onNavigate }) => {
       await fetchProviderMatchRequests();
       setActiveTab('messages');
     } catch (err) {
-      console.error('Failed to update status to CONTACTED:', err);
+      console.error('Failed to open chat:', err);
       setActiveTab('messages');
     }
   };
@@ -352,10 +384,10 @@ const UserDashboard = ({ onNavigate }) => {
       const { data } = await api.put(`/matches/${match._id}/status`, { status: 'REJECTED' });
       setProviderMatchRequests(prev => prev.map(m => m._id === match._id ? data : m));
       setOpportunities(prev => prev.map(opp => opp.matchId === match._id ? { ...opp, matchStatus: 'REJECTED' } : opp));
-      alert(`Declined match request.`);
+      await fetchProviderMatchRequests();
     } catch (err) {
       console.error('Reject match error:', err);
-      alert(err.response?.data?.message || 'Failed to decline match request.');
+      alert(err.response?.data?.message || 'Failed to decline application.');
     }
   };
 
@@ -538,7 +570,6 @@ const UserDashboard = ({ onNavigate }) => {
     { id: 'matches', label: t('dashboard.provider.tabs.matches'), icon: Sparkles },
     { id: 'match-requests', label: 'Match Requests', icon: BookmarkCheck },
     { id: 'forecast', label: t('dashboard.provider.tabs.forecast', 'Forecasts'), icon: Calendar },
-    { id: 'applications', label: t('dashboard.provider.tabs.applications'), icon: Briefcase },
     { id: 'earnings', label: t('dashboard.provider.tabs.earnings'), icon: TrendingUp },
     { id: 'messages', label: t('dashboard.provider.tabs.messages'), icon: MessageSquare },
     { id: 'profile', label: t('dashboard.provider.tabs.profile'), icon: User },
@@ -1001,67 +1032,49 @@ const UserDashboard = ({ onNavigate }) => {
             </div>
           )}
 
-          {/* ================= VIEW: MATCH REQUESTS ================= */}
+          {/* ================= VIEW: MATCH REQUESTS / APPLICATIONS ================= */}
           {activeTab === 'match-requests' && (() => {
-            const newMatches = providerMatchRequests.filter(m => (m.status || 'PENDING') === 'PENDING');
-            const activeConnections = providerMatchRequests.filter(m => ['ACCEPTED', 'CONTACTED'].includes(m.status));
-            const previousMatches = providerMatchRequests.filter(m => ['REJECTED', 'COMPLETED', 'CANCELLED'].includes(m.status));
+            const activeApplications = providerMatchRequests.filter(m => {
+              const st = (m.status || 'APPLIED').toUpperCase();
+              return ['APPLIED', 'PENDING', 'ACCEPTED', 'CONTACTED', 'CONFIRMED'].includes(st);
+            });
+            const previousApplications = providerMatchRequests.filter(m => {
+              const st = (m.status || 'APPLIED').toUpperCase();
+              return ['COMPLETED', 'REJECTED', 'CANCELLED'].includes(st);
+            });
 
-            const displayedMatches = providerMatchSubTab === 'new' 
-              ? newMatches 
-              : providerMatchSubTab === 'active' 
-              ? activeConnections 
-              : previousMatches;
+            const displayedMatches = providerMatchSubTab === 'active' 
+              ? activeApplications 
+              : previousApplications;
 
             return (
               <div className="flex flex-col gap-6 text-left">
                 <div className="border-b pb-3 border-cream-dark/30 flex justify-between items-center">
                   <div>
-                    <h2 className="font-serif text-2xl font-bold">Match Requests</h2>
+                    <h2 className="font-serif text-2xl font-bold">Application Tracker</h2>
                     <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                      Review incoming match requests, active connections, and historical matches.
+                      Track and manage customer requests through Applied, Accepted, Confirmed, and Completed stages.
                     </p>
                   </div>
                   <button
                     onClick={fetchProviderMatchRequests}
                     className="px-4 py-2 text-xs font-bold rounded-xl border border-cream-dark hover:bg-gray-100 flex items-center gap-1.5"
                   >
-                    <span>🔄 Refresh Requests</span>
+                    <span>🔄 Refresh Applications</span>
                   </button>
                 </div>
 
-                {/* Sub-tab Navigation Buttons: [New Matches] [Active Connections] [Previous Matches] */}
+                {/* Sub-tab Navigation Buttons: [Active Applications] [Previous Applications] (NO '0' counters) */}
                 <div className="flex flex-wrap gap-2.5 border-b border-cream-dark/30 pb-3">
-                  <button
-                    onClick={() => setProviderMatchSubTab('new')}
-                    className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 ${
-                      providerMatchSubTab === 'new'
-                        ? (highContrast ? 'bg-white text-black' : 'bg-terracotta text-white shadow-md')
-                        : 'bg-cream-dark/20 text-charcoal hover:bg-cream-dark/40'
-                    }`}
-                  >
-                    <span>⚡ New Matches</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                      providerMatchSubTab === 'new' ? 'bg-white/20 text-white' : 'bg-gray-200 text-charcoal'
-                    }`}>
-                      {newMatches.length}
-                    </span>
-                  </button>
-
                   <button
                     onClick={() => setProviderMatchSubTab('active')}
                     className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 ${
                       providerMatchSubTab === 'active'
-                        ? (highContrast ? 'bg-white text-black' : 'bg-forest text-white shadow-md')
+                        ? (highContrast ? 'bg-white text-black' : 'bg-terracotta text-white shadow-md')
                         : 'bg-cream-dark/20 text-charcoal hover:bg-cream-dark/40'
                     }`}
                   >
-                    <span>🤝 Active Connections</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                      providerMatchSubTab === 'active' ? 'bg-white/20 text-white' : 'bg-gray-200 text-charcoal'
-                    }`}>
-                      {activeConnections.length}
-                    </span>
+                    <span>Active Applications</span>
                   </button>
 
                   <button
@@ -1072,37 +1085,28 @@ const UserDashboard = ({ onNavigate }) => {
                         : 'bg-cream-dark/20 text-charcoal hover:bg-cream-dark/40'
                     }`}
                   >
-                    <span>📜 Previous Matches</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                      providerMatchSubTab === 'previous' ? 'bg-white/20 text-white' : 'bg-gray-200 text-charcoal'
-                    }`}>
-                      {previousMatches.length}
-                    </span>
+                    <span>Previous Applications</span>
                   </button>
                 </div>
 
                 {isLoadingMatchRequests ? (
                   <div className="p-12 text-center font-bold text-forest animate-pulse flex justify-center items-center gap-2">
                     <Sparkles className="h-5 w-5" />
-                    <span>Fetching match requests from MongoDB...</span>
+                    <span>Fetching applications from MongoDB...</span>
                   </div>
                 ) : displayedMatches.length === 0 ? (
                   <div className={`p-12 text-center rounded-3xl flex flex-col items-center justify-center gap-3 ${cardTheme}`}>
                     <BookmarkCheck className="h-12 w-12 text-gray-400" />
                     <h3 className="font-serif text-xl font-bold">
-                      {providerMatchSubTab === 'new'
-                        ? 'No New Match Requests'
-                        : providerMatchSubTab === 'active'
-                        ? 'No Active Connections'
-                        : 'No Previous Matches'}
+                      {providerMatchSubTab === 'active'
+                        ? 'No active applications'
+                        : 'No previous applications yet.'}
                     </h3>
-                    <p className={`text-sm ${textSecondaryTheme} max-w-md mx-auto`}>
-                      {providerMatchSubTab === 'new'
-                        ? 'New customer requests matching your skills will appear here for your review.'
-                        : providerMatchSubTab === 'active'
-                        ? 'Accepted connection requests will be listed here with active chat access.'
-                        : 'Historical matches that were declined or completed will be archived here.'}
-                    </p>
+                    {providerMatchSubTab === 'active' && (
+                      <p className={`text-sm ${textSecondaryTheme} max-w-md mx-auto`}>
+                        When a customer applies for your service, their request will appear here.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className="grid gap-6 md:grid-cols-2">
@@ -1114,6 +1118,10 @@ const UserDashboard = ({ onNavigate }) => {
                         highContrast={highContrast}
                         onAccept={handleAcceptProviderMatch}
                         onReject={handleRejectProviderMatch}
+                        onConfirm={handleConfirmProviderMatch}
+                        onStartService={handleCompleteProviderMatch}
+                        onCompleteService={handleCompleteProviderMatch}
+                        onCancel={handleCancelProviderMatch}
                         onContact={handleContactProviderFromMatch}
                         onOpenChat={handleContactProviderFromMatch}
                       />
@@ -1211,88 +1219,7 @@ const UserDashboard = ({ onNavigate }) => {
             </div>
           )}
 
-          {/* ================= VIEW: APPLICATIONS KANBAN ================= */}
-          {activeTab === 'applications' && (
-            <div className="flex flex-col gap-6 text-left">
-              
-              <div className="border-b pb-3 border-cream-dark/30">
-                <h2 className="font-serif text-2xl font-bold">{t('dashboard.provider.applications.title')}</h2>
-                <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  {t('dashboard.provider.applications.desc')}
-                </p>
-              </div>
 
-              {/* Kanban Columns */}
-              <div className="grid grid-cols-5 gap-3 items-start pb-4">
-                
-                {['applied', 'contacted', 'confirmed', 'in_progress', 'completed'].map(statusCol => {
-                  const columnApps = applications.filter(a => a.status === statusCol);
-                  return (
-                    <div key={statusCol} className={`p-2.5 rounded-2xl border ${highContrast ? 'border-white' : 'bg-cream/40 border-cream-dark/50'} shadow-sm`}>
-                      <h4 className="font-serif font-bold text-[11px] mb-2 flex justify-between items-center capitalize text-charcoal">
-                        <span>{statusCol.replace('_', ' ')}</span>
-                        <span className="text-[9px] bg-cream-dark/40 px-1.5 py-0.5 rounded font-mono">{columnApps.length}</span>
-                      </h4>
-                      <div className="flex flex-col gap-2">
-                        {columnApps.map(app => (
-                          <div key={app._id} className={`p-2.5 rounded-xl flex flex-col gap-1.5 ${cardTheme}`}>
-                            <span className="font-bold block text-xs leading-tight truncate">{app.opportunityId?.title || 'Unknown Gig'}</span>
-                            <p className="text-[9px] text-gray-500 truncate">{app.employerId?.name || 'Unknown Employer'}</p>
-                            
-                            {/* Status-specific concise content */}
-                            {statusCol === 'applied' && (
-                              <div className="mt-1 flex flex-col gap-1.5">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-[10px] font-mono text-gray-600">📞 {app.employerId?.phone?.slice(-4) || '3210'}</span>
-                                  <button onClick={() => setActiveTab('messages')} className="text-[9px] text-indigo-600 font-bold hover:underline">💬 Chat</button>
-                                </div>
-                                <button onClick={() => updateApplicationStatus(app._id, 'contacted')} className="bg-terracotta text-white px-2 py-1.5 rounded text-[9px] font-bold w-full text-center hover:bg-terracotta-hover transition-colors">✓ Mark Contacted</button>
-                              </div>
-                            )}
-
-                            {statusCol === 'contacted' && (
-                              <button onClick={() => updateApplicationStatus(app._id, 'confirmed')} className="mt-1 bg-teal-600 text-white px-2 py-1.5 rounded text-[9px] font-bold w-full text-center hover:bg-teal-700 transition-colors">🤝 Confirm Terms</button>
-                            )}
-
-                            {statusCol === 'confirmed' && (
-                              <button onClick={() => updateApplicationStatus(app._id, 'in_progress')} className="mt-1 bg-blue-600 text-white px-2 py-1.5 rounded text-[9px] font-bold w-full text-center hover:bg-blue-700 transition-colors">📍 Check-In</button>
-                            )}
-
-                            {statusCol === 'in_progress' && (
-                              <button onClick={() => updateApplicationStatus(app._id, 'completed')} className="mt-1 bg-purple-600 text-white px-2 py-1.5 rounded text-[9px] font-bold w-full text-center hover:bg-purple-700 transition-colors">⭐ Complete</button>
-                            )}
-
-                            {statusCol === 'completed' && (
-                              <div className="mt-1 flex gap-1">
-                                <button onClick={() => {
-                                  const confirmedTerms = { rate: 500, date: new Date().toISOString(), time: '10:00 AM', taskDescription: 'Repeat booking' };
-                                  api.patch(`/applications/${app._id}/confirm`, { confirmedTerms }).then(() => {
-                                    alert('Re-booked!');
-                                    updateApplicationStatus(app._id, 'confirmed');
-                                  });
-                                }} className="bg-forest text-white flex-1 py-1 rounded text-[9px] font-bold hover:bg-forest-hover transition-colors text-center">Re-Book</button>
-                                {!app.reviewSubmitted && (
-                                  <button onClick={() => {
-                                    const rating = prompt('Rating (1-5):', '5');
-                                    const comment = prompt('Comment:', 'Great experience!');
-                                    if(rating && comment) {
-                                      api.post(`/applications/${app._id}/review`, { targetUserId: app.employerId?._id || app.employerId, rating: Number(rating), comment }).then(() => alert('Reviewed!'));
-                                    }
-                                  }} className="bg-cream-dark/50 text-charcoal flex-1 py-1 rounded text-[9px] font-bold hover:bg-cream-dark transition-colors text-center">Review</button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-
-              </div>
-
-            </div>
-          )}
 
           {/* ================= VIEW: EARNINGS ================= */}
           {activeTab === 'earnings' && (

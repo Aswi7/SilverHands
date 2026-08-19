@@ -19,10 +19,10 @@ const createOrGetConversation = async (req, res) => {
       return res.status(404).json({ message: 'Match not found' });
     }
 
-    // Rule: Chat allowed ONLY when match status is ACCEPTED or CONTACTED
-    if (!['ACCEPTED', 'CONTACTED'].includes(match.status)) {
+    // Rule: Chat allowed ONLY after application is ACCEPTED (ACCEPTED, CONFIRMED, COMPLETED, CONTACTED)
+    if (!['ACCEPTED', 'CONFIRMED', 'COMPLETED', 'CONTACTED'].includes(match.status)) {
       return res.status(403).json({
-        message: `Chat is disabled until the connection request is accepted by the provider. Current match status: ${match.status}`
+        message: `Chat is disabled until the request is accepted by the provider. Current match status: ${match.status}`
       });
     }
 
@@ -174,8 +174,8 @@ const sendMessage = async (req, res) => {
     }
 
     const matchObj = conversation.matchId || conversation.match;
-    // Rule: Match status must still be ACCEPTED or CONTACTED
-    if (matchObj && !['ACCEPTED', 'CONTACTED'].includes(matchObj.status)) {
+    // Rule: Match status must be ACCEPTED, CONFIRMED, COMPLETED, or CONTACTED
+    if (matchObj && !['ACCEPTED', 'CONFIRMED', 'COMPLETED', 'CONTACTED'].includes(matchObj.status)) {
       return res.status(403).json({ message: `Cannot send message: Match status is ${matchObj.status}` });
     }
 

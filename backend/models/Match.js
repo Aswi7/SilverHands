@@ -30,8 +30,8 @@ const MatchSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['PENDING', 'ACCEPTED', 'REJECTED', 'CONTACTED', 'COMPLETED', 'CANCELLED'],
-    default: 'PENDING'
+    enum: ['APPLIED', 'PENDING', 'ACCEPTED', 'CONFIRMED', 'REJECTED', 'CONTACTED', 'COMPLETED', 'CANCELLED'],
+    default: 'APPLIED'
   },
   respondedAt: { type: Date },
   acceptedAt: { type: Date },

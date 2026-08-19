@@ -1,254 +1,264 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
-  Clock, 
-  CheckCircle, 
-  MessageSquare, 
-  X, 
-  Check, 
-  Ban, 
   MapPin, 
-  User, 
-  Sparkles,
-  ChevronRight
+  User as UserIcon, 
+  MessageSquare, 
+  CheckCircle, 
+  Calendar,
+  XCircle,
+  Play,
+  Check
 } from 'lucide-react';
+import ApplicationStepper from './ApplicationStepper';
 
 const MatchCard = ({
   match,
-  userRole = 'customer', // 'customer' | 'provider'
+  userRole = 'provider', // 'provider' | 'customer'
   highContrast = false,
   onAccept,
   onReject,
+  onConfirm,
+  onStartService,
+  onCompleteService,
+  onCancel,
   onContact,
-  onOpenChat,
-  onViewProfile
+  onOpenChat
 }) => {
+  const [showReviewModal, setShowReviewModal] = useState(false);
+
   if (!match) return null;
 
   const isProvider = userRole === 'provider';
-  const partner = isProvider ? match.customer : match.provider;
-  const opp = match.opportunity;
+  const partner = isProvider ? match.customerId || match.customer : match.providerId || match.provider;
+  const opp = match.requestId || match.opportunity;
+
+  const rawStatus = (match.status || 'APPLIED').toUpperCase();
+  const status = rawStatus === 'PENDING' ? 'APPLIED' : (rawStatus === 'CONTACTED' ? 'ACCEPTED' : rawStatus);
 
   const cardTheme = highContrast
     ? 'border-2 border-white bg-black text-white'
-    : 'border-cream-dark/50 bg-white text-charcoal shadow-sm hover:shadow-md transition-all';
+    : 'border-cream-dark/60 bg-white text-charcoal shadow-sm hover:shadow-md transition-all rounded-3xl';
 
-  const status = match.status || 'PENDING';
+  const partnerName = partner?.name || (isProvider ? 'Customer' : 'Provider');
+  const partnerImage = partner?.profileImage || partner?.avatarUrl;
 
-  // Render Status Badge with correct label and icon
-  const renderStatusBadge = () => {
+  // Plain-language status explanations
+  const getStatusExplanation = () => {
     switch (status) {
-      case 'PENDING':
-        return (
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1.5 shrink-0">
-            <Clock className="h-3.5 w-3.5 text-amber-700" />
-            <span>Waiting for response</span>
-          </span>
-        );
+      case 'APPLIED':
+        return isProvider
+          ? "A customer has submitted a request. Please review it."
+          : "Your request has been submitted to the provider.";
       case 'ACCEPTED':
-        return (
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-teal-100 text-teal-800 border border-teal-300 flex items-center gap-1.5 shrink-0">
-            <CheckCircle className="h-3.5 w-3.5 text-teal-600" />
-            <span>Connected</span>
-          </span>
-        );
-      case 'CONTACTED':
-        return (
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1.5 shrink-0">
-            <MessageSquare className="h-3.5 w-3.5 text-blue-600" />
-            <span>Contacted</span>
-          </span>
-        );
-      case 'REJECTED':
-        return (
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-300 flex items-center gap-1.5 shrink-0">
-            <X className="h-3.5 w-3.5 text-red-600" />
-            <span>Declined</span>
-          </span>
-        );
+        return isProvider
+          ? `You've accepted this request. You can now contact ${partnerName}.`
+          : "Your request has been accepted.";
+      case 'CONFIRMED':
+        return isProvider
+          ? `You and ${partnerName} have confirmed the service.`
+          : `You and the service provider have confirmed the service.`;
       case 'COMPLETED':
-        return (
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-800 border border-gray-300 flex items-center gap-1.5 shrink-0">
-            <Check className="h-3.5 w-3.5 text-gray-600" />
-            <span>Completed</span>
-          </span>
-        );
+        return "Service completed successfully.";
+      case 'REJECTED':
+        return "This application was declined.";
       case 'CANCELLED':
-        return (
-          <span className="px-3 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-600 border border-gray-300 flex items-center gap-1.5 shrink-0">
-            <Ban className="h-3.5 w-3.5 text-gray-500" />
-            <span>Cancelled</span>
-          </span>
-        );
+        return "This application was cancelled.";
       default:
-        return null;
+        return "Application status updated.";
     }
   };
 
-  // Render Status-Driven Action Buttons
-  const renderActionButtons = () => {
+  // Primary Action Button Renderer (Exactly ONE primary action)
+  const renderPrimaryAction = () => {
     switch (status) {
-      case 'PENDING':
+      case 'APPLIED':
         if (isProvider) {
           return (
-            <div className="flex gap-2.5 w-full">
-              <button
-                onClick={() => onAccept && onAccept(match)}
-                className={`grow py-2.5 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-1.5 ${
-                  highContrast ? 'bg-white text-black' : 'bg-forest text-white hover:bg-forest-hover shadow-sm'
-                }`}
-              >
-                <Check className="h-4 w-4" />
-                <span>Accept</span>
-              </button>
-              <button
-                onClick={() => onReject && onReject(match)}
-                className="px-5 py-2.5 rounded-2xl text-xs font-extrabold border border-red-200 text-red-600 hover:bg-red-50 flex items-center gap-1"
-              >
-                <X className="h-4 w-4" />
-                <span>Reject</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setShowReviewModal(true)}
+              className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all ${
+                highContrast
+                  ? 'bg-white text-black hover:bg-gray-200'
+                  : 'bg-forest hover:bg-forest-hover text-white'
+              }`}
+            >
+              <span>Review Application</span>
+            </button>
           );
         } else {
           return (
             <button
-              disabled
-              className="w-full py-2.5 rounded-2xl text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 cursor-not-allowed text-center"
+              onClick={() => onCancel && onCancel(match)}
+              className="w-full py-3 px-6 rounded-2xl font-bold text-xs border border-gray-300 text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-2"
             >
-              Waiting for Provider
+              <XCircle className="h-4 w-4" />
+              <span>Cancel Request</span>
             </button>
           );
         }
 
       case 'ACCEPTED':
         return (
-          <button
-            onClick={() => onContact ? onContact(match) : onOpenChat && onOpenChat(match)}
-            className="w-full py-2.5 rounded-2xl text-xs font-extrabold bg-teal-600 hover:bg-teal-700 text-white shadow-sm flex items-center justify-center gap-1.5 transition-all"
-          >
-            <MessageSquare className="h-4 w-4" />
-            <span>Contact / Chat</span>
-          </button>
-        );
-
-      case 'CONTACTED':
-        return (
-          <div className="flex gap-2 w-full">
+          <div className="flex flex-col gap-2 w-full">
             <button
-              onClick={() => onOpenChat && onOpenChat(match)}
-              className="grow py-2.5 rounded-2xl text-xs font-extrabold bg-forest hover:bg-forest-hover text-white flex items-center justify-center gap-1.5 shadow-sm"
+              onClick={() => onContact ? onContact(match) : onOpenChat && onOpenChat(match)}
+              className={`w-full py-3.5 px-6 rounded-2xl font-extrabold text-sm flex items-center justify-center gap-2 shadow-sm transition-all ${
+                highContrast
+                  ? 'bg-white text-black hover:bg-gray-200'
+                  : 'bg-teal-700 hover:bg-teal-800 text-white'
+              }`}
             >
               <MessageSquare className="h-4 w-4" />
-              <span>Open Chat</span>
+              <span>Contact {partnerName}</span>
             </button>
-            {partner && onViewProfile && (
-              <button
-                onClick={() => onViewProfile(partner)}
-                className="px-4 py-2.5 rounded-2xl text-xs font-bold border border-cream-dark hover:bg-gray-100"
-              >
-                View Profile
-              </button>
-            )}
+            
+            {/* Direct confirm service action */}
+            <button
+              onClick={() => onConfirm && onConfirm(match)}
+              className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 flex items-center justify-center gap-1.5"
+            >
+              <CheckCircle className="h-4 w-4 text-teal-600" />
+              <span>Confirm Service Details</span>
+            </button>
           </div>
         );
 
+      case 'CONFIRMED':
+        return (
+          <button
+            onClick={() => {
+              if (onStartService) onStartService(match);
+              else if (onCompleteService) onCompleteService(match);
+            }}
+            className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all ${
+              highContrast
+                ? 'bg-white text-black hover:bg-gray-200'
+                : 'bg-terracotta hover:bg-terracotta-hover text-white'
+            }`}
+          >
+            <Play className="h-4 w-4 fill-white" />
+            <span>Start Service / Mark Complete</span>
+          </button>
+        );
+
       case 'COMPLETED':
-        return (
-          <button
-            disabled
-            className="w-full py-2.5 rounded-2xl text-xs font-bold bg-gray-100 text-gray-500 cursor-not-allowed text-center"
-          >
-            Completed
-          </button>
-        );
-
       case 'REJECTED':
-        return (
-          <button
-            disabled
-            className="w-full py-2.5 rounded-2xl text-xs font-bold bg-gray-100 text-gray-400 cursor-not-allowed text-center"
-          >
-            Declined
-          </button>
-        );
-
       case 'CANCELLED':
-        return (
-          <button
-            disabled
-            className="w-full py-2.5 rounded-2xl text-xs font-bold bg-gray-100 text-gray-400 cursor-not-allowed text-center"
-          >
-            Cancelled
-          </button>
-        );
-
       default:
-        return null;
+        return null; // No primary action button for terminal states
     }
   };
 
   return (
-    <div className={`p-6 rounded-3xl border flex flex-col justify-between gap-4 ${cardTheme}`}>
-      
-      {/* 1. Header Row: Service Title, Category & Match Score */}
-      <div className="flex justify-between items-start border-b pb-3 border-cream-dark/30 gap-2">
-        <div>
-          <span className="text-[10px] font-extrabold text-forest uppercase tracking-wider bg-forest/10 px-2 py-0.5 rounded">
-            {opp?.category || 'Service'}
-          </span>
-          <h4 className="font-serif text-lg font-bold text-charcoal mt-1 leading-snug">
-            {opp?.title || 'Service Opportunity'}
-          </h4>
-        </div>
+    <div className={`p-6 ${cardTheme}`}>
+      {/* 1. Header: Customer Name & Profile Image */}
+      <div className="flex items-center gap-4 mb-4">
+        {partnerImage ? (
+          <img
+            src={partnerImage}
+            alt={partnerName}
+            className="w-14 h-14 rounded-full object-cover border-2 border-cream-dark shadow-sm shrink-0"
+          />
+        ) : (
+          <div className={`w-14 h-14 rounded-full shrink-0 flex items-center justify-center font-serif text-xl font-bold ${
+            highContrast ? 'bg-black border-2 border-white text-white' : 'bg-orange-100 text-terracotta border border-orange-200'
+          }`}>
+            {partnerName[0].toUpperCase()}
+          </div>
+        )}
 
-        {/* Similarity Score Badge */}
-        <div className={`px-2.5 py-1 rounded-xl text-xs font-extrabold text-white shrink-0 ${
-          highContrast ? 'bg-black border border-white' : (isProvider ? 'bg-terracotta' : 'bg-forest')
-        }`}>
-          {match.score || 85}% Match
+        <div className="grow">
+          <h3 className="font-serif text-lg font-bold text-charcoal leading-snug">
+            {partnerName}
+          </h3>
+          <div className="flex items-center gap-3 text-xs text-gray-500 font-medium mt-1">
+            <span className="flex items-center gap-1">
+              <MapPin className="h-3.5 w-3.5 text-gray-400" />
+              {opp?.city || partner?.city || 'Coimbatore'}
+            </span>
+            <span>•</span>
+            <span className="flex items-center gap-1">
+              <Calendar className="h-3.5 w-3.5 text-gray-400" />
+              {new Date(match.createdAt || Date.now()).toLocaleDateString()}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* 2. Partner Info Row */}
-      <div className="flex items-start gap-3">
-        <div className={`h-12 w-12 rounded-full shrink-0 flex items-center justify-center font-serif text-xl font-bold ${
-          highContrast ? 'bg-black border border-white text-white' : 'bg-orange-100 text-terracotta border border-orange-200'
-        }`}>
-          {partner?.name ? partner.name[0].toUpperCase() : (isProvider ? 'C' : 'P')}
-        </div>
-
-        <div className="grow text-left">
-          <h5 className="font-bold text-base">{partner?.name || (isProvider ? 'Customer' : 'Provider')}</h5>
-          {!isProvider && partner?.skills && partner.skills.length > 0 && (
-            <p className="text-xs text-gray-500 line-clamp-1 mt-0.5">
-              Skills: {partner.skills.map(s => typeof s === 'object' ? s.skillName : s).join(', ')}
-            </p>
-          )}
-          {isProvider && opp?.description && (
-            <p className="text-xs text-gray-500 line-clamp-2 italic mt-0.5">
-              "{opp.description}"
-            </p>
-          )}
-          <p className="text-xs text-gray-400 font-mono mt-1 flex items-center gap-1">
-            <MapPin className="h-3 w-3 text-gray-400" />
-            <span>{partner?.city || opp?.city || 'Delhi'}</span>
+      {/* 2. Request Details */}
+      <div className="bg-cream-light/60 rounded-2xl p-4 mb-4 border border-cream-dark/30">
+        <h4 className="font-serif text-base font-bold text-forest">
+          {opp?.title || 'Home Assistance Request'}
+        </h4>
+        {opp?.description && (
+          <p className="text-xs text-gray-600 line-clamp-2 mt-1 leading-relaxed">
+            {opp.description}
           </p>
+        )}
+      </div>
+
+      {/* 3. Four-Step Status Tracker Stepper */}
+      <div className="mb-4">
+        <ApplicationStepper status={status} highContrast={highContrast} />
+      </div>
+
+      {/* 4. Plain-Language Status Explanation */}
+      <div className="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-100 mb-5 text-center">
+        <p className="text-xs font-bold text-teal-900 leading-relaxed">
+          {getStatusExplanation()}
+        </p>
+      </div>
+
+      {/* 5. ONE Primary Action Button */}
+      <div>
+        {renderPrimaryAction()}
+      </div>
+
+      {/* Review Modal for Provider upon clicking Review Application */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-cream-dark">
+            <h3 className="font-serif text-xl font-bold text-charcoal mb-2">
+              Review Application from {partnerName}
+            </h3>
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+              Customer request: <span className="font-bold text-forest">{opp?.title || 'Service Request'}</span>
+              {opp?.description && <span className="block mt-1 italic">"{opp.description}"</span>}
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => {
+                  setShowReviewModal(false);
+                  if (onAccept) onAccept(match);
+                }}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm bg-forest hover:bg-forest-hover text-white shadow-sm flex items-center justify-center gap-2"
+              >
+                <Check className="h-5 w-5" />
+                <span>Accept Application</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowReviewModal(false);
+                  if (onReject) onReject(match);
+                }}
+                className="w-full py-3.5 rounded-2xl font-bold text-sm border border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
+              >
+                <XCircle className="h-5 w-5" />
+                <span>Decline Application</span>
+              </button>
+
+              <button
+                onClick={() => setShowReviewModal(false)}
+                className="w-full py-2.5 rounded-xl font-bold text-xs text-gray-500 hover:bg-gray-100 mt-1"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* 3. Status Badge & Request Date */}
-      <div className="flex items-center justify-between border-t pt-3 border-cream-dark/20 text-xs">
-        <span className="text-gray-500 font-mono">
-          Request Date: {new Date(match.createdAt).toLocaleDateString()}
-        </span>
-        {renderStatusBadge()}
-      </div>
-
-      {/* 4. Action Footer */}
-      <div className="border-t pt-4 border-cream-dark/30">
-        {renderActionButtons()}
-      </div>
-
+      )}
     </div>
   );
 };

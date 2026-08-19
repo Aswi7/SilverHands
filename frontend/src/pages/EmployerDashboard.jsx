@@ -237,7 +237,7 @@ const EmployerDashboard = ({ onNavigate }) => {
   // Customer Matches & Connection Status State
   const [customerMatches, setCustomerMatches] = useState([]);
   const [isLoadingCustomerMatches, setIsLoadingCustomerMatches] = useState(false);
-  const [customerMatchSubTab, setCustomerMatchSubTab] = useState('new'); // 'new' | 'active' | 'previous'
+  const [customerMatchSubTab, setCustomerMatchSubTab] = useState('active'); // 'active' | 'previous'
 
   const fetchCustomerMatches = async () => {
     setIsLoadingCustomerMatches(true);
@@ -248,6 +248,39 @@ const EmployerDashboard = ({ onNavigate }) => {
       console.error('Failed to fetch customer matches:', err);
     } finally {
       setIsLoadingCustomerMatches(false);
+    }
+  };
+
+  const handleConfirmCustomerMatch = async (match) => {
+    try {
+      const { data } = await api.put(`/matches/${match._id}/status`, { status: 'CONFIRMED' });
+      setCustomerMatches(prev => prev.map(m => m._id === match._id ? data : m));
+      await fetchCustomerMatches();
+    } catch (err) {
+      console.error('Confirm service error:', err);
+      alert(err.response?.data?.message || 'Failed to confirm service details.');
+    }
+  };
+
+  const handleCompleteCustomerMatch = async (match) => {
+    try {
+      const { data } = await api.put(`/matches/${match._id}/status`, { status: 'COMPLETED' });
+      setCustomerMatches(prev => prev.map(m => m._id === match._id ? data : m));
+      await fetchCustomerMatches();
+    } catch (err) {
+      console.error('Complete service error:', err);
+      alert(err.response?.data?.message || 'Failed to mark service complete.');
+    }
+  };
+
+  const handleCancelCustomerMatch = async (match) => {
+    try {
+      const { data } = await api.put(`/matches/${match._id}/status`, { status: 'CANCELLED' });
+      setCustomerMatches(prev => prev.map(m => m._id === match._id ? data : m));
+      await fetchCustomerMatches();
+    } catch (err) {
+      console.error('Cancel request error:', err);
+      alert(err.response?.data?.message || 'Failed to cancel request.');
     }
   };
 
@@ -1152,23 +1185,26 @@ const EmployerDashboard = ({ onNavigate }) => {
 
           {/* ================= VIEW: MATCH STATUS TRACKER ================= */}
           {activeTab === 'matches-tracker' && (() => {
-            const newMatches = customerMatches.filter(m => (m.status || 'PENDING') === 'PENDING');
-            const activeConnections = customerMatches.filter(m => ['ACCEPTED', 'CONTACTED'].includes(m.status));
-            const previousMatches = customerMatches.filter(m => ['REJECTED', 'COMPLETED', 'CANCELLED'].includes(m.status));
+            const activeRequests = customerMatches.filter(m => {
+              const st = (m.status || 'APPLIED').toUpperCase();
+              return ['APPLIED', 'PENDING', 'ACCEPTED', 'CONTACTED', 'CONFIRMED'].includes(st);
+            });
+            const previousRequests = customerMatches.filter(m => {
+              const st = (m.status || 'APPLIED').toUpperCase();
+              return ['COMPLETED', 'REJECTED', 'CANCELLED'].includes(st);
+            });
 
-            const displayedMatches = customerMatchSubTab === 'new' 
-              ? newMatches 
-              : customerMatchSubTab === 'active' 
-              ? activeConnections 
-              : previousMatches;
+            const displayedMatches = customerMatchSubTab === 'active' 
+              ? activeRequests 
+              : previousRequests;
 
             return (
               <div className="flex flex-col gap-6 text-left">
                 <div className="border-b pb-3 border-cream-dark/30 flex justify-between items-center">
                   <div>
-                    <h2 className="font-serif text-2xl font-bold">Match Connection Statuses</h2>
+                    <h2 className="font-serif text-2xl font-bold">Request Tracker</h2>
                     <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                      Track pending matches, active connections, and historical provider matches.
+                      Track your service requests across Applied, Accepted, Confirmed, and Completed stages.
                     </p>
                   </div>
                   <button
@@ -1179,38 +1215,17 @@ const EmployerDashboard = ({ onNavigate }) => {
                   </button>
                 </div>
 
-                {/* Sub-tab Navigation Buttons: [New Matches] [Active Connections] [Previous Matches] */}
+                {/* Sub-tab Navigation Buttons: [Active Requests] [Previous Requests] (NO '0' counters) */}
                 <div className="flex flex-wrap gap-2.5 border-b border-cream-dark/30 pb-3">
-                  <button
-                    onClick={() => setCustomerMatchSubTab('new')}
-                    className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 ${
-                      customerMatchSubTab === 'new'
-                        ? (highContrast ? 'bg-white text-black' : 'bg-terracotta text-white shadow-md')
-                        : 'bg-cream-dark/20 text-charcoal hover:bg-cream-dark/40'
-                    }`}
-                  >
-                    <span>⚡ New Matches</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                      customerMatchSubTab === 'new' ? 'bg-white/20 text-white' : 'bg-gray-200 text-charcoal'
-                    }`}>
-                      {newMatches.length}
-                    </span>
-                  </button>
-
                   <button
                     onClick={() => setCustomerMatchSubTab('active')}
                     className={`px-5 py-2.5 rounded-2xl text-xs font-extrabold transition-all flex items-center gap-2 ${
                       customerMatchSubTab === 'active'
-                        ? (highContrast ? 'bg-white text-black' : 'bg-forest text-white shadow-md')
+                        ? (highContrast ? 'bg-white text-black' : 'bg-terracotta text-white shadow-md')
                         : 'bg-cream-dark/20 text-charcoal hover:bg-cream-dark/40'
                     }`}
                   >
-                    <span>🤝 Active Connections</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                      customerMatchSubTab === 'active' ? 'bg-white/20 text-white' : 'bg-gray-200 text-charcoal'
-                    }`}>
-                      {activeConnections.length}
-                    </span>
+                    <span>Active Requests</span>
                   </button>
 
                   <button
@@ -1221,44 +1236,27 @@ const EmployerDashboard = ({ onNavigate }) => {
                         : 'bg-cream-dark/20 text-charcoal hover:bg-cream-dark/40'
                     }`}
                   >
-                    <span>📜 Previous Matches</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] ${
-                      customerMatchSubTab === 'previous' ? 'bg-white/20 text-white' : 'bg-gray-200 text-charcoal'
-                    }`}>
-                      {previousMatches.length}
-                    </span>
+                    <span>Previous Requests</span>
                   </button>
                 </div>
 
                 {isLoadingCustomerMatches ? (
                   <div className="p-12 text-center font-bold text-forest animate-pulse flex justify-center items-center gap-2">
                     <Sparkles className="h-5 w-5" />
-                    <span>Loading match statuses from MongoDB...</span>
+                    <span>Loading requests from MongoDB...</span>
                   </div>
                 ) : displayedMatches.length === 0 ? (
                   <div className={`p-12 text-center rounded-3xl flex flex-col items-center justify-center gap-3 ${cardTheme}`}>
                     <BookmarkCheck className="h-12 w-12 text-gray-400" />
                     <h3 className="font-serif text-xl font-bold">
-                      {customerMatchSubTab === 'new'
-                        ? 'No New Matches Awaiting Response'
-                        : customerMatchSubTab === 'active'
-                        ? 'No Active Connections'
-                        : 'No Previous Matches'}
+                      {customerMatchSubTab === 'active'
+                        ? 'No active requests'
+                        : 'No previous requests yet.'}
                     </h3>
-                    <p className={`text-sm ${textSecondaryTheme} max-w-md`}>
-                      {customerMatchSubTab === 'new'
-                        ? 'Newly created AI matches will appear here while awaiting provider response.'
-                        : customerMatchSubTab === 'active'
-                        ? 'Matches accepted by providers will appear here with active contact and chat options.'
-                        : 'Historical matches that were declined or completed will be archived here.'}
-                    </p>
-                    {customerMatchSubTab === 'new' && (
-                      <button
-                        onClick={() => setActiveTab('post')}
-                        className={`mt-2 px-6 py-2.5 text-sm font-bold ${primaryBtnTheme}`}
-                      >
-                        Post Service Request
-                      </button>
+                    {customerMatchSubTab === 'active' && (
+                      <p className={`text-sm ${textSecondaryTheme} max-w-md`}>
+                        When you post a service request or match with a provider, it will appear here.
+                      </p>
                     )}
                   </div>
                 ) : (
@@ -1269,6 +1267,10 @@ const EmployerDashboard = ({ onNavigate }) => {
                         match={match}
                         userRole="customer"
                         highContrast={highContrast}
+                        onConfirm={handleConfirmCustomerMatch}
+                        onStartService={handleCompleteCustomerMatch}
+                        onCompleteService={handleCompleteCustomerMatch}
+                        onCancel={handleCancelCustomerMatch}
                         onContact={handleContactProviderFromMatch}
                         onOpenChat={() => setActiveTab('messages')}
                         onViewProfile={setSelectedCandidate}
