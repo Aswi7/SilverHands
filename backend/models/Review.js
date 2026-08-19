@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const reviewSchema = new mongoose.Schema({
   applicationId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Application',
+    ref: 'Match',
     required: true
   },
   reviewerId: {
@@ -24,8 +24,15 @@ const reviewSchema = new mongoose.Schema({
   },
   comment: {
     type: String,
-    trim: true
+    trim: true,
+    default: ''
   }
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  collection: 'reviews'
+});
+
+// Enforce single review per customer + provider + match at database layer
+reviewSchema.index({ reviewerId: 1, targetUserId: 1, applicationId: 1 }, { unique: true });
 
 module.exports = mongoose.model('Review', reviewSchema);

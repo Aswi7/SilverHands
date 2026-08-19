@@ -29,7 +29,8 @@ const updateMatchStatus = async (req, res) => {
     const match = await Match.findById(matchId)
       .populate('requestId')
       .populate('providerId')
-      .populate('customerId');
+      .populate('customerId')
+      .populate('review');
 
     if (!match) {
       return res.status(404).json({ message: 'Match request not found' });
@@ -216,7 +217,8 @@ const getMatchDetails = async (req, res) => {
     const match = await Match.findById(req.params.id)
       .populate('requestId')
       .populate('providerId', 'name phone location skills bio availability age category preferredLanguage')
-      .populate('customerId', 'name phone preferredLanguage city');
+      .populate('customerId', 'name phone preferredLanguage city')
+      .populate('review');
 
     if (!match) {
       return res.status(404).json({ message: 'Match not found' });
@@ -243,6 +245,7 @@ const getCustomerMatchRequests = async (req, res) => {
     })
       .populate('requestId', 'title category rate timing mode city description createdAt')
       .populate('providerId', 'name phone skills bio city location availability age category preferredLanguage')
+      .populate('review')
       .sort({ score: -1, updatedAt: -1 });
 
     res.status(200).json(matches);

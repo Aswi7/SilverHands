@@ -232,6 +232,35 @@ const UserDashboard = ({ onNavigate }) => {
     setShowForecastModal(true);
   };
 
+  // Provider reviews states
+  const [providerReviews, setProviderReviews] = useState([]);
+  const [averageRating, setAverageRating] = useState(5.0);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [isLoadingReviews, setIsLoadingReviews] = useState(false);
+
+  const fetchProviderReviews = async () => {
+    if (!user?._id) return;
+    try {
+      setIsLoadingReviews(true);
+      const { data } = await api.get(`/reviews/provider/${user._id}`);
+      if (data) {
+        setProviderReviews(Array.isArray(data.reviews) ? data.reviews : []);
+        setAverageRating(data.averageRating !== undefined ? data.averageRating : 5.0);
+        setReviewCount(data.count !== undefined ? data.count : 0);
+      }
+    } catch (err) {
+      console.error("Failed to fetch provider reviews:", err);
+    } finally {
+      setIsLoadingReviews(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'profile' && user) {
+      fetchProviderReviews();
+    }
+  }, [activeTab, user]);
+
   const handleSubmitListing = async () => {
     if (!listingForm.title || !listingForm.category || !listingForm.rateAmount || !listingForm.description) {
       alert("Please fill all required fields.");
@@ -1719,6 +1748,63 @@ const UserDashboard = ({ onNavigate }) => {
                         </div>
                       </div>
                     )}
+                    {/* Ratings & Reviews Section */}
+                    <div className="border-t pt-5 border-cream-dark/30 mt-2">
+                      <h4 className="text-sm font-extrabold text-forest mb-3 flex items-center gap-1.5">
+                        ⭐ Ratings & Reviews
+                      </h4>
+                      
+                      <div className="flex items-center gap-4 bg-cream/10 p-4 border border-cream-dark/20 rounded-2xl mb-4">
+                        <div className="text-center shrink-0 pr-4 border-r border-cream-dark/30">
+                          <p className="text-3xl font-extrabold text-forest">{reviewCount > 0 ? averageRating.toFixed(1) : 'No ratings'}</p>
+                          <p className="text-[10px] text-gray-500 font-bold uppercase mt-0.5">
+                            {reviewCount > 0 ? `Based on ${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'}` : 'No ratings yet'}
+                          </p>
+                        </div>
+                        {reviewCount > 0 ? (
+                          <div className="text-yellow-500 text-lg tracking-widest leading-none font-bold">
+                            {"★".repeat(Math.round(averageRating)) + "☆".repeat(5 - Math.round(averageRating))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-500 font-semibold italic">Complete services to start collecting ratings!</p>
+                        )}
+                      </div>
+
+                      {isLoadingReviews ? (
+                        <p className="text-xs text-forest animate-pulse font-bold">Loading reviews...</p>
+                      ) : providerReviews.length === 0 ? (
+                        <p className="text-xs text-gray-500 font-semibold italic bg-gray-50/50 p-4 border rounded-2xl text-center">
+                          No reviews have been written for you yet.
+                        </p>
+                      ) : (
+                        <div className="space-y-3.5">
+                          {providerReviews.map((rev) => (
+                            <div key={rev._id} className="p-4 bg-gray-50/50 border border-cream-dark/20 rounded-2xl text-xs space-y-1.5">
+                              <div className="flex justify-between items-center">
+                                <div className="text-yellow-500 font-bold tracking-widest text-sm leading-none">
+                                  {"★".repeat(rev.rating)}{"☆".repeat(5 - rev.rating)}
+                                </div>
+                                <span className="text-[10px] text-gray-400 font-bold">
+                                  {new Date(rev.createdAt).toLocaleDateString(undefined, {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })}
+                                </span>
+                              </div>
+                              {rev.comment && (
+                                <p className="italic text-gray-600 font-medium leading-relaxed">
+                                  "{rev.comment}"
+                                </p>
+                              )}
+                              <p className="text-[10px] text-gray-400 font-bold text-right">
+                                — {rev.reviewerId?.name || 'Anonymous customer'} ({rev.reviewerId?.city || 'Delhi'})
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   /* EDITABLE PROFILE FORM */

@@ -23,7 +23,8 @@ const MatchCard = ({
   onCompleteService,
   onCancel,
   onContact,
-  onOpenChat
+  onOpenChat,
+  onRateReview
 }) => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -192,12 +193,60 @@ const MatchCard = ({
         }
 
       case 'COMPLETED':
-        return (
-          <div className="p-3 bg-green-50 border border-green-200 rounded-2xl text-xs text-green-800 font-bold text-center flex items-center justify-center gap-2">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <span>Completed — Payment Received (₹{match.agreedAmount || 1500})</span>
-          </div>
-        );
+        if (isProvider) {
+          return (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-2xl text-xs text-green-800 font-bold text-center flex items-center justify-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <span>Completed — Payment Received (₹{match.agreedAmount || 1500})</span>
+            </div>
+          );
+        } else {
+          if (match.review) {
+            return (
+              <div className="flex flex-col gap-2 w-full text-left">
+                <div className="p-3 bg-green-50 border border-green-200 rounded-2xl text-xs text-green-800 font-bold text-center flex items-center justify-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>Completed — Payment Received (₹{match.agreedAmount || 1500})</span>
+                </div>
+                <div className="p-3.5 bg-gray-50 border border-cream-dark/30 rounded-2xl text-xs space-y-1.5 mt-1.5">
+                  <p className="font-extrabold text-green-700 flex items-center gap-1">
+                    ✓ Review Submitted
+                  </p>
+                  <div className="text-yellow-500 font-bold text-sm tracking-widest leading-none">
+                    {"★".repeat(match.review.rating || 5)}{"☆".repeat(5 - (match.review.rating || 5))}
+                  </div>
+                  {match.review.comment && (
+                    <p className="italic text-gray-500 font-medium">"{match.review.comment}"</p>
+                  )}
+                </div>
+              </div>
+            );
+          } else {
+            return (
+              <div className="flex flex-col gap-3 w-full text-left">
+                <div className="p-3 bg-green-50 border border-green-200 rounded-2xl text-xs text-green-800 font-bold text-center flex items-center justify-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>Completed — Payment Received (₹{match.agreedAmount || 1500})</span>
+                </div>
+                <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-2xl space-y-3 mt-1.5">
+                  <p className="text-xs font-extrabold text-charcoal">
+                    How was your experience with this Provider?
+                  </p>
+                  <button
+                    onClick={() => onRateReview && onRateReview(match)}
+                    className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all ${
+                      highContrast
+                        ? 'bg-white text-black hover:bg-gray-200'
+                        : 'bg-terracotta hover:bg-terracotta-hover text-white'
+                    }`}
+                  >
+                    <span>Rate & Review Provider</span>
+                  </button>
+                </div>
+              </div>
+            );
+          }
+        }
 
       case 'REJECTED':
         return (

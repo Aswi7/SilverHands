@@ -91,4 +91,12 @@ MatchSchema.virtual('customer').get(function() {
   this.customerId = v;
 });
 
+// Virtual populate reference to review
+MatchSchema.virtual('review', {
+  ref: 'Review',
+  localField: '_id',
+  foreignField: 'applicationId',
+  justOne: true
+});
+
 module.exports = mongoose.model('Match', MatchSchema);

@@ -243,6 +243,69 @@ const EmployerDashboard = ({ onNavigate }) => {
 
   // Candidate Profile Modal
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [candidateReviews, setCandidateReviews] = useState([]);
+  const [candidateAverageRating, setCandidateAverageRating] = useState(5.0);
+  const [candidateReviewCount, setCandidateReviewCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCandidateReviews = async () => {
+      if (!selectedCandidate?._id) {
+        setCandidateReviews([]);
+        setCandidateAverageRating(5.0);
+        setCandidateReviewCount(0);
+        return;
+      }
+      try {
+        const { data } = await api.get(`/reviews/provider/${selectedCandidate._id}`);
+        if (data) {
+          setCandidateReviews(Array.isArray(data.reviews) ? data.reviews : []);
+          setCandidateAverageRating(data.averageRating !== undefined ? data.averageRating : 5.0);
+          setCandidateReviewCount(data.count !== undefined ? data.count : 0);
+        }
+      } catch (err) {
+        console.error('Failed to load candidate reviews:', err);
+      }
+    };
+    fetchCandidateReviews();
+  }, [selectedCandidate]);
+
+  // Rating and Review Modal States
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingMatch, setRatingMatch] = useState(null);
+  const [ratingValue, setRatingValue] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [ratingError, setRatingError] = useState('');
+
+  const handleOpenRatingModal = (match) => {
+    setRatingMatch(match);
+    setRatingValue(5);
+    setReviewComment('');
+    setRatingError('');
+    setShowRatingModal(true);
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    setRatingError('');
+    if (ratingValue < 1 || ratingValue > 5) {
+      setRatingError('Rating must be between 1 and 5 stars.');
+      return;
+    }
+
+    try {
+      await api.post('/reviews', {
+        applicationId: ratingMatch._id,
+        rating: ratingValue,
+        comment: reviewComment
+      });
+      alert('Review submitted successfully.');
+      setShowRatingModal(false);
+      await fetchCustomerMatches();
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+      setRatingError(err.response?.data?.message || 'Failed to submit review.');
+    }
+  };
 
   // Customer Profile Page States
   const [activeRequest, setActiveRequest] = useState(null);
@@ -1401,6 +1464,7 @@ const EmployerDashboard = ({ onNavigate }) => {
                         onContact={handleContactProviderFromMatch}
                         onOpenChat={() => setActiveTab('messages')}
                         onViewProfile={setSelectedCandidate}
+                        onRateReview={handleOpenRatingModal}
                       />
                     ))}
                   </div>
@@ -1880,7 +1944,7 @@ const EmployerDashboard = ({ onNavigate }) => {
               <div>
                 <h3 className="text-2xl font-bold font-serif">{selectedCandidate.name}</h3>
                 <p className={`text-sm ${textSecondaryTheme}`}>
-                  {t('dashboard.employer.candidates.modal_age_rating', 'Age {{age}} • Rating {{rating}} ★', { age: selectedCandidate.age, rating: selectedCandidate.rating })}
+                  {t('dashboard.employer.candidates.modal_age_rating', 'Age {{age}} • Rating: {{rating}}', { age: selectedCandidate.age || 60, rating: candidateReviewCount > 0 ? `${candidateAverageRating.toFixed(1)} ★ (${candidateReviewCount} reviews)` : 'No ratings yet' })}
                 </p>
               </div>
             </div>
@@ -1920,18 +1984,26 @@ const EmployerDashboard = ({ onNavigate }) => {
               <div className="flex flex-col gap-2.5 border-t pt-4 border-cream-dark/30">
                 <span className="text-xs font-bold text-gray-400 uppercase flex items-center gap-1">
                   <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                  {t('dashboard.employer.candidates.past_reviews', 'Past Neighbor Reviews ({{count}})', { count: selectedCandidate.reviewsCount })}
+                  {t('dashboard.employer.candidates.past_reviews', 'Past Neighbor Reviews ({{count}})', { count: candidateReviewCount })}
                 </span>
                 
-                {selectedCandidate.reviews.map((r, idx) => (
-                  <div key={idx} className="p-3 bg-cream/30 border border-cream-dark/50 rounded-xl">
-                    <div className="flex justify-between items-center text-xs mb-1.5">
-                      <span className="font-bold text-forest">{r.author}</span>
-                      <span className="text-amber-500 font-bold">{"★".repeat(r.rating)}</span>
+                {candidateReviews.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic bg-gray-50/50 p-3 rounded-xl border text-center font-medium">
+                    No reviews yet for this provider.
+                  </p>
+                ) : (
+                  candidateReviews.map((r) => (
+                    <div key={r._id} className="p-3 bg-cream/10 border border-cream-dark/30 rounded-xl space-y-1.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-forest">{r.reviewerId?.name || 'Anonymous neighbor'}</span>
+                        <span className="text-amber-500 font-bold">
+                          {"★".repeat(r.rating) + "☆".repeat(5 - r.rating)}
+                        </span>
+                      </div>
+                      {r.comment && <p className="text-xs italic text-gray-600">"{r.comment}"</p>}
                     </div>
-                    <p className="text-xs italic text-gray-600">"{r.comment}"</p>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
 
             </div>
@@ -2078,6 +2150,80 @@ const EmployerDashboard = ({ onNavigate }) => {
                   className="px-6 py-2.5 rounded-xl text-sm font-bold bg-terracotta hover:bg-terracotta-hover text-white shadow-md"
                 >
                   Save & Recalculate Matches
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* 8. RATING & REVIEW MODAL */}
+      {showRatingModal && ratingMatch && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-cream-dark">
+            <h3 className="font-serif text-xl font-bold text-charcoal mb-1">
+              Rate your experience
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Share feedback for <span className="font-bold text-forest">{ratingMatch.providerId?.name || 'this provider'}</span>
+            </p>
+
+            {ratingError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl flex items-center gap-1.5">
+                <AlertCircle className="h-4 w-4" />
+                <span>{ratingError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitReview} className="space-y-4 text-left">
+              {/* Star selection */}
+              <div className="flex flex-col items-center gap-2 py-2">
+                <label className="text-xs font-bold text-gray-400 uppercase">Select Rating *</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRatingValue(star)}
+                      className="text-3xl transition-transform hover:scale-125 focus:outline-none"
+                    >
+                      <span className={star <= ratingValue ? "text-yellow-400" : "text-gray-200"}>
+                        ★
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <span className="text-xs font-extrabold text-teal-800">
+                  {ratingValue} {ratingValue === 1 ? 'Star' : 'Stars'}
+                </span>
+              </div>
+
+              {/* Review Comment */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-gray-500 uppercase">Share your experience (Optional)</label>
+                <textarea
+                  rows={3}
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Write your review here... E.g. Suresh was extremely helpful, patient, and polite."
+                  className="w-full px-3.5 py-2 bg-white border border-cream-dark rounded-xl text-xs font-medium text-charcoal leading-relaxed focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-3 border-t border-cream-dark/20">
+                <button
+                  type="submit"
+                  className={`grow py-3.5 rounded-2xl font-bold text-sm shadow-sm transition-all ${
+                    highContrast ? 'bg-white text-black hover:bg-gray-200' : 'bg-forest hover:bg-forest-hover text-white'
+                  }`}
+                >
+                  Submit Review
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowRatingModal(false)}
+                  className="py-3.5 px-6 rounded-2xl font-bold text-sm border border-cream-dark text-gray-500 hover:bg-gray-50"
+                >
+                  Cancel
                 </button>
               </div>
             </form>
