@@ -164,8 +164,136 @@ const EmployerDashboard = ({ onNavigate }) => {
     }
   };
 
+  const handleSaveCustomerProfile = async (e) => {
+    e.preventDefault();
+    setProfileError('');
+    setProfileSuccess('');
+
+    // Validation
+    if (!profileForm.name.trim()) {
+      setProfileError('Name cannot be empty.');
+      return;
+    }
+    if (!profileForm.city.trim()) {
+      setProfileError('City cannot be empty.');
+      return;
+    }
+    if (!profileForm.serviceNeeded.trim()) {
+      setProfileError('Service Needed cannot be empty.');
+      return;
+    }
+    if (!profileForm.description.trim() || profileForm.description.trim().length < 5) {
+      setProfileError('Requirements must be at least 5 characters long.');
+      return;
+    }
+    const phoneRegex = /^\+?[0-9\s\-()]{10,15}$/;
+    if (profileForm.phone && !phoneRegex.test(profileForm.phone.trim())) {
+      setProfileError('Please enter a valid phone number.');
+      return;
+    }
+    if (profileForm.email && !profileForm.email.includes('@')) {
+      setProfileError('Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      // 1. Update user details in MongoDB
+      const { data: updatedUser } = await api.put('/users/profile', {
+        name: profileForm.name,
+        city: profileForm.city,
+        phone: profileForm.phone,
+        email: profileForm.email
+      });
+      
+      // Update global context user details
+      updateUserInState(updatedUser);
+
+      // 2. Update or Create ServiceRequest in MongoDB
+      const requestPayload = {
+        title: profileForm.serviceNeeded,
+        category: profileForm.category,
+        description: profileForm.description,
+        timing: profileForm.timing,
+        mode: profileForm.mode,
+        rate: profileForm.rate,
+        city: profileForm.city,
+        location: user?.location || { type: 'Point', coordinates: [77.1025, 28.7041] }
+      };
+
+      if (activeRequest && activeRequest._id) {
+        // Update existing active request
+        await api.put(`/requests/${activeRequest._id}`, requestPayload);
+      } else {
+        // Create a new request since none existed
+        await api.post('/requests', requestPayload);
+      }
+
+      setProfileSuccess('Profile updated successfully.');
+      setIsEditingProfile(false);
+      
+      // Re-fetch matches and request info
+      await fetchActiveRequestAndLoadForm();
+      await fetchCustomerMatches();
+      await fetchPostings();
+    } catch (err) {
+      console.error('Failed to save profile changes:', err);
+      setProfileError(err.response?.data?.message || 'Failed to save changes. Please try again.');
+    }
+  };
+
   // Candidate Profile Modal
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+
+  // Customer Profile Page States
+  const [activeRequest, setActiveRequest] = useState(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    city: '',
+    phone: '',
+    email: '',
+    serviceNeeded: '',
+    category: 'cooking',
+    description: '',
+    timing: 'Morning',
+    mode: 'offline',
+    rate: 'Negotiable'
+  });
+  const [profileError, setProfileError] = useState('');
+  const [profileSuccess, setProfileSuccess] = useState('');
+
+  const { updateUserInState } = useAuth();
+
+  const fetchActiveRequestAndLoadForm = async () => {
+    try {
+      const { data } = await api.get('/requests/my');
+      const reqList = Array.isArray(data) ? data : [];
+      // Find the most recent active/pending request
+      const activeReq = reqList.find(r => r.status === 'pending' || r.status === 'accepted') || reqList[0] || null;
+      setActiveRequest(activeReq);
+
+      setProfileForm({
+        name: user?.name || '',
+        city: user?.city || 'delhi',
+        phone: user?.phone || '',
+        email: user?.email || '',
+        serviceNeeded: activeReq?.title || '',
+        category: activeReq?.category || 'cooking',
+        description: activeReq?.description || '',
+        timing: activeReq?.timing || 'Morning',
+        mode: activeReq?.mode || 'offline',
+        rate: activeReq?.rate || 'Negotiable'
+      });
+    } catch (err) {
+      console.error('Failed to load active service request:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchActiveRequestAndLoadForm();
+    }
+  }, [user, activeTab]);
 
   // Safety Center States
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -564,8 +692,8 @@ const EmployerDashboard = ({ onNavigate }) => {
                 activeTab === 'settings' ? activeSidebarItemTheme : inactiveSidebarItemTheme
               }`}
             >
-              <Settings className="h-5 w-5" />
-              <span>{t('dashboard.employer.tabs.settings')}</span>
+              <User className="h-5 w-5" />
+              <span>My Profile</span>
             </button>
             <button
               onClick={() => setActiveTab('messages')}
@@ -632,8 +760,8 @@ const EmployerDashboard = ({ onNavigate }) => {
               activeTab === 'settings' ? 'text-forest' : 'text-charcoal-light'
             }`}
           >
-            <Settings className="h-5 w-5" />
-            <span>{t('dashboard.employer.tabs.settings', 'Settings')}</span>
+            <User className="h-5 w-5" />
+            <span>My Profile</span>
           </button>
         </nav>
 
@@ -1281,20 +1409,298 @@ const EmployerDashboard = ({ onNavigate }) => {
             );
           })()}
 
-          {/* ================= VIEW 4: SETTINGS (STUB) ================= */}
+          {/* ================= VIEW 4: MY PROFILE (REPLACES SETTINGS) ================= */}
           {activeTab === 'settings' && (
             <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-              <div className="border-b pb-3 border-cream-dark/30">
-                <h2 className="font-serif text-2xl font-bold">{t('dashboard.employer.settings.title', 'Account Settings')}</h2>
-                <p className={`text-sm ${textSecondaryTheme} mt-1`}>
-                  {t('dashboard.employer.settings.desc', 'Manage preferences, billing, and help support contacts.')}
-                </p>
+              <div className="border-b pb-3 border-cream-dark/30 flex justify-between items-center">
+                <div>
+                  <h2 className="font-serif text-2xl font-bold">My Profile</h2>
+                  <p className={`text-sm ${textSecondaryTheme} mt-1`}>
+                    View and update your personal information and service requirements.
+                  </p>
+                </div>
+                {!isEditingProfile && (
+                  <button
+                    onClick={() => {
+                      setProfileError('');
+                      setProfileSuccess('');
+                      setIsEditingProfile(true);
+                    }}
+                    className={`px-4 py-2 text-xs font-bold rounded-xl border transition-all ${
+                      highContrast ? 'border-white hover:bg-white hover:text-black' : 'border-terracotta text-terracotta hover:bg-orange-50/50'
+                    }`}
+                  >
+                    ✏️ Edit Profile
+                  </button>
+                )}
               </div>
 
-              <div className={`p-6 rounded-3xl ${cardTheme} flex flex-col gap-3`}>
-                <h4 className="font-serif font-bold text-sm text-forest">{t('dashboard.employer.settings.helpline', 'Helpline assistance')}</h4>
-                <p className="text-sm">{t('dashboard.employer.settings.helpline_desc', 'For employer billing, corporate sponsorships, and verified listing checks, please call:')} <strong>+91 99999-77777</strong></p>
-              </div>
+              {profileError && (
+                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{profileError}</span>
+                </div>
+              )}
+
+              {profileSuccess && (
+                <div className="p-4 rounded-2xl bg-green-50 border border-green-200 text-green-700 text-xs font-bold flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 shrink-0" />
+                  <span>{profileSuccess}</span>
+                </div>
+              )}
+
+              {!isEditingProfile ? (
+                /* Read-Only Profile View Mode */
+                <div className={`p-6 rounded-3xl ${cardTheme} flex flex-col gap-6`}>
+                  {/* Account Information Section */}
+                  <div>
+                    <h3 className="font-serif text-lg font-bold text-forest border-b pb-1.5 border-cream-dark/20 flex items-center gap-2">
+                      👤 Personal Details
+                    </h3>
+                    <div className="grid gap-4 sm:grid-cols-2 mt-3">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400">Full Name</span>
+                        <p className="text-sm font-bold mt-0.5">{user?.name || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400">City / Location</span>
+                        <p className="text-sm font-bold mt-0.5 capitalize">{user?.city || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400">Phone Number</span>
+                        <p className="text-sm font-semibold mt-0.5">{user?.phone || 'Not provided'}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400">Email Address</span>
+                        <p className="text-sm font-semibold mt-0.5">{user?.email || 'Not provided'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Service Request Section */}
+                  <div>
+                    <h3 className="font-serif text-lg font-bold text-forest border-b pb-1.5 border-cream-dark/20 flex items-center gap-2">
+                      🛠 Service Request details
+                    </h3>
+                    <div className="grid gap-4 sm:grid-cols-2 mt-3">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400">Service Needed</span>
+                        <p className="text-sm font-bold mt-0.5">{profileForm.serviceNeeded || 'No active request'}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400">Service Category</span>
+                        <p className="text-sm font-bold mt-0.5 capitalize">{profileForm.category}</p>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <span className="text-[10px] uppercase font-bold text-gray-400">Requirements / Description</span>
+                        <p className="text-xs text-gray-600 font-medium leading-relaxed mt-1 p-3 bg-gray-50 border rounded-2xl">
+                          {profileForm.description || 'Provide details about the assistance you need.'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400">Preferred Time / Timing</span>
+                        <p className="text-sm font-bold mt-0.5">{profileForm.timing}</p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400">Service Mode</span>
+                        <p className="text-sm font-bold mt-0.5 capitalize">
+                          {profileForm.mode === 'offline' ? 'In-person (Offline)' : 'Virtual / Remote (Online)'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-gray-400">Agreed Rate / Pay Offer</span>
+                        <p className="text-sm font-bold mt-0.5 text-terracotta">{profileForm.rate}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setProfileError('');
+                      setProfileSuccess('');
+                      setIsEditingProfile(true);
+                    }}
+                    className={`w-full mt-2 py-3.5 rounded-2xl font-bold text-sm shadow-sm transition-all ${
+                      highContrast ? 'bg-white text-black hover:bg-gray-200' : 'bg-forest hover:bg-forest-hover text-white'
+                    }`}
+                  >
+                    ✏️ Edit Profile Information
+                  </button>
+                </div>
+              ) : (
+                /* Editable Form View Mode */
+                <form onSubmit={handleSaveCustomerProfile} className={`p-6 rounded-3xl ${cardTheme} flex flex-col gap-6`}>
+                  {/* Account details */}
+                  <div className="space-y-4">
+                    <h3 className="font-serif text-lg font-bold text-forest border-b pb-1.5 border-cream-dark/20">
+                      👤 Edit Personal Details
+                    </h3>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-gray-500">Full Name *</label>
+                        <input
+                          type="text"
+                          value={profileForm.name}
+                          onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                          className="px-3 py-2 bg-white border border-cream-dark rounded-xl text-sm font-semibold text-charcoal focus:outline-none"
+                          placeholder="e.g. Meera Krishnan"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-gray-500">City / Location *</label>
+                        <input
+                          type="text"
+                          value={profileForm.city}
+                          onChange={(e) => setProfileForm({ ...profileForm, city: e.target.value })}
+                          className="px-3 py-2 bg-white border border-cream-dark rounded-xl text-sm font-semibold text-charcoal focus:outline-none capitalize"
+                          placeholder="e.g. Coimbatore"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-gray-500">Phone Number *</label>
+                        <input
+                          type="text"
+                          value={profileForm.phone}
+                          onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                          className="px-3 py-2 bg-white border border-cream-dark rounded-xl text-sm font-semibold text-charcoal focus:outline-none"
+                          placeholder="e.g. 9876543210"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-gray-500">Email Address</label>
+                        <input
+                          type="email"
+                          value={profileForm.email}
+                          onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                          className="px-3 py-2 bg-white border border-cream-dark rounded-xl text-sm font-semibold text-charcoal focus:outline-none"
+                          placeholder="e.g. meera@example.com"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Requirements details */}
+                  <div className="space-y-4">
+                    <h3 className="font-serif text-lg font-bold text-forest border-b pb-1.5 border-cream-dark/20">
+                      🛠 Edit Service Request Details
+                    </h3>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-gray-500">Service Needed *</label>
+                        <input
+                          type="text"
+                          value={profileForm.serviceNeeded}
+                          onChange={(e) => setProfileForm({ ...profileForm, serviceNeeded: e.target.value })}
+                          className="px-3 py-2 bg-white border border-cream-dark rounded-xl text-sm font-semibold text-charcoal focus:outline-none"
+                          placeholder="e.g. Home Assistance / Digital Tutor"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-gray-500">Service Category *</label>
+                        <select
+                          value={profileForm.category}
+                          onChange={(e) => setProfileForm({ ...profileForm, category: e.target.value })}
+                          className="px-3 py-2 bg-white border border-cream-dark rounded-xl text-sm font-bold text-charcoal focus:outline-none"
+                          required
+                        >
+                          <option value="cooking">Cooking</option>
+                          <option value="tailoring">Tailoring</option>
+                          <option value="tutoring">Tutoring</option>
+                          <option value="caregiving">Caregiving</option>
+                          <option value="errands">Errands</option>
+                          <option value="home-services">Home Services</option>
+                        </select>
+                      </div>
+                      <div className="sm:col-span-2 flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-gray-500">Requirements / Description *</label>
+                        <textarea
+                          rows={3}
+                          value={profileForm.description}
+                          onChange={(e) => setProfileForm({ ...profileForm, description: e.target.value })}
+                          className="px-3 py-2.5 bg-white border border-cream-dark rounded-xl text-xs font-medium text-charcoal leading-relaxed focus:outline-none"
+                          placeholder="Describe the tasks, timings, or caregiver skills you need (e.g. Looking for help with household cleaning and lunch preparation...)"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-gray-500">Preferred Timing</label>
+                        <select
+                          value={profileForm.timing}
+                          onChange={(e) => setProfileForm({ ...profileForm, timing: e.target.value })}
+                          className="px-3 py-2 bg-white border border-cream-dark rounded-xl text-sm font-bold text-charcoal focus:outline-none"
+                        >
+                          <option value="Morning">Morning</option>
+                          <option value="Afternoon">Afternoon</option>
+                          <option value="Evening">Evening</option>
+                          <option value="Flexible">Flexible</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-gray-500">Service Mode</label>
+                        <select
+                          value={profileForm.mode}
+                          onChange={(e) => setProfileForm({ ...profileForm, mode: e.target.value })}
+                          className="px-3 py-2 bg-white border border-cream-dark rounded-xl text-sm font-bold text-charcoal focus:outline-none"
+                        >
+                          <option value="offline">In-person (Offline)</option>
+                          <option value="online">Virtual / Remote (Online)</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1.5 text-left">
+                        <label className="text-xs font-bold text-gray-500">Rate / Pay Offered *</label>
+                        <input
+                          type="text"
+                          value={profileForm.rate}
+                          onChange={(e) => setProfileForm({ ...profileForm, rate: e.target.value })}
+                          className="px-3 py-2 bg-white border border-cream-dark rounded-xl text-sm font-semibold text-charcoal focus:outline-none"
+                          placeholder="e.g. ₹1,500 / Negotiable"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Save and Cancel buttons */}
+                  <div className="flex gap-3 pt-3 border-t border-cream-dark/20">
+                    <button
+                      type="submit"
+                      className={`grow py-3 px-6 rounded-2xl font-bold text-sm shadow-sm transition-all ${
+                        highContrast ? 'bg-white text-black hover:bg-gray-200' : 'bg-forest hover:bg-forest-hover text-white'
+                      }`}
+                    >
+                      Save Changes
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileError('');
+                        setProfileSuccess('');
+                        setIsEditingProfile(false);
+                        // Reset form fields to loaded active request values
+                        setProfileForm({
+                          name: user?.name || '',
+                          city: user?.city || 'delhi',
+                          phone: user?.phone || '',
+                          email: user?.email || '',
+                          serviceNeeded: activeRequest?.title || '',
+                          category: activeRequest?.category || 'cooking',
+                          description: activeRequest?.description || '',
+                          timing: activeRequest?.timing || 'Morning',
+                          mode: activeRequest?.mode || 'offline',
+                          rate: activeRequest?.rate || 'Negotiable'
+                        });
+                      }}
+                      className="py-3 px-6 rounded-2xl font-bold text-sm border border-cream-dark text-gray-500 hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
             </div>
           )}
 
