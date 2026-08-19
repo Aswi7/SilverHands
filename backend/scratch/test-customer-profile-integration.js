@@ -62,7 +62,7 @@ const runProfileTest = async () => {
     // Step A: Update customer profile details
     console.log("\n--- Step A: Update User Profile Details ---");
     const updatedUser = await simulateCall(updateUserProfile, {
-      name: "Meera Krishnan",
+      name: "Arya",
       city: "coimbatore",
       phone: customer.phone,
       email: customer.email
