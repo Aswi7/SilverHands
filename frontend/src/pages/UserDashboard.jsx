@@ -128,47 +128,64 @@ const UserDashboard = ({ onNavigate }) => {
   const [forecastDateFilter, setForecastDateFilter] = useState('all');
   const [forecastLocationFilter, setForecastLocationFilter] = useState('all');
   const [forecastRelevanceFilter, setForecastRelevanceFilter] = useState('all');
+  const [forecastReligionFilter, setForecastReligionFilter] = useState('all');
 
   useEffect(() => {
     if (activeTab === 'forecast' && user) {
       setIsLoadingForecasts(true);
-      api.post('/ai/forecasts', { forecasts: forecastData })
-        .then(res => {
-          const rankings = res.data?.rankings || [];
-          const enriched = forecastData.map(f => {
-            const match = rankings.find(r => r.id === f.id);
-            return {
-              ...f,
-              relevanceScore: match ? match.relevanceScore : 30,
-              explanation: match ? match.explanation : '',
-              isRelevant: match ? match.relevanceScore >= 60 : false
-            };
-          });
-          enriched.sort((a, b) => b.relevanceScore - a.relevanceScore);
-          setRankedForecasts(enriched);
-        })
-        .catch(err => {
-          console.error("Failed to fetch ranked forecasts:", err);
-          // Fallback to local scoring
-          const fallback = forecastData.map(f => {
-            const hasMatch = f.relevantCategories.some(cat => 
-              (user.skills || []).some(s => (s.category || '').toLowerCase().includes(cat.toLowerCase()))
-            );
-            return {
-              ...f,
-              relevanceScore: hasMatch ? 80 : 30,
-              explanation: hasMatch 
-                ? `Recommended because your profile matches the ${f.relevantCategories[0] || 'service'} category.` 
-                : 'General seasonal opportunity.',
-              isRelevant: hasMatch
-            };
-          });
-          fallback.sort((a, b) => b.relevanceScore - a.relevanceScore);
-          setRankedForecasts(fallback);
-        })
-        .finally(() => {
-          setIsLoadingForecasts(false);
+      
+      Promise.all([
+        api.get('/forecasts/upcoming'),
+        api.get('/forecasts/relevant')
+      ])
+      .then(([upcomingRes, relevantRes]) => {
+        const events = Array.isArray(upcomingRes.data) ? upcomingRes.data : [];
+        const rankings = relevantRes.data?.rankings || [];
+
+        const enriched = events.map(event => {
+          const matchedRank = rankings.find(r => r.id === event._id.toString());
+          return {
+            id: event._id.toString(),
+            eventName: event.name,
+            relevantCategories: event.affectedServices || [],
+            demandUplift: event.expectedDemand || '+25%',
+            insight: event.description,
+            dateRange: new Date(event.startDate).toLocaleDateString([], {month: 'short', day: 'numeric'}) + ' to ' + new Date(event.endDate).toLocaleDateString([], {month: 'short', day: 'numeric', year: 'numeric'}),
+            relevanceScore: matchedRank ? matchedRank.relevanceScore : 30,
+            explanation: matchedRank ? matchedRank.explanation : '',
+            isRelevant: matchedRank ? matchedRank.relevanceScore >= 60 : false,
+            religion: event.religion || 'None',
+            region: event.region || 'National',
+            suggestionCategory: event.category,
+            suggestionTitle: event.name + ' Services'
+          };
         });
+
+        enriched.sort((a, b) => b.relevanceScore - a.relevanceScore);
+        setRankedForecasts(enriched);
+      })
+      .catch(err => {
+        console.error("Failed to fetch verified forecasts:", err);
+        // Fallback local calculations
+        const fallback = forecastData.map(f => {
+          const hasMatch = f.relevantCategories.some(cat => 
+            (user.skills || []).some(s => (s.category || '').toLowerCase().includes(cat.toLowerCase()))
+          );
+          return {
+            ...f,
+            relevanceScore: hasMatch ? 80 : 30,
+            explanation: hasMatch ? `Recommended because your profile matches the ${f.relevantCategories[0] || 'service'} category.` : 'General seasonal opportunity.',
+            isRelevant: hasMatch,
+            religion: 'None',
+            region: 'National'
+          };
+        });
+        fallback.sort((a, b) => b.relevanceScore - a.relevanceScore);
+        setRankedForecasts(fallback);
+      })
+      .finally(() => {
+        setIsLoadingForecasts(false);
+      });
     }
   }, [activeTab, user]);
 
@@ -1177,17 +1194,21 @@ const UserDashboard = ({ onNavigate }) => {
                 if (!hasCat) return false;
               }
               if (forecastDateFilter !== 'all') {
-                if (forecastDateFilter === 'summer' && event.id !== 'f4') return false;
-                if (forecastDateFilter === 'monsoon' && event.id !== 'f5') return false;
-                if (forecastDateFilter === 'winter' && event.id !== 'f1' && event.id !== 'f2') return false;
-                if (forecastDateFilter === 'reopening' && event.id !== 'f3') return false;
+                const startM = new Date(event.startDate).getMonth() + 1; // 1-indexed month
+                if (forecastDateFilter === 'summer' && (startM < 4 || startM > 5)) return false;
+                if (forecastDateFilter === 'monsoon' && (startM < 7 || startM > 8)) return false;
+                if (forecastDateFilter === 'winter' && (startM < 10 || startM > 12)) return false;
+                if (forecastDateFilter === 'reopening' && startM !== 6) return false;
               }
               if (forecastLocationFilter !== 'all') {
-                if (forecastLocationFilter === 'city' && event.id !== 'f5') return false;
-                if (forecastLocationFilter === 'national' && event.id === 'f5') return false;
+                if (forecastLocationFilter === 'city' && event.region?.toLowerCase() === 'national') return false;
+                if (forecastLocationFilter === 'national' && event.region?.toLowerCase() !== 'national') return false;
               }
               if (forecastRelevanceFilter === 'high') {
                 if (!event.isRelevant && event.relevanceScore < 60) return false;
+              }
+              if (forecastReligionFilter !== 'all') {
+                if (event.religion?.toLowerCase() !== forecastReligionFilter.toLowerCase()) return false;
               }
               return true;
             });
@@ -1340,6 +1361,22 @@ const UserDashboard = ({ onNavigate }) => {
                           >
                             <option value="all">All Relevance</option>
                             <option value="high">Highly Relevant</option>
+                          </select>
+
+                          {/* Religion Filter */}
+                          <select 
+                            value={forecastReligionFilter}
+                            onChange={(e) => setForecastReligionFilter(e.target.value)}
+                            className="px-2.5 py-1.5 bg-white border border-cream-dark rounded-xl font-bold text-charcoal focus:outline-none"
+                          >
+                            <option value="all">All Traditions</option>
+                            <option value="Hindu">Hindu</option>
+                            <option value="Islamic">Islamic</option>
+                            <option value="Christian">Christian</option>
+                            <option value="Sikh">Sikh</option>
+                            <option value="Buddhist">Buddhist</option>
+                            <option value="Jain">Jain</option>
+                            <option value="None">Non-religious</option>
                           </select>
                         </div>
                       </div>
