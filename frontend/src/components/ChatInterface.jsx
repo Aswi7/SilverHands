@@ -1,34 +1,64 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, MessageSquare, Clock, User, Check, CheckCheck, Sparkles, RefreshCw, Bot } from 'lucide-react';
+import { 
+  Send, 
+  MessageSquare, 
+  Clock, 
+  User, 
+  Check, 
+  CheckCheck, 
+  Sparkles, 
+  RefreshCw, 
+  Bot,
+  Volume2,
+  Mic,
+  MicOff
+} from 'lucide-react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 const SAKHI_CONVERSATION = {
   _id: 'sakhi_ai_assistant',
   isSakhi: true,
   name: 'Sakhi (AI Assistant)',
   role: 'AI Assistant',
-  lastMessage: 'Diwali is coming up in 3 weeks — want me to help you prepare a sweets listing?',
+  lastMessage: 'I am here to support you! Ask me about pricing or listing tips.',
   lastMessageAt: new Date()
 };
 
-const INITIAL_SAKHI_MESSAGES = [
-  {
-    _id: 'sakhi_welcome',
-    sender: { name: 'Sakhi (AI Assistant)', role: 'AI Assistant' },
-    message: 'Namaste! I am Sakhi, your AI companion on SilverHands. I can help you with gig matching, pricing strategy, customer communication, and seasonal demand forecasts. How can I assist your business today?',
-    createdAt: new Date(Date.now() - 60000),
-    isSakhi: true
-  },
-  {
-    _id: 'sakhi_forecast_proactive',
-    sender: { name: 'Sakhi (AI Assistant)', role: 'AI Assistant' },
-    message: 'Diwali is coming up in 3 weeks — want me to help you prepare a sweets listing?',
-    createdAt: new Date(),
-    isSakhi: true,
-    ctaTitle: '✨ Prepare My Listing',
-    ctaAction: 'prepare_listing'
+const getWelcomeMessages = (lang) => {
+  const norm = lang || 'en';
+  if (norm === 'ta') {
+    return [
+      {
+        _id: 'sakhi_welcome',
+        sender: { name: 'Sakhi (AI Assistant)', role: 'AI Assistant' },
+        message: 'வணக்கம்! நான் உங்கள் சக்தி (Sakhi) AI உதவியாளர். இண்டர்நெட் இல்லாமலேயே உங்கள் பகுதி வேலை வாய்ப்புகள், விலை நிர்ணயம் மற்றும் தொழில் ஆலோசனைகளை என்னிடம் கேட்கலாம். இன்று நான் உங்களுக்கு எவ்வாறு உதவலாம்? ✨',
+        createdAt: new Date(Date.now() - 60000),
+        isSakhi: true
+      }
+    ];
   }
-];
+  if (norm === 'hi') {
+    return [
+      {
+        _id: 'sakhi_welcome',
+        sender: { name: 'Sakhi (AI Assistant)', role: 'AI Assistant' },
+        message: 'नमस्ते! मैं आपकी सखी (Sakhi) AI व्यावसायिक साथी हूँ। मैं आपको काम खोजने, मूल्य निर्धारण (pricing strategy) और ग्राहकों से बात करने में मदद कर सकती हूँ। आज मैं आपके व्यवसाय में कैसे मदद करूँ? 🤝',
+        createdAt: new Date(Date.now() - 60000),
+        isSakhi: true
+      }
+    ];
+  }
+  return [
+    {
+      _id: 'sakhi_welcome',
+      sender: { name: 'Sakhi (AI Assistant)', role: 'AI Assistant' },
+      message: 'Namaste! I am Sakhi, your AI companion on SilverHands. I can help you with gig matching, pricing strategy, customer communication, and seasonal demand forecasts. How can I assist your business today? ✨',
+      createdAt: new Date(Date.now() - 60000),
+      isSakhi: true
+    }
+  ];
+};
 
 const formatTime = (dateVal) => {
   if (!dateVal) return '';
@@ -47,29 +77,46 @@ const getInitials = (nameStr) => {
   return trimmed.length > 0 ? trimmed[0].toUpperCase() : 'U';
 };
 
-const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversation, onPrepareListing }) => {
+const ChatInterface = ({ highContrast, initialMatchId, onSelectConversation, onPrepareListing }) => {
+  const { user, updateUserInState } = useAuth();
   const isCustomer = user?.role === 'customer';
 
   const [conversations, setConversations] = useState(isCustomer ? [] : [SAKHI_CONVERSATION]);
   const [selectedConv, setSelectedConv] = useState(isCustomer ? null : SAKHI_CONVERSATION);
-  const [messages, setMessages] = useState(isCustomer ? [] : INITIAL_SAKHI_MESSAGES);
-  const [sakhiMessages, setSakhiMessages] = useState(INITIAL_SAKHI_MESSAGES);
+  const [messages, setMessages] = useState([]);
+  const [sakhiMessages, setSakhiMessages] = useState([]);
   const [newMessageText, setNewMessageText] = useState('');
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isSakhiTyping, setIsSakhiTyping] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const preferredLanguage = user?.preferredLanguage || 'en';
 
   const cardTheme = highContrast
     ? 'border-2 border-white bg-black text-white'
     : 'border-cream-dark/50 bg-white text-charcoal shadow-sm';
 
+  const textSecondaryTheme = highContrast ? 'text-gray-300' : 'text-gray-500';
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Fetch all user conversations from MongoDB (include Sakhi AI for providers only)
+  // Initialize Sakhi Welcome Messages based on preferred language
+  useEffect(() => {
+    if (!isCustomer) {
+      const welcome = getWelcomeMessages(preferredLanguage);
+      setSakhiMessages(welcome);
+      if (selectedConv?.isSakhi) {
+        setMessages(welcome);
+      }
+    }
+  }, [preferredLanguage, isCustomer, selectedConv?._id]);
+
+  // Fetch all user conversations from MongoDB
   const fetchConversations = async (autoSelectMatchId = null) => {
     try {
       const { data } = await api.get('/chat/conversations');
@@ -144,7 +191,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
     if (selectedConv?._id) {
       fetchMessages(selectedConv._id);
     }
-  }, [selectedConv?._id]);
+  }, [selectedConv?._id, sakhiMessages]);
 
   // Polling for user-to-user conversation updates (excluding Sakhi)
   useEffect(() => {
@@ -165,16 +212,13 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
   }, [selectedConv?._id]);
 
   const handleSendMessage = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!newMessageText.trim() || !selectedConv?._id || isSending) return;
 
     const textToSend = newMessageText.trim();
     setNewMessageText('');
     setIsSending(true);
 
-    // ----------------------------------------------------
-    // SAKHI AI ASSISTANT CHAT HANDLING (Providers Only)
-    // ----------------------------------------------------
     if (selectedConv._id === 'sakhi_ai_assistant') {
       const userMsg = {
         _id: 'user_' + Date.now(),
@@ -192,11 +236,11 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
       try {
         const res = await api.post('/ai/chat', {
           message: textToSend,
-          language: user?.preferredLanguage || 'en'
+          language: preferredLanguage
         });
 
         const replyText = res.data?.responseMessage || res.data?.response || res.data?.reply ||
-          'Thank you for asking! On SilverHands, providers who highlight their specific skills (like diabetic cooking, festive baking, or math tutoring) get 3x higher match rates. How else can I assist your business?';
+          'Thank you for sharing. How else can I assist your business?';
 
         let ctaTitle = res.data?.ctaTitle || '';
         const textLower = textToSend.toLowerCase();
@@ -219,12 +263,20 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
         
         SAKHI_CONVERSATION.lastMessage = replyText;
         SAKHI_CONVERSATION.lastMessageAt = new Date();
+
+        // Auto play speech synthesis for newly arrived Sakhi messages
+        speakText(replyText, preferredLanguage);
+
       } catch (err) {
         console.error('Sakhi AI chat error:', err);
         const fallbackReply = {
           _id: 'sakhi_err_' + Date.now(),
           sender: { name: 'Sakhi (AI Assistant)', role: 'AI Assistant' },
-          message: 'I am here to support you! You can ask me how to price your skills or optimize your listings for maximum demand.',
+          message: preferredLanguage === 'ta' 
+            ? 'மன்னிக்கவும், தகவல் பெறுவதில் சிறு சிக்கல் ஏற்பட்டது. தயவுசெய்து மீண்டும் முயற்சிக்கவும்.' 
+            : preferredLanguage === 'hi'
+            ? 'क्षमा करें, जानकारी प्राप्त करने में कुछ समस्या आई है। कृपया पुनः प्रयास करें।'
+            : 'I am here to support you! You can ask me how to price your skills or optimize your listings.',
           createdAt: new Date(),
           isSakhi: true
         };
@@ -239,9 +291,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
       return;
     }
 
-    // ----------------------------------------------------
-    // USER-TO-USER PERSISTENT CHAT HANDLING (MongoDB)
-    // ----------------------------------------------------
+    // Persistent User-to-User chat
     try {
       const { data } = await api.post(`/chat/conversations/${selectedConv._id}/messages`, {
         message: textToSend
@@ -255,6 +305,108 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
     } finally {
       setIsSending(false);
     }
+  };
+
+  // Language Change Handler: Persists user language settings to MongoDB User Schema
+  const handleLanguageChange = async (newLang) => {
+    try {
+      const { data } = await api.put('/users/profile', { preferredLanguage: newLang });
+      if (updateUserInState && data) {
+        updateUserInState(data);
+      }
+    } catch (err) {
+      console.error('Failed to update preferred language in MongoDB:', err);
+    }
+  };
+
+  // Web Speech API Text-to-Speech (TTS) voice builder
+  const speakText = (text, langCode) => {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    
+    // Clean emojis & extra markups to prevent spelling anomalies
+    const cleanText = text.replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD00-\uDFFF]/g, '');
+    
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    const targetLang = langCode || preferredLanguage;
+    
+    utterance.lang = targetLang === 'ta' ? 'ta-IN' : targetLang === 'hi' ? 'hi-IN' : 'en-IN';
+    
+    const voices = window.speechSynthesis.getVoices();
+    const matchedVoice = voices.find(v => v.lang.startsWith(utterance.lang) || v.lang.startsWith(targetLang));
+    if (matchedVoice) {
+      utterance.voice = matchedVoice;
+    }
+    
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Localized Fallback prompt trigger
+  const speakFallback = () => {
+    const fallbacks = {
+      ta: "மன்னிக்கவும், நான் சரியாக புரிந்து கொள்ளவில்லை. மீண்டும் சொல்ல முடியுமா?",
+      hi: "माफ़ कीजिए, मैं ठीक से समझ नहीं पाया। कृपया फिर से बोलें।",
+      en: "Sorry, I didn't quite understand that. Could you please repeat?"
+    };
+    const msg = fallbacks[preferredLanguage] || fallbacks.en;
+    
+    const sakhiFallback = {
+      _id: 'sakhi_fallback_' + Date.now(),
+      sender: { name: 'Sakhi (AI Assistant)', role: 'AI Assistant' },
+      message: msg,
+      createdAt: new Date(),
+      isSakhi: true
+    };
+
+    setSakhiMessages(prev => [...prev, sakhiFallback]);
+    setMessages(prev => [...prev, sakhiFallback]);
+    speakText(msg, preferredLanguage);
+    setTimeout(scrollToBottom, 50);
+  };
+
+  // Web Speech API Speech-to-Text (STT) Speech Recognition
+  const toggleListening = () => {
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice speech recognition is not supported in this browser. Please try Chrome.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = preferredLanguage === 'ta' ? 'ta-IN' : preferredLanguage === 'hi' ? 'hi-IN' : 'en-IN';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      const confidence = event.results[0][0].confidence;
+      
+      if (!transcript || transcript.trim().length === 0 || confidence < 0.1) {
+        speakFallback();
+      } else {
+        setNewMessageText(transcript);
+      }
+    };
+
+    recognition.onerror = (err) => {
+      console.error('Speech recognition error:', err);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
   };
 
   const getPartner = (conv) => {
@@ -391,7 +543,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
         <div className="grow flex flex-col min-w-0 bg-white">
           {selectedConv ? (
             <>
-              {/* Active Partner Header */}
+              {/* Active Partner Header (With Dropdown Language Selector for Sakhi AI) */}
               <div className={`p-4 border-b border-cream-dark/30 flex items-center justify-between shrink-0 ${
                 selectedConv.isSakhi ? 'bg-gradient-to-r from-orange-50 via-amber-50 to-cream/30' : 'bg-cream/20'
               }`}>
@@ -420,13 +572,31 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                   </div>
                 </div>
 
-                <div className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                  selectedConv.isSakhi 
-                    ? 'bg-orange-100 text-terracotta border-orange-200 font-bold'
-                    : 'bg-teal-100 text-teal-800 border-teal-200'
-                }`}>
-                  {selectedConv.isSakhi ? '✨ AI Assistant' : '✓ Connected'}
-                </div>
+                {/* Sakhi Language Selection Header Widget & Speak Greeting Controller */}
+                {selectedConv.isSakhi ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => speakText(messages[0]?.message, preferredLanguage)}
+                      className="h-8 w-8 rounded-full bg-orange-100 hover:bg-orange-200 flex items-center justify-center text-terracotta transition-colors shadow-sm"
+                      title="Speak greeting"
+                    >
+                      <Volume2 className="h-4 w-4" />
+                    </button>
+                    <select
+                      value={preferredLanguage}
+                      onChange={(e) => handleLanguageChange(e.target.value)}
+                      className="px-2.5 py-1 text-xs font-bold bg-white text-charcoal border border-cream-dark rounded-xl focus:outline-none focus:border-terracotta"
+                    >
+                      <option value="en">English</option>
+                      <option value="ta">தமிழ் (Tamil)</option>
+                      <option value="hi">हिंदी (Hindi)</option>
+                    </select>
+                  </div>
+                ) : (
+                  <div className="px-3 py-1 rounded-full text-xs font-bold border bg-teal-100 text-teal-800 border-teal-200">
+                    ✓ Connected
+                  </div>
+                )}
               </div>
 
               {/* Message History Area */}
@@ -458,7 +628,7 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                           </div>
                         )}
 
-                        <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
+                        <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm relative group ${
                           isMe
                             ? (highContrast ? 'bg-white text-black font-bold' : 'bg-forest text-white')
                             : (isSakhiMsg
@@ -466,6 +636,17 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                                 : (highContrast ? 'bg-black text-white border' : 'bg-cream-dark/20 text-charcoal border border-cream-dark/30'))
                         }`}>
                           <p>{msg.message}</p>
+
+                          {/* Speak Response trigger on hover/active */}
+                          {isSakhiMsg && (
+                            <button
+                              onClick={() => speakText(msg.message, preferredLanguage)}
+                              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/20 hover:bg-white/40 p-1 rounded-full text-white"
+                              title="Hear reply"
+                            >
+                              <Volume2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
 
                           {/* One-Tap Action Button */}
                           {msg.ctaTitle && (
@@ -520,8 +701,23 @@ const ChatInterface = ({ user, highContrast, initialMatchId, onSelectConversatio
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Message Input Bar */}
+              {/* Message Input Bar (With Web Speech API Mic Voice input integration) */}
               <form onSubmit={handleSendMessage} className="p-3 border-t border-cream-dark/30 flex items-center gap-2 bg-white shrink-0">
+                {selectedConv.isSakhi && (
+                  <button
+                    type="button"
+                    onClick={toggleListening}
+                    className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center shadow-sm border transition-all ${
+                      isListening
+                        ? 'bg-red-500 text-white border-red-600 animate-pulse'
+                        : 'bg-orange-100 hover:bg-orange-200 text-terracotta border-orange-200'
+                    }`}
+                    title={isListening ? "Stop listening" : "🎤 Tap to speak"}
+                  >
+                    {isListening ? <MicOff className="h-4.5 w-4.5" /> : <Mic className="h-4.5 w-4.5" />}
+                  </button>
+                )}
+                
                 <input
                   type="text"
                   value={newMessageText}

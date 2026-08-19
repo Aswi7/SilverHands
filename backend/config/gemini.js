@@ -1,7 +1,7 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // Model configuration constant for easy swapping
-const DEFAULT_MODEL = "gemini-3.6-flash"; // Supported model for sandbox API key
+const DEFAULT_MODEL = "gemini-3.5-flash"; // Supported model for sandbox API key
 
 let genAI = null;
 

@@ -89,11 +89,17 @@ router.post('/chat', protect, async (req, res) => {
     }
     const language = getReqLanguage(req);
     
-    // Pass user context, language and message to Gemini
+    // Pass user context, language, user profile context and message to Gemini
     const result = await runAITask('sakhiChat', { 
       userName: req.user.name, 
       userRole: req.user.role,
       language,
+      userProfile: {
+        skills: req.user.skills,
+        city: req.user.city,
+        availability: req.user.availability,
+        bio: req.user.bio
+      },
       userInput: message 
     });
     
