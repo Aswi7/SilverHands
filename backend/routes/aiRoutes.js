@@ -83,13 +83,22 @@ router.post('/explain-match', protect, async (req, res) => {
 // POST /api/ai/chat
 router.post('/chat', protect, async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, chatHistory } = req.body;
     if (!message) {
       return res.status(400).json({ message: 'Missing message' });
     }
     const language = getReqLanguage(req);
-    
-    // Pass user context, language, user profile context and message to Gemini
+
+    // Convert frontend message history into Gemini multi-turn format
+    // Frontend sends: [{ role: 'user'|'model', text: string }]
+    // Gemini expects:  [{ role: 'user'|'model', parts: [{ text: string }] }]
+    const geminiHistory = Array.isArray(chatHistory)
+      ? chatHistory
+          .filter(m => m && m.role && m.text)
+          .map(m => ({ role: m.role, parts: [{ text: m.text }] }))
+      : [];
+
+    // Pass full context: user profile + conversation history + latest message
     const result = await runAITask('sakhiChat', { 
       userName: req.user.name, 
       userRole: req.user.role,
@@ -100,11 +109,13 @@ router.post('/chat', protect, async (req, res) => {
         availability: req.user.availability,
         bio: req.user.bio
       },
+      chatHistory: geminiHistory,
       userInput: message 
     });
     
     res.status(200).json(result);
   } catch (error) {
+    console.error('Sakhi AI chat error:', error.message);
     if (error.type === 'RATE_LIMIT_ERROR' || error.type === 'SERVICE_UNAVAILABLE_ERROR') {
        return res.status(503).json({ message: 'AI busy' });
     }

@@ -1,4 +1,4 @@
-const { callGemini } = require('../config/gemini');
+const { callGemini, callGeminiChat } = require('../config/gemini');
 
 // Load prompt templates
 const skillExtraction = require('../config/ai-prompts/skillExtraction');
@@ -19,8 +19,10 @@ const taskMap = {
 
 /**
  * Universal AI Task Runner for SilverHands
- * @param {string} taskType - One of: skillExtraction, bioGeneration, listingStructuring, matchExplanation
+ * @param {string} taskType - One of: skillExtraction, bioGeneration, listingStructuring, matchExplanation, sakhiChat, forecastRanking
  * @param {object} inputData - Data required by the specific task's prompt template
+ *   For sakhiChat, include: { userName, userRole, language, userProfile, userInput, chatHistory }
+ *   chatHistory: Array<{ role: 'user'|'model', parts: [{text: string}] }>
  * @returns {object} - The structured JSON response from Gemini
  */
 const runAITask = async (taskType, inputData) => {
@@ -34,6 +36,17 @@ const runAITask = async (taskType, inputData) => {
   const responseSchema = task.schema;
 
   try {
+    // Sakhi chat uses multi-turn history for context-aware intelligent responses
+    if (taskType === 'sakhiChat' && inputData.chatHistory && inputData.chatHistory.length > 0) {
+      const result = await callGeminiChat(
+        systemPrompt,
+        inputData.chatHistory,
+        inputData.userInput || '',
+        responseSchema
+      );
+      return result;
+    }
+
     const userInput = inputData.userInput || '';
     const result = await callGemini(systemPrompt, userInput, responseSchema);
     return result;

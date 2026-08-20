@@ -234,9 +234,24 @@ const ChatInterface = ({ highContrast, initialMatchId, onSelectConversation, onP
       setTimeout(scrollToBottom, 50);
 
       try {
+        // Build conversation history for Gemini (last 10 turns = 20 messages to stay within token budget)
+        // Format: [{ role: 'user'|'model', text: string }]
+        const historyWindow = sakhiMessages.slice(-20); // cap at 20 prior messages
+        const chatHistory = historyWindow
+          .filter(m => m._id !== 'sakhi_welcome') // skip the static welcome message
+          .map(m => {
+            const isSakhiMsg = Boolean(m.isSakhi || m.sender?.name === 'Sakhi (AI Assistant)');
+            return {
+              role: isSakhiMsg ? 'model' : 'user',
+              text: m.message || ''
+            };
+          })
+          .filter(m => m.text.trim().length > 0);
+
         const res = await api.post('/ai/chat', {
           message: textToSend,
-          language: preferredLanguage
+          language: preferredLanguage,
+          chatHistory
         });
 
         const replyText = res.data?.responseMessage || res.data?.response || res.data?.reply ||
