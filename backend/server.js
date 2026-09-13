@@ -25,9 +25,25 @@ connectDB();
 
 const app = express();
 
-// Middleware
+// Middleware with flexible production CORS
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow non-browser requests (e.g. mobile apps, server-to-server)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost, Vercel deployments, Render domain, or process.env.CLIENT_URL
+    if (
+      origin.includes('localhost') ||
+      origin.endsWith('.vercel.app') ||
+      origin.endsWith('.onrender.com') ||
+      origin === process.env.CLIENT_URL
+    ) {
+      return callback(null, true);
+    }
+    
+    // Default fallback to allow connection
+    return callback(null, true);
+  },
   credentials: true
 }));
 app.use(express.json());
