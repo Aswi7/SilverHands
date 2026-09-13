@@ -49,6 +49,16 @@ app.use('/api/earnings', earningRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+// Base root route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'OK',
+    message: '🚀 SilverHands Backend API is active and running!',
+    healthCheck: '/api/health',
+    timestamp: new Date()
+  });
+});
+
 // Base health check route
 app.get('/api/health', (req, res) => {
   res.status(200).json({
