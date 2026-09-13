@@ -4,9 +4,11 @@ const User = require('../models/User');
 const protect = async (req, res, next) => {
   let token;
 
-  // Read JWT from HTTP-only cookie
+  // Read JWT from HTTP-only cookie or Authorization header
   if (req.cookies && req.cookies.token) {
     token = req.cookies.token;
+  } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
   }
 
   if (!token) {
@@ -14,7 +16,7 @@ const protect = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'silverhands_secret_jwt_key_2026');
     req.user = await User.findById(decoded.id).select('-password');
     
     if (!req.user) {
@@ -28,4 +30,25 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = { protect };
+const optionalProtect = async (req, res, next) => {
+  let token;
+
+  if (req.cookies && req.cookies.token) {
+    token = req.cookies.token;
+  } else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'silverhands_secret_jwt_key_2026');
+      req.user = await User.findById(decoded.id).select('-password');
+    } catch (error) {
+      // Ignore token verification failure for optional protection
+    }
+  }
+
+  next();
+};
+
+module.exports = { protect, optionalProtect };

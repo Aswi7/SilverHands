@@ -96,6 +96,21 @@ const UserSchema = new mongoose.Schema({
   isOnboarded: {
     type: Boolean,
     default: false
+  },
+  sakhiChatHistory: {
+    type: [{
+      _id: { type: String },
+      sender: {
+        _id: { type: String },
+        name: { type: String },
+        role: { type: String }
+      },
+      message: { type: String },
+      isSakhi: { type: Boolean, default: false },
+      ctaTitle: { type: String, default: '' },
+      createdAt: { type: Date, default: Date.now }
+    }],
+    default: []
   }
 }, { 
   timestamps: true,

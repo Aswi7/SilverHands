@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalProtect } = require('../middleware/authMiddleware');
 const { runAITask } = require('../services/aiService');
 
 // Helper to determine language from request body or user profile
@@ -9,7 +9,7 @@ const getReqLanguage = (req) => {
 };
 
 // POST /api/ai/extract-skills
-router.post('/extract-skills', protect, async (req, res) => {
+router.post('/extract-skills', optionalProtect, async (req, res) => {
   try {
     const { bio } = req.body;
     if (!bio || typeof bio !== 'string' || bio.trim().length === 0) {
@@ -80,6 +80,40 @@ router.post('/explain-match', protect, async (req, res) => {
   }
 });
 
+// GET /api/ai/chat-history
+router.get('/chat-history', protect, async (req, res) => {
+  try {
+    res.status(200).json(req.user.sakhiChatHistory || []);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch chat history' });
+  }
+});
+
+// POST /api/ai/chat-history/sync
+router.post('/chat-history/sync', protect, async (req, res) => {
+  try {
+    const { messages } = req.body;
+    if (Array.isArray(messages)) {
+      req.user.sakhiChatHistory = messages;
+      await req.user.save();
+    }
+    res.status(200).json(req.user.sakhiChatHistory);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to sync chat history' });
+  }
+});
+
+// DELETE /api/ai/chat-history
+router.delete('/chat-history', protect, async (req, res) => {
+  try {
+    req.user.sakhiChatHistory = [];
+    await req.user.save();
+    res.status(200).json({ message: 'Sakhi chat history cleared' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to clear chat history' });
+  }
+});
+
 // POST /api/ai/chat
 router.post('/chat', protect, async (req, res) => {
   try {
@@ -113,6 +147,45 @@ router.post('/chat', protect, async (req, res) => {
       userInput: message 
     });
     
+    // Save to user.sakhiChatHistory in MongoDB for persistent cross-session history
+    try {
+      const userMsg = {
+        _id: 'user_' + Date.now(),
+        sender: { _id: req.user._id, name: req.user.name || 'You' },
+        message,
+        isSakhi: false,
+        createdAt: new Date()
+      };
+
+      const replyText = result?.responseMessage || result?.response || result?.reply || '';
+      let ctaTitle = result?.ctaTitle || '';
+      const textLower = message.toLowerCase();
+      if (textLower.includes('diwali') || textLower.includes('sweet') || textLower.includes('festival') || textLower.includes('listing')) {
+        ctaTitle = '✨ Prepare My Listing';
+      }
+
+      const sakhiMsg = {
+        _id: 'sakhi_' + Date.now(),
+        sender: { name: 'Sakhi (AI Assistant)', role: 'AI Assistant' },
+        message: replyText,
+        isSakhi: true,
+        ctaTitle,
+        createdAt: new Date()
+      };
+
+      if (!Array.isArray(req.user.sakhiChatHistory)) {
+        req.user.sakhiChatHistory = [];
+      }
+
+      req.user.sakhiChatHistory.push(userMsg, sakhiMsg);
+      if (req.user.sakhiChatHistory.length > 100) {
+        req.user.sakhiChatHistory = req.user.sakhiChatHistory.slice(-100);
+      }
+      await req.user.save();
+    } catch (saveErr) {
+      console.warn('Failed to persist Sakhi chat message to MongoDB:', saveErr.message);
+    }
+
     res.status(200).json(result);
   } catch (error) {
     console.error('Sakhi AI chat error:', error.message);

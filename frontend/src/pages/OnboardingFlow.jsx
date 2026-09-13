@@ -155,6 +155,7 @@ const OnboardingFlow = ({ onNavigate }) => {
       } else {
         clearInterval(timer);
         setIsListening(false);
+        extractSkills(fallbackText);
       }
     }, 40);
   };
@@ -176,6 +177,8 @@ const OnboardingFlow = ({ onNavigate }) => {
       return;
     }
 
+    let capturedTranscript = '';
+
     try {
       const recognition = new SpeechRecognition();
       recognitionRef.current = recognition;
@@ -189,21 +192,24 @@ const OnboardingFlow = ({ onNavigate }) => {
         const transcript = Array.from(event.results)
           .map(result => result[0].transcript)
           .join('');
+        capturedTranscript = transcript;
         setChatText(transcript);
       };
 
       recognition.onerror = (event) => {
         console.error("Speech recognition error", event.error);
         setIsListening(false);
-        // Fallback to simulation if microphone permission is denied
-        if (event.error === 'not-allowed' || event.error === 'service-not-allowed' || event.error === 'aborted') {
-          simulateMockSpeech();
-        }
+        simulateMockSpeech();
       };
 
       recognition.onend = () => {
         setIsListening(false);
         recognitionRef.current = null;
+        if (capturedTranscript && capturedTranscript.trim().length > 0) {
+          extractSkills(capturedTranscript);
+        } else {
+          simulateMockSpeech();
+        }
       };
 
       recognition.start();
@@ -215,7 +221,7 @@ const OnboardingFlow = ({ onNavigate }) => {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      if (chatText && chatText.length > 20) {
+      if (chatText && chatText.trim().length > 3) {
         extractSkills(chatText);
       }
     }, 800);
@@ -226,19 +232,18 @@ const OnboardingFlow = ({ onNavigate }) => {
     if (!text || text.trim().length === 0) return;
     setShowPopIn(true);
     try {
-      const { data } = await api.post('/ai/extract-skills', { bio: text });
-      if (data && data.skills) {
-        // Map the extracted structured objects to just the skill names, or keep the object.
-        // Currently the UI expects an array of strings or objects. 
-        // We'll map to skillName string for the onboarding UI to match the legacy format,
-        // but we'll add the full object so the UI can be updated later if needed.
-        const extractedNames = data.skills.map(s => typeof s === 'object' ? s.skillName : s);
+      const { data } = await api.post('/ai/extract-skills', { 
+        bio: text,
+        language: prefLang || 'en'
+      });
+      if (data && data.skills && Array.isArray(data.skills)) {
         setSkills((prev) => {
-          // Merge unique skills
           const newSkills = [...prev];
-          extractedNames.forEach(skill => {
-            if (!newSkills.some(s => (typeof s === 'object' ? s.skillName : s) === skill)) {
-              newSkills.push(skill);
+          data.skills.forEach(extractedSkill => {
+            const nameToCompare = typeof extractedSkill === 'object' ? extractedSkill.skillName : extractedSkill;
+            const exists = newSkills.some(s => (typeof s === 'object' ? s.skillName : s).toLowerCase() === (nameToCompare || '').toLowerCase());
+            if (!exists) {
+              newSkills.push(extractedSkill);
             }
           });
           return newSkills;
@@ -246,7 +251,6 @@ const OnboardingFlow = ({ onNavigate }) => {
       }
     } catch (error) {
       console.error('AI extraction failed:', error);
-      // Fallback: do nothing, let them type manually.
     } finally {
       setShowPopIn(false);
     }
@@ -254,14 +258,24 @@ const OnboardingFlow = ({ onNavigate }) => {
 
   const handleAddManualSkill = (e) => {
     e.preventDefault();
-    if (manualSkill.trim() && !skills.includes(manualSkill.trim())) {
-      setSkills([...skills, manualSkill.trim()]);
-      setManualSkill('');
+    if (manualSkill.trim()) {
+      const trimmed = manualSkill.trim();
+      const exists = skills.some(s => (typeof s === 'object' ? s.skillName : s).toLowerCase() === trimmed.toLowerCase());
+      if (!exists) {
+        setSkills([...skills, {
+          category: 'other',
+          skillName: trimmed,
+          experienceLevel: 'Intermediate',
+          confidence: 1.0
+        }]);
+        setManualSkill('');
+      }
     }
   };
 
   const handleRemoveSkill = (skillToRemove) => {
-    setSkills(skills.filter(s => s !== skillToRemove));
+    const nameToRemove = typeof skillToRemove === 'object' ? skillToRemove.skillName : skillToRemove;
+    setSkills(skills.filter(s => (typeof s === 'object' ? s.skillName : s) !== nameToRemove));
   };
 
   // Step 3: Toggles
@@ -288,10 +302,11 @@ const OnboardingFlow = ({ onNavigate }) => {
         setIsGeneratingBio(true);
         try {
           const availabilityString = `${availableDays.join(', ')} during ${timeSlots.join(', ')}`;
+          const skillNames = skills.map(s => (typeof s === 'object' ? s.skillName : s)).filter(Boolean);
           const { data } = await api.post('/ai/generate-bio', {
             name: name || 'User',
             age: age || '--',
-            skills: skills,
+            skills: skillNames,
             availability: availabilityString
           });
           if (data && data.generatedBio) {
@@ -300,7 +315,8 @@ const OnboardingFlow = ({ onNavigate }) => {
         } catch (error) {
           console.error('Bio generation failed:', error);
           // Fallback to manual string if API fails
-          setAiBio(`${name || 'User'}, aged ${age || '--'}, is a warm neighborhood member offering services nearby. Experienced in ${skills.join(', ')} and looking forward to assisting neighboring households.`);
+          const skillNames = skills.map(s => (typeof s === 'object' ? s.skillName : s)).filter(Boolean);
+          setAiBio(`${name || 'User'}, aged ${age || '--'}, is a warm neighborhood member offering services nearby. Experienced in ${skillNames.join(', ')} and looking forward to assisting neighboring households.`);
         } finally {
           setIsGeneratingBio(false);
         }
@@ -313,22 +329,26 @@ const OnboardingFlow = ({ onNavigate }) => {
     try {
       const formattedSkills = skills.map(skill => {
         // If it's already an object, use it; otherwise, structure it.
-        if (typeof skill === 'object') return skill;
+        if (typeof skill === 'object' && skill.skillName) return skill;
         return {
           category: 'other',
-          skillName: skill,
+          skillName: typeof skill === 'object' ? skill.skillName : skill,
           experienceLevel: 'Not specified',
           confidence: 1.0
         };
       });
 
       // Update location coordinates matched from city selection
-      const cityKey = cityName.trim().toLowerCase();
-      const coords = CITY_COORDINATES[cityKey] || [77.2090, 28.6139];
-      await api.put('/users/location', {
-        longitude: coords[0],
-        latitude: coords[1]
-      });
+      try {
+        const cityKey = cityName.trim().toLowerCase();
+        const coords = CITY_COORDINATES[cityKey] || [77.2090, 28.6139];
+        await api.put('/users/location', {
+          longitude: coords[0],
+          latitude: coords[1]
+        });
+      } catch (locErr) {
+        console.warn('Location update error:', locErr);
+      }
 
       const { data } = await api.put('/users/profile', {
         name,
@@ -721,25 +741,28 @@ const OnboardingFlow = ({ onNavigate }) => {
                   {skills.length === 0 ? (
                     <span className="text-xs text-gray-500 italic p-1">{t('onboarding.no_skills_extracted', 'No skills extracted yet. Type above or tap the microphone.')}</span>
                   ) : (
-                    skills.map((skill) => (
-                      <div 
-                        key={skill} 
-                        className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${
-                          highContrast 
-                            ? 'border border-white bg-black text-white' 
-                            : 'bg-teal-50 text-forest border border-teal-200 animate-[pulse_0.3s_ease-out]'
-                        }`}
-                      >
-                        <span>{skill}</span>
-                        <button 
-                          onClick={() => handleRemoveSkill(skill)}
-                          className="hover:text-red-500 focus:outline-none"
-                          aria-label={`Remove skill ${skill}`}
+                    skills.map((skill) => {
+                      const skillName = typeof skill === 'object' ? skill.skillName : skill;
+                      return (
+                        <div 
+                          key={skillName} 
+                          className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-bold transition-all ${
+                            highContrast 
+                              ? 'border border-white bg-black text-white' 
+                              : 'bg-teal-50 text-forest border border-teal-200 animate-[pulse_0.3s_ease-out]'
+                          }`}
                         >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    ))
+                          <span>{skillName}</span>
+                          <button 
+                            onClick={() => handleRemoveSkill(skill)}
+                            className="hover:text-red-500 focus:outline-none"
+                            aria-label={`Remove skill ${skillName}`}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
 
@@ -1002,16 +1025,19 @@ const OnboardingFlow = ({ onNavigate }) => {
                     </button>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {skills.map((skill) => (
-                      <span 
-                        key={skill} 
-                        className={`px-3 py-1 rounded-lg text-sm font-bold ${
-                          highContrast ? 'border border-white bg-black text-white' : 'bg-teal-50 text-forest border border-teal-200'
-                        }`}
-                      >
-                        {skill}
-                      </span>
-                    ))}
+                    {skills.map((skill, idx) => {
+                      const skillName = typeof skill === 'object' ? skill.skillName : skill;
+                      return (
+                        <span 
+                          key={skillName || idx} 
+                          className={`px-3 py-1 rounded-lg text-sm font-bold ${
+                            highContrast ? 'border border-white bg-black text-white' : 'bg-teal-50 text-forest border border-teal-200'
+                          }`}
+                        >
+                          {skillName}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
 

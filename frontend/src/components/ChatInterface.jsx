@@ -11,7 +11,8 @@ import {
   Bot,
   Volume2,
   Mic,
-  MicOff
+  MicOff,
+  Trash2
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -95,6 +96,33 @@ const ChatInterface = ({ highContrast, initialMatchId, onSelectConversation, onP
 
   const preferredLanguage = user?.preferredLanguage || 'en';
 
+  const getStorageKey = () => `silverhands_sakhi_chat_${user?._id || 'guest'}`;
+
+  // Helper to persist Sakhi messages locally & sync state
+  const saveSakhiHistory = (msgs) => {
+    setSakhiMessages(msgs);
+    if (selectedConv?.isSakhi || selectedConv?._id === 'sakhi_ai_assistant') {
+      setMessages(msgs);
+    }
+    try {
+      localStorage.setItem(getStorageKey(), JSON.stringify(msgs));
+    } catch (e) {
+      console.error('Failed to save Sakhi chat to localStorage:', e);
+    }
+  };
+
+  const clearSakhiHistory = async () => {
+    const defaultWelcome = getWelcomeMessages(preferredLanguage);
+    saveSakhiHistory(defaultWelcome);
+    if (user?._id) {
+      try {
+        await api.delete('/ai/chat-history');
+      } catch (e) {
+        console.error('Failed to clear remote chat history:', e);
+      }
+    }
+  };
+
   const cardTheme = highContrast
     ? 'border-2 border-white bg-black text-white'
     : 'border-cream-dark/50 bg-white text-charcoal shadow-sm';
@@ -105,16 +133,46 @@ const ChatInterface = ({ highContrast, initialMatchId, onSelectConversation, onP
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Initialize Sakhi Welcome Messages based on preferred language
+  // Load Sakhi Chat History: First load user-scoped localStorage, then sync with backend MongoDB
   useEffect(() => {
-    if (!isCustomer) {
-      const welcome = getWelcomeMessages(preferredLanguage);
-      setSakhiMessages(welcome);
-      if (selectedConv?.isSakhi) {
-        setMessages(welcome);
+    const defaultWelcome = getWelcomeMessages(preferredLanguage);
+    const storageKey = getStorageKey();
+
+    let initialMsgs = defaultWelcome;
+    const cached = localStorage.getItem(storageKey);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          initialMsgs = parsed;
+        }
+      } catch (e) {
+        console.error('Failed to parse cached Sakhi chat:', e);
       }
     }
-  }, [preferredLanguage, isCustomer, selectedConv?._id]);
+
+    setSakhiMessages(initialMsgs);
+    if (selectedConv?.isSakhi || selectedConv?._id === 'sakhi_ai_assistant') {
+      setMessages(initialMsgs);
+    }
+
+    // Fetch remote chat history from backend MongoDB if user is logged in
+    if (user?._id) {
+      api.get('/ai/chat-history')
+        .then(res => {
+          if (Array.isArray(res.data) && res.data.length > 0) {
+            const remoteMsgs = res.data;
+            const fullHistory = [...defaultWelcome, ...remoteMsgs.filter(m => m._id !== 'sakhi_welcome')];
+            setSakhiMessages(fullHistory);
+            if (selectedConv?.isSakhi || selectedConv?._id === 'sakhi_ai_assistant') {
+              setMessages(fullHistory);
+            }
+            localStorage.setItem(storageKey, JSON.stringify(fullHistory));
+          }
+        })
+        .catch(err => console.warn('Remote Sakhi chat history sync error:', err.message));
+    }
+  }, [user?._id, preferredLanguage]);
 
   // Fetch all user conversations from MongoDB
   const fetchConversations = async (autoSelectMatchId = null) => {
@@ -228,8 +286,7 @@ const ChatInterface = ({ highContrast, initialMatchId, onSelectConversation, onP
       };
 
       const updatedSakhiMsgs = [...sakhiMessages, userMsg];
-      setSakhiMessages(updatedSakhiMsgs);
-      setMessages(updatedSakhiMsgs);
+      saveSakhiHistory(updatedSakhiMsgs);
       setIsSakhiTyping(true);
       setTimeout(scrollToBottom, 50);
 
@@ -273,8 +330,7 @@ const ChatInterface = ({ highContrast, initialMatchId, onSelectConversation, onP
         };
 
         const finalSakhiMsgs = [...updatedSakhiMsgs, sakhiReply];
-        setSakhiMessages(finalSakhiMsgs);
-        setMessages(finalSakhiMsgs);
+        saveSakhiHistory(finalSakhiMsgs);
         
         SAKHI_CONVERSATION.lastMessage = replyText;
         SAKHI_CONVERSATION.lastMessageAt = new Date();
@@ -596,6 +652,18 @@ const ChatInterface = ({ highContrast, initialMatchId, onSelectConversation, onP
                       title="Speak greeting"
                     >
                       <Volume2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Clear Sakhi AI conversation history?')) {
+                          clearSakhiHistory();
+                        }
+                      }}
+                      className="px-2.5 py-1 text-xs font-bold text-gray-500 hover:text-red-600 rounded-xl border border-cream-dark/50 hover:bg-red-50 flex items-center gap-1.5 transition-colors"
+                      title="Clear Sakhi chat history"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Clear Chat</span>
                     </button>
                     <select
                       value={preferredLanguage}

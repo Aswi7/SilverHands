@@ -44,7 +44,7 @@ import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext
 import { forecastData } from '../data/forecastData';
 
 const UserDashboard = ({ onNavigate }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { user, logout, updateUserInState } = useAuth();
 
   // Accessibility Global Settings
@@ -529,60 +529,102 @@ const UserDashboard = ({ onNavigate }) => {
     }
   };
 
+  // Simulated Voice Fallback for Bio Dictation
+  const simulateMockSpeechBio = () => {
+    const fallbackText = "I can cook healthy home-cooked meals, stitch clothes, and tutor school children.";
+    let index = 0;
+    setBioText('');
+    setIsListeningBio(true);
+    
+    const timer = setInterval(() => {
+      if (index < fallbackText.length) {
+        setBioText(prev => prev + fallbackText[index]);
+        index++;
+      } else {
+        clearInterval(timer);
+        setIsListeningBio(false);
+        handleExtractSkills(fallbackText);
+      }
+    }, 40);
+  };
+
   // Handle Voice Dictation for Bio
   const handleListenBio = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Your browser does not support voice dictation.");
+      console.warn("SpeechRecognition not supported in browser. Falling back to simulation.");
+      simulateMockSpeechBio();
       return;
     }
 
     if (isListeningBio) return;
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = speechLocale || 'en-IN';
-    recognition.interimResults = true;
-    recognition.continuous = false;
+    let capturedTranscript = '';
 
-    recognition.onstart = () => setIsListeningBio(true);
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = speechLocale || 'en-IN';
+      recognition.interimResults = true;
+      recognition.continuous = false;
 
-    recognition.onresult = (event) => {
-      const transcript = Array.from(event.results)
-        .map(result => result[0].transcript)
-        .join('');
-      setBioText(transcript);
-    };
+      recognition.onstart = () => setIsListeningBio(true);
 
-    recognition.onerror = (event) => {
-      console.error("Speech recognition error", event.error);
-      setIsListeningBio(false);
-    };
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0].transcript)
+          .join('');
+        capturedTranscript = transcript;
+        setBioText(transcript);
+      };
 
-    recognition.onend = () => setIsListeningBio(false);
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error", event.error);
+        setIsListeningBio(false);
+        simulateMockSpeechBio();
+      };
 
-    recognition.start();
+      recognition.onend = () => {
+        setIsListeningBio(false);
+        if (capturedTranscript && capturedTranscript.trim().length > 0) {
+          handleExtractSkills(capturedTranscript);
+        } else {
+          simulateMockSpeechBio();
+        }
+      };
+
+      recognition.start();
+    } catch (e) {
+      console.error("Failed to start SpeechRecognition", e);
+      simulateMockSpeechBio();
+    }
   };
 
-  const handleExtractSkills = async () => {
-    if (!bioText.trim() || !user?._id) return;
+  const handleExtractSkills = async (overrideBio) => {
+    const targetBio = typeof overrideBio === 'string' ? overrideBio : bioText;
+    if (!targetBio || !targetBio.trim()) return;
     
     setIsExtracting(true);
     setExtractError(null);
     
     try {
-      const { data } = await api.post(`/ai/extract-skills`, { bio: bioText });
+      const { data } = await api.post(`/ai/extract-skills`, { 
+        bio: targetBio, 
+        language: i18n.language || 'en' 
+      });
       
       if (data && data.skills) {
         setExtractedSkills(data.skills);
         
-        // Save the new bio and skills to the backend automatically
-        const profileUpdate = await api.put('/users/profile', {
-          bio: bioText,
-          skills: data.skills
-        });
-        
-        if (updateUserInState && profileUpdate.data) {
-          updateUserInState(profileUpdate.data);
+        // Save the new bio and skills to the backend automatically if user is logged in
+        if (user?._id) {
+          const profileUpdate = await api.put('/users/profile', {
+            bio: targetBio,
+            skills: data.skills
+          });
+          
+          if (updateUserInState && profileUpdate.data) {
+            updateUserInState(profileUpdate.data);
+          }
         }
       }
     } catch (error) {
