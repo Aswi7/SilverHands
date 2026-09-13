@@ -2,6 +2,7 @@ const Match = require('../models/Match');
 const Conversation = require('../models/Conversation');
 const ServiceRequest = require('../models/ServiceRequest');
 const Earning = require('../models/Earning');
+const { notifyMatchAccepted, notifyMatchCompleted } = require('../services/notificationService');
 
 // Valid state transitions dictionary for the 4 main user-facing stages
 const VALID_TRANSITIONS = {
@@ -179,6 +180,14 @@ const updateMatchStatus = async (req, res) => {
 
     await match.save();
     console.log(`[MATCH STATUS UPDATE] Match ${match._id} updated from '${currentStatus}' to status '${match.status}' by User ${req.user._id}`);
+
+    // Trigger Notifications on status transitions
+    if (match.status === 'ACCEPTED' && currentStatus !== 'ACCEPTED') {
+      await notifyMatchAccepted(match, match.requestId, match.providerId, match.customerId);
+    } else if (match.status === 'COMPLETED' && currentStatus !== 'COMPLETED') {
+      await notifyMatchCompleted(match, match.requestId, match.providerId, match.customerId);
+    }
+
     res.status(200).json(match);
   } catch (error) {
     console.error('Update match status error:', error.message);

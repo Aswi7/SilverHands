@@ -2,3 +2,6 @@ node_modules/
 .env
 backend/.env
 frontend/.env
+scratch/
+backend/scratch/
+

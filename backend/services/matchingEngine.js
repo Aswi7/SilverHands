@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const ServiceRequest = require('../models/ServiceRequest');
 const Match = require('../models/Match');
+const { notifyMatchFound } = require('./notificationService');
 
 // Configurable weights (Total = 1.0)
 const WEIGHTS = {
@@ -15,12 +16,13 @@ const NEARBY_CITIES_MAP = {
   'delhi': ['delhi', 'noida', 'gurugram'],
   'noida': ['noida', 'delhi', 'gurugram'],
   'gurugram': ['gurugram', 'delhi', 'noida'],
-  'mumbai': ['mumbai', 'pune'],
+  'mumbai': ['mumbai', 'pune', 'thane'],
   'pune': ['pune', 'mumbai'],
-  'bengaluru': ['bengaluru'],
-  'chennai': ['chennai'],
-  'hyderabad': ['hyderabad'],
-  'kolkata': ['kolkata']
+  'bengaluru': ['bengaluru', 'mysuru'],
+  'chennai': ['chennai', 'vellore', 'kanchipuram', 'thiruvallur'],
+  'vellore': ['vellore', 'chennai', 'kanchipuram'],
+  'hyderabad': ['hyderabad', 'secunderabad'],
+  'kolkata': ['kolkata', 'howrah']
 };
 
 const getNearbyCities = (city) => {
@@ -218,6 +220,7 @@ const findMatches = async (opportunityId) => {
       );
 
       newMatches.push(matchDoc);
+      notifyMatchFound(matchDoc, opportunity, provider, { _id: opportunity.customerId || opportunity.customer });
       console.log(`[MATCHMAKING ENGINE] Created Match -> Match ID: ${matchDoc._id} | Request ID: ${opportunity._id} | Customer ID: ${opportunity.customer} | Provider ID: ${provider._id} | Score: ${matchDoc.score}`);
     }
 

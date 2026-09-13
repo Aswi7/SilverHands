@@ -87,12 +87,13 @@ const getNearbyRequests = async (req, res) => {
       'delhi': ['delhi', 'noida', 'gurugram'],
       'noida': ['noida', 'delhi', 'gurugram'],
       'gurugram': ['gurugram', 'delhi', 'noida'],
-      'mumbai': ['mumbai', 'pune'],
+      'mumbai': ['mumbai', 'pune', 'thane'],
       'pune': ['pune', 'mumbai'],
-      'bengaluru': ['bengaluru'],
-      'chennai': ['chennai'],
-      'hyderabad': ['hyderabad'],
-      'kolkata': ['kolkata']
+      'bengaluru': ['bengaluru', 'mysuru'],
+      'chennai': ['chennai', 'vellore', 'kanchipuram', 'thiruvallur'],
+      'vellore': ['vellore', 'chennai', 'kanchipuram'],
+      'hyderabad': ['hyderabad', 'secunderabad'],
+      'kolkata': ['kolkata', 'howrah']
     };
 
     const getNearbyCities = (city) => {

@@ -43,6 +43,21 @@ import ErrorBoundary from '../components/ErrorBoundary';
 import { useAccessibility, SpeakerButton } from '../context/AccessibilityContext';
 import { forecastData } from '../data/forecastData';
 
+const formatTimeAgo = (dateStr) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  const now = new Date();
+  const diffSec = Math.floor((now - date) / 1000);
+  if (diffSec < 60) return 'Just now';
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  return `${diffDay}d ago`;
+};
+
 const UserDashboard = ({ onNavigate }) => {
   const { t, i18n } = useTranslation();
   const { user, logout, updateUserInState } = useAuth();
@@ -68,11 +83,12 @@ const UserDashboard = ({ onNavigate }) => {
 
   const updateApplicationStatus = async (appId, newStatus) => {
     try {
-      await api.patch(`/applications/${appId}/${newStatus === 'completed' ? 'complete' : newStatus === 'in_progress' ? 'check-in' : 'status'}`, { status: newStatus });
-      setApplications(applications.map(app => app._id === appId ? { ...app, status: newStatus } : app));
+      await api.put(`/applications/${appId}/status`, { status: newStatus });
+      setApplications(applications.map(app => 
+        app._id === appId ? { ...app, status: newStatus } : app
+      ));
     } catch (err) {
       console.error(err);
-      alert('Failed to update status');
     }
   };
 
@@ -88,12 +104,47 @@ const UserDashboard = ({ onNavigate }) => {
   // Saved/Bookmarked Matches
   const [bookmarkedIds, setBookmarkedIds] = useState([]);
 
-  // Mock Notifications
-  const [notifications, setNotifications] = useState([
-    { id: 1, text: "Asha Devi matched with your cooking skill!", time: "5m ago", unread: true },
-    { id: 2, text: "New English tutoring opportunity nearby", time: "2h ago", unread: true },
-    { id: 3, text: "Application confirmed for Math Tuitions", time: "1d ago", unread: false }
-  ]);
+  // Dynamic Notifications State
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+
+  const fetchNotifications = async () => {
+    if (!user?._id) return;
+    try {
+      const { data } = await api.get('/notifications');
+      if (Array.isArray(data)) {
+        setNotifications(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await api.patch('/notifications/read-all');
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error('Failed to mark notifications read:', err);
+    }
+  };
+
+  const handleMarkRead = async (id) => {
+    try {
+      await api.patch(`/notifications/${id}/read`);
+      setNotifications(prev => prev.map(n => (n._id === id || n.id === id) ? { ...n, read: true } : n));
+    } catch (err) {
+      console.error('Failed to mark notification read:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user?._id) {
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 8000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
   // Forecast state
   const [showForecastModal, setShowForecastModal] = useState(false);
@@ -279,7 +330,6 @@ const UserDashboard = ({ onNavigate }) => {
       setIsCreatingListing(false);
     }
   };
-  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
 
   // Profile AI Extraction State
   const [bioText, setBioText] = useState('');
@@ -872,22 +922,41 @@ const UserDashboard = ({ onNavigate }) => {
                 aria-label="Notifications"
               >
                 <Bell className="h-5 w-5" />
-                {notifications.filter(n => n.unread).length > 0 && (
+                {notifications.filter(n => !n.read).length > 0 && (
                   <span className="absolute top-1 right-1 h-2.5 w-2.5 rounded-full bg-terracotta" />
                 )}
               </button>
 
               {/* Notification Dropdown panel */}
               {showNotifDropdown && (
-                <div className={`absolute right-0 mt-2 w-80 rounded-2xl p-4 z-50 text-left ${cardTheme}`}>
-                  <h4 className="font-bold border-b pb-2 mb-2">Notifications</h4>
-                  <div className="flex flex-col gap-2.5">
-                    {notifications.map(n => (
-                      <div key={n.id} className="text-xs flex flex-col gap-1 border-b pb-2 last:border-0 border-cream-dark/30">
-                        <p className={`${n.unread ? 'font-bold' : ''}`}>{n.text}</p>
-                        <span className="text-gray-400 font-mono">{n.time}</span>
-                      </div>
-                    ))}
+                <div className={`absolute right-0 mt-2 w-80 rounded-2xl p-4 z-50 text-left shadow-xl ${cardTheme}`}>
+                  <div className="flex justify-between items-center border-b pb-2 mb-2">
+                    <h4 className="font-bold text-sm">Notifications</h4>
+                    {notifications.some(n => !n.read) && (
+                      <button 
+                        onClick={handleMarkAllRead}
+                        className="text-xs text-terracotta hover:underline font-semibold"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <p className="text-xs text-gray-400 py-3 text-center">No notifications yet</p>
+                    ) : (
+                      notifications.map(n => (
+                        <div 
+                          key={n._id || n.id} 
+                          onClick={() => handleMarkRead(n._id || n.id)}
+                          className={`text-xs flex flex-col gap-1 border-b pb-2 last:border-0 border-cream-dark/30 cursor-pointer p-2 rounded-xl transition-colors ${!n.read ? 'bg-amber-50/60 font-semibold' : 'opacity-80'}`}
+                        >
+                          <p className="text-charcoal font-medium">{n.title || n.text}</p>
+                          {n.message && <p className="text-gray-600 font-sans text-[11px] font-normal">{n.message}</p>}
+                          <span className="text-gray-400 font-mono text-[10px]">{formatTimeAgo(n.createdAt) || n.time || 'Recently'}</span>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
               )}
