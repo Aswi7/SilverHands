@@ -656,9 +656,6 @@ GEMINI_API_KEY=your_gemini_api_key
 PORT=5000
 ```
 
-Add any other environment variables required by the project.
-
-**Never commit your `.env` file or API keys to GitHub.**
 
 ---
 
